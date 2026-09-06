@@ -272,3 +272,150 @@ fn receipts_append_as_versioned_jsonl_and_read_back() {
     assert_eq!(log.unreadable_lines, 0);
     assert_eq!(log.receipts[0].sha256, receipt.sha256);
 }
+
+/// `warrantor <command> --root <root> <rest...>`. The command must be the first token
+/// (`parse_tokens` takes it as such, bin/warrantor.rs:305), and `--root` must precede any `--`
+/// or it would be swallowed into the agent's own command line.
+fn warrantor(root: &Path, args: &[&str]) -> std::process::Output {
+    let (command, rest) = args.split_first().expect("a command");
+    std::process::Command::new(artifact())
+        .arg(command)
+        .arg("--root")
+        .arg(root)
+        .args(rest)
+        .output()
+        .expect("run warrantor")
+}
+
+fn stdout(out: &std::process::Output) -> String {
+    String::from_utf8_lossy(&out.stdout).to_string()
+}
+fn stderr(out: &std::process::Output) -> String {
+    String::from_utf8_lossy(&out.stderr).to_string()
+}
+
+fn wait_for_completion(root: &Path, id: &str) -> warrantor_warrant::daemon::CompletionRecord {
+    let state = warrantor_warrant::daemon::DaemonState::open(root).expect("state");
+    for _ in 0..60 {
+        if let Some(done) = state.completion(id) {
+            return done;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
+    panic!("the detached supervisor for {id} never recorded completion");
+}
+
+#[test]
+fn grant_with_exec_pins_and_run_refuses_or_admits_by_bytes_through_the_real_binary() {
+    let root = tempdir("cli").join(".warrantor");
+    let digest_out = warrantor(&root, &["exec", "digest", &artifact().to_string_lossy()]);
+    assert!(digest_out.status.success(), "{}", stderr(&digest_out));
+    let digest = stdout(&digest_out)
+        .split_whitespace()
+        .next()
+        .expect("digest")
+        .to_string();
+    assert_eq!(digest.len(), 64);
+
+    let grant = warrantor(
+        &root,
+        &[
+            "grant",
+            "--goal",
+            "exec gate",
+            "--tools",
+            "git",
+            "--exec",
+            &format!("process={digest}"),
+        ],
+    );
+    assert!(grant.status.success(), "{}", stderr(&grant));
+    let id = stdout(&grant)
+        .lines()
+        .next()
+        .and_then(|l| l.split_whitespace().nth(1))
+        .expect("warrant id")
+        .to_string();
+
+    // Same name, different bytes: refused at preflight, no supervisor log, receipt written.
+    let dir = tempdir("cli-artifacts");
+    let modified = dir.join(if cfg!(windows) {
+        "warrantor.exe"
+    } else {
+        "warrantor"
+    });
+    let mut bytes = std::fs::read(artifact()).expect("read");
+    bytes.push(0x00);
+    std::fs::write(&modified, &bytes).expect("write");
+    let refused = warrantor(
+        &root,
+        &["run", &id, "--", &modified.to_string_lossy(), "--help"],
+    );
+    assert!(!refused.status.success());
+    assert!(
+        stderr(&refused).contains("gate artifacts"),
+        "{}",
+        stderr(&refused)
+    );
+    assert!(
+        !root.join("logs").join(format!("{id}.log")).exists(),
+        "no supervisor was started"
+    );
+    let log = exec::read_for(&root, &id);
+    assert_eq!(log.receipts.len(), 1);
+    assert_eq!(
+        (log.receipts[0].phase, log.receipts[0].verdict),
+        (ExecPhase::Preflight, ExecVerdict::Refused)
+    );
+
+    // Renamed, byte-identical: admitted at preflight AND at spawn, and it runs to completion.
+    let renamed = dir.join(if cfg!(windows) {
+        "renamed.exe"
+    } else {
+        "renamed"
+    });
+    std::fs::copy(artifact(), &renamed).expect("copy");
+    let admitted = warrantor(
+        &root,
+        &["run", &id, "--", &renamed.to_string_lossy(), "--help"],
+    );
+    assert!(admitted.status.success(), "{}", stderr(&admitted));
+    let done = wait_for_completion(&root, &id);
+    assert_eq!(done.exit_code, 0);
+    let log = exec::read_for(&root, &id);
+    let phases: Vec<(ExecPhase, ExecVerdict)> =
+        log.receipts.iter().map(|r| (r.phase, r.verdict)).collect();
+    assert_eq!(
+        phases,
+        vec![
+            (ExecPhase::Preflight, ExecVerdict::Refused),
+            (ExecPhase::Preflight, ExecVerdict::Admitted),
+            (ExecPhase::Spawn, ExecVerdict::Admitted),
+        ]
+    );
+    assert!(
+        log.receipts.iter().all(|r| r.sha256.len() == 64),
+        "every EXEC receipt carries the digest"
+    );
+
+    let shown = warrantor(&root, &["exec", "log", &id]);
+    assert!(shown.status.success());
+    assert!(
+        stdout(&shown).contains("spawn") && stdout(&shown).contains(&digest),
+        "{}",
+        stdout(&shown)
+    );
+}
+
+#[test]
+fn grant_refuses_an_admission_that_is_a_name_and_a_surface_with_no_gate() {
+    let root = tempdir("cli-bad").join(".warrantor");
+    for bad in ["process=/usr/bin/python3", "shell=aaaa"] {
+        let out = warrantor(
+            &root,
+            &["grant", "--goal", "g", "--tools", "git", "--exec", bad],
+        );
+        assert!(!out.status.success(), "{bad} was accepted");
+        assert!(stderr(&out).contains("--exec"), "{}", stderr(&out));
+    }
+}

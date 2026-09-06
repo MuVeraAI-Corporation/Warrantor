@@ -494,6 +494,7 @@ warrantor — bounded authority for coding agents
 
   grant   --goal G --tools T,T --write P,P [--deadline 8h] [--repo .] [--egress H,H]
           [--egress-capability NAME,NAME] [--budget CENTS] [--subject <id>]
+          [--exec process=<sha256> ...]
   list
   holdings
   prune   [--apply]
@@ -521,6 +522,7 @@ warrantor — bounded authority for coding agents
   void    <warrant-id>
   stage   <warrant-id> --tool T [--target H] [--arg k=v ...]
   run     <warrant-id> -- <command> [args...]
+  exec    digest <path> | log <warrant-id>
   status
   mcp     [--agent <warrant-id>] [--observe] [--guard [--guard-model M] ...]
           [--upstream 'name=command args' ...] [--upstream-timeout 30s]
@@ -762,7 +764,15 @@ bound is refused at the moment of action is the MCP proxy, which sees only what
 the agent routes through it. In the first live dogfood an agent granted
 --write 'src/**' wrote tests/__pycache__/ and nothing refused it. Every warrant
 reports which of its bounds are Enforced, Mediated and Observed -- read that, and
-compose with a sandbox if you need writes stopped as they happen.";
+compose with a sandbox if you need writes stopped as they happen.
+
+Exec pins WHICH BYTES may run as the supervised agent. With one or more --exec
+admissions the warrant is strict: warrantor run hashes the resolved program and
+refuses anything not admitted, before it exists, and the refusal names the gate and
+the attempted digest, never the admitted set. Without --exec the digest is still
+recorded on every run and nothing is refused. Digest pinning does not make the
+pinned artifact safe; it makes WHICH CODE a policy question. It sees only what
+Warrantor spawns: the agent's own shell is beyond it.";
 
 fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     let Some(goal) = args.flags.get("goal") else {
@@ -833,6 +843,20 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         Ok(id) => id,
         Err(e) => return fail(&e),
     };
+    let mut exec_admissions = BTreeSet::new();
+    for raw in args.all("exec") {
+        match warrantor_warrant::exec::ExecAdmission::parse(raw) {
+            Ok(admission) => {
+                exec_admissions.insert(admission);
+            }
+            Err(e) => return fail(&format!("--exec {raw:?}: {e}")),
+        }
+    }
+    let exec = if exec_admissions.is_empty() {
+        None
+    } else {
+        Some(exec_admissions)
+    };
     let bounds = WarrantBounds {
         tools,
         write_paths: csv(args.flags.get("write")),
@@ -842,7 +866,7 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         expires_at: now() + deadline,
         budget_cents_observed: budget_cents,
         delegation_depth: 3,
-        exec: None,
+        exec,
     };
 
     let warrant = match Warrant::grant(
@@ -908,6 +932,15 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         "expires  {} ({}s from now)",
         stored.warrant.claims.bounds.expires_at, deadline
     );
+    match &stored.warrant.claims.bounds.exec {
+        Some(set) => println!(
+            "exec     strict: {} admitted artifact(s); anything else is refused at spawn",
+            set.len()
+        ),
+        None => {
+            println!("exec     unpinned: digests are recorded on every run, nothing is refused")
+        }
+    }
     if let Some(tree) = &worktree {
         println!("worktree {}", tree.path.display());
         println!("branch   {}", tree.branch);
@@ -3454,6 +3487,44 @@ fn cmd_run(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         }
     }
 
+    // Preflight of the EXEC gate, so a refusal is seen at the terminal rather than only in a
+    // detached daemon's log. Advisory: the gating decision is the supervisor's, at spawn, on a
+    // fresh digest -- a file can change between these two moments and the spawn receipt is the
+    // one that says what ran.
+    let program = args
+        .trailing
+        .first()
+        .map(String::as_str)
+        .unwrap_or_default();
+    let preflight = match warrantor_warrant::exec::admit(
+        stored.warrant.claims.bounds.exec.as_ref(),
+        warrantor_warrant::exec::ExecSurface::Process,
+        program,
+        stored.worktree.as_deref(),
+        id,
+        warrantor_warrant::exec::ExecPhase::Preflight,
+        now(),
+    ) {
+        Ok(receipt) => receipt,
+        Err(e) => return fail(&format!("cannot admit {program:?}: {e}")),
+    };
+    if let Err(e) = warrantor_warrant::exec::record(root, &preflight) {
+        return fail(&format!(
+            "exec receipt could not be written, so the run was not started: {e}"
+        ));
+    }
+    if preflight.verdict == warrantor_warrant::exec::ExecVerdict::Refused {
+        return fail(&warrantor_warrant::exec::refusal_sentence(&preflight));
+    }
+    println!(
+        "  exec          : {} sha256 {}",
+        match preflight.verdict {
+            warrantor_warrant::exec::ExecVerdict::Admitted => "admitted",
+            _ => "unpinned (recorded, not refused)",
+        },
+        preflight.sha256
+    );
+
     let Ok(exe) = std::env::current_exe() else {
         return fail("cannot locate the warrantor executable to re-launch as a daemon");
     };
@@ -5043,6 +5114,57 @@ fn cmd_supervise(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         Ok(0) => ExitCode::SUCCESS,
         Ok(_) => ExitCode::FAILURE,
         Err(e) => fail(&e),
+    }
+}
+
+/// `warrantor exec <digest <path> | log <warrant-id>>`: the EXEC admission helpers (L4-05).
+fn cmd_exec(args: &Args, root: &Path) -> ExitCode {
+    match args.positional.first().map(String::as_str) {
+        Some("digest") => {
+            let Some(path) = args.positional.get(1) else {
+                return fail("usage: warrantor exec digest <path>");
+            };
+            let path = std::path::Path::new(path);
+            match warrantor_warrant::exec::sha256_file(path) {
+                Ok((sha256, bytes)) => {
+                    println!("{sha256}  {bytes} bytes  {}", path.display());
+                    ExitCode::SUCCESS
+                }
+                Err(e) => fail(&e),
+            }
+        }
+        Some("log") => {
+            let Some(id) = args.positional.get(1) else {
+                return fail("usage: warrantor exec log <warrant-id>");
+            };
+            let log = warrantor_warrant::exec::read_for(root, id);
+            if log.receipts.is_empty() && log.unreadable_lines == 0 {
+                println!(
+                    "no exec receipts for {id} on this machine. Receipts are written by \
+                 `warrantor run` (preflight) and the supervisor (spawn)."
+                );
+                return ExitCode::SUCCESS;
+            }
+            for receipt in &log.receipts {
+                // Phase, verdict and surface print as the wire spells them: Debug lowercased,
+                // surface via its own word, so a reader meets one spelling of each.
+                let phase = format!("{:?}", receipt.phase).to_lowercase();
+                let verdict = format!("{:?}", receipt.verdict).to_lowercase();
+                let surface = receipt.surface.word().to_string();
+                println!(
+                    "{}  {}  {}  {}  {}  {}",
+                    receipt.at, phase, verdict, surface, receipt.sha256, receipt.path
+                );
+            }
+            if log.unreadable_lines > 0 {
+                println!("unreadable lines: {}", log.unreadable_lines);
+            }
+            ExitCode::SUCCESS
+        }
+        Some(other) => fail(&format!(
+            "unknown exec verb {other:?}. warrantor exec has two: digest <path>, log <warrant-id>."
+        )),
+        None => fail("usage: warrantor exec digest <path>\n       warrantor exec log <warrant-id>"),
     }
 }
 
@@ -7051,6 +7173,7 @@ fn main() -> ExitCode {
         "void" => cmd_void(&args, &store, &root),
         "stage" => cmd_stage(&args, &store),
         "run" => cmd_run(&args, &store, &root),
+        "exec" => cmd_exec(&args, &root),
         "supervise" => cmd_supervise(&args, &store, &root),
         "status" => cmd_status(&store, &root),
         "mcp" => cmd_mcp(&args, store, &root),
