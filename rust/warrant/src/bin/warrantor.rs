@@ -35,6 +35,7 @@ use warrantor_warrant::corpus;
 use warrantor_warrant::daemon::{
     process_is_alive, supervise_run, DaemonState, Reconciliation, SuperviseRequest,
 };
+use warrantor_warrant::effects::{self, Decomposition, DecompositionRegistry, UnclassifiedPolicy};
 use warrantor_warrant::egress::{
     render_decision, EgressBroker, EgressVerdict, BROKER_VERSION, ENFORCEMENT_NOTE,
 };
@@ -269,6 +270,7 @@ const VALUELESS_FLAGS: &[&str] = &[
     "allow-settle",
     "allow-notify-command",
     "i-accept-cleartext-on-this-network",
+    "upstream-strict",
     "upstream-refuse-unclassified",
     "upstream-allow-lifecycle-tools-i-accept-this",
     "guard-enforce-untested-do-not-use",
@@ -387,43 +389,55 @@ fn csv(value: Option<&String>) -> BTreeSet<String> {
         .unwrap_or_default()
 }
 
-/// Read `--upstream-class '<published.tool>=<class>'` into a map.
+/// Build the session's decomposition registry: builtin, then every `--upstream-effects-file`,
+/// then every `--upstream-effects '<tool>=<verb>+<verb>'`, refusing conflicts and the old flag.
 ///
-/// The class an operator declares is what decides whether a call is staged, forwarded or refused,
-/// and until forwarding existed the question had one reachable answer — so the fallback that classes
-/// everything unknown as a read was invisible. It is not any more: an upstream `write_file` is
-/// forwarded rather than staged unless somebody says otherwise here.
+/// `--upstream-class` is refused by name rather than ignored. An ignored flag would forward as a
+/// read the very tool the operator typed the flag to protect, which is the guess this registry
+/// exists to end.
 ///
 /// # Errors
-/// The first malformed value, naming the four classes. A typo silently granting a weaker class is
-/// the failure this refusal exists to prevent.
-fn upstream_classes(args: &Args) -> Result<BTreeMap<String, SideEffectClass>, String> {
-    let mut classes = BTreeMap::new();
-    for raw in args.all("upstream-class") {
-        let Some((tool, word)) = raw.rsplit_once('=') else {
-            return Err(format!(
-                "--upstream-class takes tool=class, e.g. --upstream-class 'files.write_file=write';                  got {raw:?}"
-            ));
-        };
-        let class = match word.trim() {
-            "read" => SideEffectClass::Read,
-            "write" => SideEffectClass::Write,
-            "destructive" => SideEffectClass::Destructive,
-            "financial" => SideEffectClass::Financial,
-            other => {
-                return Err(format!(
-                    "{other:?} is not a side-effect class. The four are: read, write, destructive,                      financial. Refusing rather than defaulting -- a typo here would class a write                      as a read, and this build would forward it without staging."
-                ))
-            }
-        };
-        if classes.insert(tool.trim().to_string(), class).is_some() {
-            return Err(format!(
-                "{} is declared twice in --upstream-class. Two classes for one tool means whichever                  was parsed last decides what happens to it, which is not a decision anybody made.",
-                tool.trim()
-            ));
-        }
+/// The first malformed value, unreadable file, foreign format, or conflicting declaration.
+fn upstream_decompositions(args: &Args) -> Result<DecompositionRegistry, String> {
+    if let Some(raw) = args.all("upstream-class").first() {
+        return Err(format!(
+            "--upstream-class is no longer read; got --upstream-class {raw:?}. Tools are declared \
+             as effect syscalls now: --upstream-effects '<tool>=<verb>+<verb>' with verbs net, \
+             cred, exec, mutate, msg, spend, delegate, actuate, attest -- a former 'write' is \
+             usually 'mutate', a former 'destructive' is 'mutate+actuate', a former 'financial' \
+             is 'spend'. Refusing rather than ignoring: an ignored flag would forward the tool it \
+             named as a read."
+        ));
     }
-    Ok(classes)
+    let mut registry = DecompositionRegistry::builtin();
+    for path in args.all("upstream-effects-file") {
+        let body = std::fs::read_to_string(path)
+            .map_err(|e| format!("--upstream-effects-file {path}: {e}"))?;
+        let loaded = DecompositionRegistry::from_json(&body)
+            .map_err(|e| format!("--upstream-effects-file {path}: {e}"))?;
+        registry.merge(loaded)?;
+    }
+    for raw in args.all("upstream-effects") {
+        let mut one = DecompositionRegistry::new();
+        one.insert(Decomposition::parse(raw)?)?;
+        registry.merge(one)?;
+    }
+    Ok(registry)
+}
+
+/// Strict mode: `--upstream-strict`, or its earlier spelling.
+///
+/// The old spelling stays accepted so a harness config written last week does not silently lose
+/// its refusal: a renamed flag that is merely ignored turns a strict session into a guessing one
+/// with no message anywhere.
+fn upstream_policy(args: &Args) -> UnclassifiedPolicy {
+    if args.flags.contains_key("upstream-strict")
+        || args.flags.contains_key("upstream-refuse-unclassified")
+    {
+        UnclassifiedPolicy::Refuse
+    } else {
+        UnclassifiedPolicy::GuessRead
+    }
 }
 
 /// Read every `--upstream name=command args...` into a spec, in the order they were given.
@@ -510,8 +524,8 @@ warrantor — bounded authority for coding agents
   status
   mcp     [--agent <warrant-id>] [--observe] [--guard [--guard-model M] ...]
           [--upstream 'name=command args' ...] [--upstream-timeout 30s]
-          [--upstream-class '<tool>=read|write|destructive|financial' ...]
-          [--upstream-refuse-unclassified]
+          [--upstream-effects '<tool>=<verb>+<verb>' ...] [--upstream-effects-file <path> ...]
+          [--upstream-strict]   (verbs: net cred exec mutate msg spend delegate actuate attest)
   anchor  show | verify
   guard   doctor [--guard-endpoint URL] [--guard-model M] [--guard-num-ctx N]
           | bench --cases <file.jsonl>
@@ -1295,6 +1309,11 @@ fn cmd_verify(args: &Args, root: &Path) -> ExitCode {
         Some(f) if f == conformance::CONFORMANCE_RECEIPT_FORMAT => {
             verify_conformance_export(path, &body, anchor)
         }
+        Some(f) if f == effects::EFFECT_REGISTRY_FORMAT => fail(&format!(
+            "{path} is a {f} document: an effect registry, which is configuration, not evidence. \
+             Nothing in it is signed, so there is nothing here to verify. Load it with \
+             `warrantor mcp --upstream-effects-file {path}`."
+        )),
         Some(other) => fail(&format!(
             "{path} declares format {other:?}. warrantor verify reads {}, {}, {}, {} and {}.",
             report::REPORT_EXPORT_FORMAT,
@@ -5215,24 +5234,25 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                             timeout.as_secs()
                         );
                         endpoint = endpoint.with_upstreams(set);
-                        let declared = match upstream_classes(args) {
-                            Ok(map) => map,
+                        let decompositions = match upstream_decompositions(args) {
+                            Ok(registry) => registry,
                             Err(e) => return fail(&e),
                         };
-                        let refuse_unclassified =
-                            args.flags.contains_key("upstream-refuse-unclassified");
-                        if !declared.is_empty() || refuse_unclassified {
+                        let policy = upstream_policy(args);
+                        let declared =
+                            decompositions.len() - DecompositionRegistry::builtin().len();
+                        if declared > 0 || policy == UnclassifiedPolicy::Refuse {
                             eprintln!(
-                                "warrantor: upstream -- {} tool class(es) declared{}.",
-                                declared.len(),
-                                if refuse_unclassified {
-                                    "; an undeclared tool will be REFUSED"
+                                "warrantor: upstream -- {declared} tool decomposition(s) \
+                                 declared{}.",
+                                if policy == UnclassifiedPolicy::Refuse {
+                                    "; STRICT: an undeclared tool will be refused"
                                 } else {
                                     ""
                                 }
                             );
                         }
-                        endpoint = endpoint.with_classes(declared, refuse_unclassified);
+                        endpoint = endpoint.with_decompositions(decompositions, policy);
                         // Said once, at the terminal, to the person who can act on it. The model is
                         // not told: a tool that is granted but unreachable is a fact about wiring,
                         // and an agent cannot fix wiring.
@@ -5406,7 +5426,11 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                 let unclassified = endpoint.unclassified_tools();
                 if !unclassified.is_empty() {
                     eprintln!(
-                        "warrantor: upstream -- {} tool(s) were forwarded with a GUESSED side-effect class (read): {}. This build can only tell what a call does for the tools it stages; declare the rest with --upstream-class '<tool>=write' so a write is staged rather than performed.",
+                        "warrantor: upstream -- {} tool(s) had no declared effect decomposition: \
+                         {}. Under --upstream-strict they were refused; otherwise they were \
+                         forwarded with a GUESSED decomposition (read). Declare each with \
+                         --upstream-effects '<tool>=mutate' (or the verbs it really has) so a \
+                         write is staged rather than performed.",
                         unclassified.len(),
                         unclassified.join(", ")
                     );
