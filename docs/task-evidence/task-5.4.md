@@ -1,7 +1,11 @@
 # Task 5.4: common-mode independence analysis for double network isolation
 
 > **Rebased 2026-09-06** onto `main` at `065961b`; the merged-tree gate and the three conflict
-> resolutions are in the last section, *Review lane, phase 1*.
+> resolutions are in *Review lane, phase 1*. **A second adversarial review refuted this branch
+> again on 2026-09-06** (three lenses, twenty findings); every finding, its reproduction, its fix
+> or its refutation, and the regate on the final tip are in the last section, *Review lane,
+> phase 3: corrections after the second adversarial review*. Where a sentence above is marked
+> **[corrected, phase 3]** the section at the end carries the derivation.
 
 Branch `feat/task-5.4-network-common-mode`, based on **local `main` at `f9c3523`** — not
 `origin/main` at `e4b5f10`, which is 45 commits stale. Every number in the plan's Step 0 was measured
@@ -9,11 +13,13 @@ against `e4b5f10` and most of them are wrong for this base; the deviations are l
 
 **The one-sentence result.** L2-03 and L0-10 remain `status="none"`. What changed is that their
 absence is now measured, published in three places, and gated: a permitted destination is guarded by
-**one** independent intercept, the two "layers" are anti-correlated by a single warrant field, six of
-eight modeled axes are shared, and one previously uncalled decision surface is reachable as a second
-policy domain behind the same single enforcement point -- reachable, not reached: the shipped binary
-wires no secondary filter, so one engine decides in the product and two do once an operator wires the
-second. That distinction is a review correction; the first cut of this document published the operator
+**one** independent intercept, the two "layers" are anti-correlated by a single warrant field, seven of
+eight modeled axes are shared in a shipped run and six once a second engine is wired (**[corrected,
+phase 3]**: the first cut published only the wired configuration's six), and one previously uncalled
+decision surface is reachable as a second policy domain behind the same single enforcement point --
+reachable, not reached: the shipped binary wires no secondary filter, so one engine decides in the
+product and two do once a caller of the library wires the second (no CLI flag or configuration path
+reaches it; "once an operator wires" was the first cut's wording, withdrawn in phase 3). That distinction is a review correction; the first cut of this document published the operator
 number as the product'''s. See the CORRECTION section.
 
 Analysis document: [`docs/05-network-common-mode-analysis.md`](../05-network-common-mode-analysis.md).
@@ -223,18 +229,19 @@ because this change made them false; each is listed under Deviations.
 | `--unshare-net` for an empty `egress_hosts` | **Tier A — OS bound, but not created here and not observable** | The kernel enforces a network namespace and an agent cannot route around it. Two reasons it is not this task's claim: it is available **only** when the warrant permits no egress, so it never guards a permitted destination; and `sandbox::profile` *prints* argv — `PROFILE_CAVEAT` (lines 209-215) says Warrantor cannot tell whether the operator launched it. |
 | the independence **count** itself | **Observed** | It is a measurement of the configuration, not a refusal. Nothing is denied because the count is one. |
 
-**What escapes Tier B** is `egress::INDEPENDENCE_NOTE`. Its clauses are required within twelve lines
-of the rendered count on every surface that publishes it, by `note_accompanies_every_count` in the
-gate, and its own value is asserted by `the_note_names_all_three_absent_enforcement_mechanisms` and
-`the_notes_refuse_to_imply_a_second_boundary` in the Rust suite:
+**What escapes Tier B** is `egress::INDEPENDENCE_NOTE`. Its two load-bearing clauses are required
+within twelve lines of the rendered count on each of the **three render targets the gate names**
+(`docs/05`, `README.md`, `docs/W1-delivery-gaps.md`) by `note_accompanies_every_count`; this evidence
+file is not a render target and transcribes the gate's output without being one (**[corrected, phase
+3]**: the first cut said "every surface that publishes it"). Its value is asserted by
+`the_note_names_all_three_absent_enforcement_mechanisms` and
+`the_notes_refuse_to_imply_a_second_boundary` in the Rust suite, and `docs/05`'s paragraph is
+required to be this value verbatim by `analysis_paragraph_is_the_constant`. The value, byte-verbatim
+from `rust/warrant/src/egress.rs` at the final tip (the first cut's quotation added backticks the
+constant does not carry, and quoted a value that said "Two policy engines decide" -- both corrected
+in phase 3):
 
-> The count above is a count of enforcement points acting on a destination this warrant permits. Two
-> policy engines decide at that one point, so the engine count is a count of policy domains and is not
-> a second boundary: both engines run inside the Warrantor MCP proxy, so a shell command, a harness
-> built-in, or any socket the agent opens itself passes neither of them. There is no network
-> namespace, seccomp filter or firewall behind this count, and the confinement profile does not add
-> one for a warrant that permits any host -- it omits `--unshare-net` precisely then. A hostname that
-> resolves into a private or metadata range is not caught: neither engine resolves DNS.
+> The count above is a count of enforcement points acting on a destination this warrant permits. Every policy engine that decides a destination -- the broker always, and a second engine only once one is wired -- runs inside the Warrantor MCP proxy at that one point, so the engine count is a count of policy domains and is not a second boundary: a shell command, a harness built-in, or any socket the agent opens itself passes neither the proxy nor any engine inside it. There is no network namespace, seccomp filter or firewall behind this count, and the confinement profile does not add one for a warrant that permits any host -- it omits --unshare-net precisely then. A hostname that resolves into a private or metadata range is not caught: no engine at that point resolves DNS.
 
 **CORRECTED, twice.** This section used to claim the note was *"asserted onto every surface that
 prints the count"* by those two mechanisms. Neither did what the sentence said: the gate accepted the
@@ -613,7 +620,7 @@ NETIND=0
 PYTEST=0
 ```
 
-Two later commits exist: the one that pastes this capture into this file, and one that adds the fifteenth mutation row above. Nothing outside this
+Two later commits existed when this was written (the one that pastes this capture into this file, and one that adds the fifteenth mutation row above); the branch has grown since -- see the commit tables in phases 1 and 3. Nothing outside this
 markdown block changed, and `check_docs.py`, `check_us_english.py main` and
 `network_independence.py` were re-run at that commit -- the three gates a markdown edit can move --
 with identical output. `RUST_MIN_STACK=33554432` was exported for every cargo command: without it
@@ -651,7 +658,8 @@ what "refuted" meant.
 
 ### Not pushed, not merged
 
-Seven commits on `feat/task-5.4-network-common-mode`, based on local `main` at `f9c3523`: four for
+Seven commits on `feat/task-5.4-network-common-mode` when this was written (twelve after phase 1,
+twenty-one after phase 3), based on local `main` at `f9c3523`: four for
 the task, and three for the adversarial-review correction -- the fix, the record of what was wrong,
 and this capture. A human merges. Per [[merging parallel PRs safely]], rebase on the then-current `main` and re-run this gate
 before merging — Task 1.2 is editing `rust/warrant/src/egress.rs`, which this branch also edits, and
@@ -695,7 +703,7 @@ correct for the tree they were read from.
 
 > **Exit gate.** `python tools/ci/network_independence.py && cargo test -p warrantor-warrant --test network_independence -j 2 && python tools/ci/check_invariant_ratchet.py && python tools/ci/wiring_census.py` exits 0, with the ratchet line reading `invariant ratchet: ok (67 passing at floor 67, 19 recorded findings at ceiling 19)` and the census line reading `wiring census: 10 of 39 crates reachable`; any rendered independence count that does not match `evidence/network-independence.json` fails the first command by name.
 
-**RUN.** The chain was run verbatim on the final rebased tree (HEAD `60b8d4c`, base `main` @ `065961b`), from the repository root
+**RUN.** The chain was run verbatim on the rebased tree (labeled HEAD `60b8d4c` when written; the transcript file was captured after `d36bddd` was committed, and the two trees differ only in this file, which the chain does not read -- **[corrected, phase 3]**, which re-runs the chain at the final tip), from the repository root
 with the census invoked from `rust/` as CI does; the transcript is the block below, captured with
 the exit code taken before any pipe. The first clause holds: the chain exits 0. The two literal
 lines the plan predicts do **not** appear and cannot on any base after `e4b5f10`, because the plan
@@ -722,7 +730,7 @@ EXITGATE_EXIT=0
 The third clause — a rendered count that disagrees with the record fails the first command by name
 — was exercised on this tree by the rebase itself: `network_independence.py` exited 1 with four
 `does not cite ... line N` errors the moment `main`'s `proxy.rs` changes moved the anchors, and went
-green only after `0c342ab` re-derived them. That is the gate refusing a stale derivation, which is
+green only after `16f12ea` re-derived them (**[corrected, phase 3]**: the first cut cited `0c342ab`, a pre-rebase hash that is not on the branch). That is the gate refusing a stale derivation, which is
 the behavior the branch claims for it.
 
 So: the plan's run is performed and its exit condition is met; its two predicted numbers are stale
@@ -731,11 +739,15 @@ above, not the plan's.
 
 ### `main` moved four times while this lane ran
 
-`main` was `92b6018` when the lane started and `065961b` when it finished: `9bac709` (the
+`main` was `92b6018` when the lane started and `065961b` when it finished, seven commits: `775bfeb`
+(one Britishism in the 2.1 evidence -- omitted from the first cut of this list) and `9bac709` (the
 plan and its expansions), `68272e6` + `b950b36` (the US-English gate refuses a dirty tree; Task 2.1's
 evidence), `ed7c068` + `9292b03` (Britishisms on old lines of the delivery-gaps file), then `065961b`
 (American English across thirty-two documents). The first rebase produced the three conflicts below;
-the other three were conflict-free, because none of those commits touches a file this branch touches.
+the other three were conflict-free because their hunks did not overlap this branch's -- **not**
+because the file sets were disjoint, which the first cut claimed: `ed7c068`, `9292b03` and `065961b`
+all edit `docs/W1-delivery-gaps.md`, which this branch also edits (`comm -12` of the two `--name-only`
+lists prints exactly that file). **[corrected, phase 3]**
 **`rust/` on `main` is byte-identical from `9bac709` through `065961b`** (`git diff 9bac709 main
 -- rust` is empty), so every cargo run in this section tested exactly the Rust tree that HEAD holds.
 The non-cargo gates and the plan's exit-gate chain were re-run at the final HEAD; the full cargo gate
@@ -749,7 +761,7 @@ need another rebase before merge.
 | file | kind | settled how |
 |---|---|---|
 | `.gitignore` | union | `main`'s two new un-ignore lines (`stop-*.json`, `conformance-*.json`) kept, and this branch's `network-independence.json` un-ignore appended after them |
-| `README.md` | census artifact | `main`'s numbers taken for the census row (`13 of 41`, `28` orphaned) at each of the three commits that touched the row; this branch's prose tail on that row and its new "Independent network intercepts" row kept; then the record re-measured by `wiring_census.py --write` (`a7cabad`) |
+| `README.md` | census artifact | `main`'s numbers taken for the census row (`13 of 41`, `28` orphaned) at each of the three commits that touched the row; this branch's prose tail on that row and its new "Independent network intercepts" row kept; then the record re-measured by `wiring_census.py --write` (`cad254a`; the first cut cited the pre-rebase hash `a7cabad`) |
 | `rust/warrant/src/proxy.rs` | code, three hunks | **both behaviors kept.** `main`'s Task 2.1 fields (`vocabulary`, `pending`, `resolved_names`) and methods (`with_vocabulary`, `resolve_destinations`, `take_egress_decisions`) stand beside this branch's `secondary_refusals` field and `deny_secondary`. In `decide`, `main`'s `pending.push` of the broker's verdict runs first, the broker's `Deny` returns, and this branch's second engine runs after — the same order both sides had on their own |
 
 Every test on both sides passes on the merged tree: `main`'s `egress_broker_wiring` (which drains
@@ -843,7 +855,9 @@ python tools/ci/network_independence.py                     NETIND=0   (red on t
 ```
 
 **Numbers that moved from the branch's own capture, and why.** Suites `145 → 160` and passing
-`1525 → 1566`: `main` gained 38 commits (Task 2.1's decision log among them) and this gate ran `--all-targets`
+`1525 → 1566`: the cargo run was on base `9bac709`, 40 commits past `f9c3523` (Task 2.1's decision log
+among them; the first cut said 38, which is the count to `92b6018`, the base this section was first
+written against -- 45 is the count to `065961b`; **[corrected, phase 3]**), and this gate ran `--all-targets`
 plus `--doc` separately, so the two captures are not the same command; neither is wrong. Census
 `12 of 40 → 13 of 41` and edges `21 → 23`: `main` added a crate and an edge; this branch's edge is
 still exactly one of the 23, and orphans are `28` on both, so the count did not rise. Ratchet
@@ -859,7 +873,7 @@ the defect this repository has shipped three times.
 | bound | tier | what escapes it |
 |---|---|---|
 | `egress_hosts`, the broker | **Mediated** (Tier B) | any call that does not traverse the Warrantor MCP proxy: a shell command, a harness built-in, a socket the agent opens itself; and any hostname that resolves into a private or metadata range, because the broker does not resolve DNS |
-| `egress_hosts`, the second engine | **Mediated** (Tier B), same point | exactly the same set — it runs inside the same `Proxy::decide` loop, after the broker, deny-only; it adds a policy domain and no place of refusal. In a shipped run it is not wired at all |
+| `egress_hosts`, the second engine (booked under `secondary_filter` since phase 3) | **Mediated** (Tier B), same point | exactly the same set — it runs inside the same `Proxy::decide` loop, after the broker, deny-only; it adds a policy domain and no place of refusal. In a shipped run it is not wired at all |
 | the address floor (`hard_deny`) through either engine | **Mediated** (Tier B) | the same set again, plus: a defect in `hard_deny` escapes both engines at once, because both consult the one matcher |
 | `--unshare-net` for an empty `egress_hosts` | **Enforced** (Tier A) — not created here, not observable here | nothing at the socket layer, if the operator launched the printed profile; everything, if they did not, and this process cannot tell which. Never present for a warrant that permits any host |
 | the independence count | **Observed** | it refuses nothing; it is a measurement of the configuration |
@@ -874,7 +888,7 @@ Items 1–12 above stand. Added on the merged tree:
     Cannot occur in a shipped run; can occur the day an operator wires the filter.
 14. **This gate ran in the lane's worktree, on Windows, once.** Not a fresh detached checkout as the
     two captures above were, and not on Linux where CI runs. The tree was clean before and after every
-    command, every path the tests open is tracked, and the CRLF fragility was retired at `86487dd`;
+    command, every path the tests open is tracked, and the CRLF fragility was retired at `a71d8ac` (the first cut cited the pre-rebase hash `86487dd`);
     but the `#[cfg(windows)]` blind spot memory records cuts the other way too — nothing here proves
     the Linux run.
 15. **`edges: 23` is a count of manifest edges, not of calls.** The census reads `Cargo.toml`; it
@@ -882,6 +896,384 @@ Items 1–12 above stand. Added on the merged tree:
 
 ### Not pushed, not merged
 
-Twelve commits on `feat/task-5.4-network-common-mode`, now on `main` @ `065961b`. Nothing was
-pushed, nothing was merged, and no other worktree was written to. A human merges, one branch at a
+Twelve commits on `feat/task-5.4-network-common-mode` at the end of phase 1 (twenty-one after phase 3),
+now on `main` @ `065961b`. Nothing was pushed, nothing was merged, and this lane wrote to no other
+worktree. (The converse did not hold: during the second review another session wrote into *this*
+worktree -- see phase 3, finding E7.) A human merges, one branch at a
+time, per [[merging parallel PRs safely]].
+
+---
+
+## Review lane, phase 3: corrections after the second adversarial review (2026-09-06)
+
+Three adversarial lenses reviewed the phase-1 tip `d36bddd`: claim-honesty (six findings), test-rigor
+by mutation (seven findings) and evidence-truth (seven findings). Two of the twenty are the same
+defect seen from two sides (the Rust cross-check that did not exist), and two more overlap (the
+pre-rebase hashes), so the section below closes **eighteen distinct findings**. Every one was
+reproduced at `d36bddd` with the reviewer's own command before anything was changed; the four
+surviving cargo mutations were re-applied to the clean tip in this lane's own target directory
+(`M:/wt-rv-5.4-target`, `-j 2`, disk guard before each) and each recompiled `warrantor-warrant` and
+exited 0 -- **four reproductions, four survivors**, files restored byte-identical. Nothing was
+disputed outright; one reviewer statement was found to understate the defect and one to misread a
+sentence, and both are recorded under the finding rather than argued with.
+
+**What the review established, again:** the figures were right and the words were wrong. The
+intercept count, the engine count in the product, the census, the ratchet and every gate output
+reproduced. What failed was a constant that stated a number true of a configuration the product does
+not run, a comment naming a test that did not exist, a bound label naming the bound that had just
+permitted the destination, four documented properties no test constrained, one vacuous derivation,
+one ungated tier word, and six numbers or hashes in this file that were carried instead of measured.
+
+**Commits, in order, on top of `d36bddd`** (identity from env vars, `git commit -s`, no push):
+
+| commit | finding(s) | what |
+|---|---|---|
+| `a6c469a` | C1, R7 | `INDEPENDENCE_NOTE` names no engine count; `docs/05`'s paragraph is required to BE the constant; the escape clause is asserted by value in Rust |
+| `3f9e224` | C2 = T6 | `the_gate_agrees_with_the_rust_answer` exists and reads the record; the record publishes the shared axes per configuration (7 in the product, 6 once wired) |
+| `1042600` | C4 | a second-engine refusal is booked under `secondary_filter`, printed naming the engine, and written down with destination and rule |
+| `eb77bcc` | (C4 follow-up), C7-anchor | the four `proxy.rs` anchors the previous commit moved, and the stale `lib.rs` anchor, re-derived -- the gate refused the tree until they were |
+| `969dca2` | Y7 | the egress tier word `docs/05` cites is in the citation needle, so `Enforced` on the page fails the build |
+| `3c91d86` | P2 | the broker-before-second-engine order is asserted where both engines would refuse |
+| `69fab3d` | R5, R6 | `normalized` is asserted against the engine's own decision; an absent operator file is `Err(Unreadable)` |
+| `eabdc71` | Y2, C5 | an empty product scan is refused; the configuration source is read off the constructor; "an operator wires" withdrawn, field renamed `policy_engines_once_the_second_is_wired` |
+| (this file) | C3, C6, E1-E7 | every evidence correction below, and the regate on the final tip |
+
+### Every finding, reproduced and closed
+
+Identifiers: **C** claim-honesty, **T/P/R/Y** test-rigor (the reviewer's own mutation labels),
+**E** evidence-truth. "Reproduced" is the command that showed it at `d36bddd`; "closed" is what
+changed and where.
+
+| # | claimed | true, as reproduced | closed |
+|---|---|---|---|
+| **C1** false-claim | `INDEPENDENCE_NOTE` "carries only the clauses that hold in every configuration" and is "printed under the count on every surface"; its value: "Two policy engines decide at that one point"; `docs/05` line 30 "through **both** engines", section 6 "Two policy engines decide" | `Proxy::new` sets `secondary: None`; `grep -c SecondaryFilter rust/warrant/src/bin/warrantor.rs` = 0; the record publishes `policy_engines_the_product_runs: 1`; no product code references the constant (grep: only tests and two doc comments). The T7 correction reached README, W1 and the record and never reached the constant or `docs/05` | `a6c469a`: the constant names no count and no engine plurality (asserted: no digit, none of seven spelled-out counts); its doc says where it is *required* (three render targets, twelve lines) instead of where it is printed (nowhere). `docs/05` sections 1 and 5 state that a shipped run decides with one engine, and its section-6 paragraph is now required to be the constant's value by `analysis_paragraph_is_the_constant`, which reads the literal out of `egress.rs` and joins the continuations |
+| **C2 = T6** false-claim | `network_independence.py:113`: "`the_gate_agrees_with_the_rust_answer` in the Rust suite is what keeps the two from drifting"; `egress.rs:574`: "the function the machine-readable record and the drills both read" | `grep -rn the_gate_agrees_with_the_rust_answer` found only the comment. The record is written from the Python `SHARED` literal and a hardcoded `intercepts=1`; flipping `clock` to `False` and running `--write` produced a publishable record disagreeing with `independence()` with nothing red | `3f9e224`: the test exists, reads `evidence/network-independence.json` and asserts every field against `independence()` for the product, the wired and the empty-bound configurations. Writing it exposed that the record's one `shared_axes` list was the *wired* answer (6 of 8) beside a *product* engine count (1); the record now carries `shared_axes_the_product_runs` (7) and `shared_axes_once_the_second_is_wired` (6). W1's "six of the eight ... only `credential` is not" (six shared, one not, of eight) states both configurations. Proof: `clock` flipped + `--write` -> `the_gate_agrees_with_the_rust_answer ... FAILED`, 15 passed, 1 failed, exit 101; Python and record restored byte-identical |
+| **C3** number-mismatch | `d36bddd`: "brings every SHA in the section onto main"; `0c342ab`, `a7cabad`, `86487dd` cited; "Two later commits exist"; "Seven commits"; chain "run at HEAD d36bddd" (record) vs "HEAD `60b8d4c`" (file) | `git merge-base --is-ancestor` -> not-in-branch for all three (their rebased forms are `16f12ea`, `cad254a`, `a71d8ac`); `git diff --stat 60b8d4c d36bddd` touches only this file | this file: the three hashes replaced with the ones on the branch, each marked; the two commit counts dated; the HEAD label corrected and the chain re-run at the final tip below |
+| **C4** minor | `deny_secondary`: "The bound label is still `egress_hosts`: it names the bound that refused" | the warrant's `egress_hosts` bound *permitted* the host: the broker returned `Allow` and `egress_refusals()` is empty (the suite's own assertion). The CLI printed `denied <tool> xN (egress_hosts)`. **The reviewer's "and persists that request" understated it:** `record_refusals` drops `egress_hosts` authority requests on purpose (the broker's refusals are written from `EgressRefusal`), and a second-engine refusal has no `EgressRefusal`, so it was written down **nowhere** | `1042600`: `proxy::SECONDARY_FILTER_BOUND` = `"secondary_filter"`; `serve::record_secondary_refusals` writes each one as an `Egress` record under that bound with destination, argument and the engine's own rule; `AgentEndpoint::secondary_refusals`; the CLI records and prints them naming the engine. Test: in-memory label beside the broker's control, then `record_refusals` writes 0 for the session and `record_secondary_refusals` writes 1, read back. Latent in every shipped run |
+| **C5** minor | `egress.rs:297`: "the gate publishes the second source"; README/record: "two decide once an operator wires the second" | `measure()` hardcoded `operator_file` for any product `.with_secondary_filter(`; a wiring from `default_deny()` would be published as reading a file it never opened. No operator can wire it: no CLI flag, no config path, no product caller of `from_operator_config` (`grep -c` = 0) | `eabdc71`: the source is read off the constructor the wiring file calls (three constructors, mirroring `SecondarySource::as_str`); a wiring with none or two is refused, not guessed. Field renamed `policy_engines_once_the_second_is_wired`; the gate line, the record's note, README and W1 say "once a caller of the library wires the second (no CLI flag or configuration path reaches it today)" |
+| **C6** minor | this file: clauses "required ... on every surface that publishes it" | `RENDER_TARGETS` names three files; this file publishes the count on five lines and is not one of them; its line 12 sits two hundred lines from the clauses | this file: the sentence names the three render targets and says this file is not one. Not made a render target: an evidence file transcribes gate output, and requiring the caveat beside every transcript line would gate the transcript rather than the claim. `docs/05` and the constant's doc say the same |
+| **P2** untested | "the broker's arm above returns before this runs" | the only attribution test wired a filter that *allowed* the outside host; moving the second engine ahead of the broker left three suites green twice. Reproduced here: `MUTATION P2: exit=0` on the clean tip | `3c91d86`: a test where both engines would refuse (warrant permits one host, default-deny filter, call to a host outside the warrant) asserts the warrant's bound refused, the broker's map holds it, the second engine's map is empty, and the agent's sentence names no engine that did not decide; then the permitted-host control on the same proxy. Under the mutation: 18 passed, 2 failed, exit 101 |
+| **R5** untested | `normalized`: "the form the filter actually decided against, which makes a normalization bypass visible" | no test read the field; `String::new()` left both suites green. Reproduced: `exit=0` | `69fab3d`: `API.GitHub.COM.` is placed in the warrant bound (the broker matches the bound verbatim and never normalizes, so the odd form has to be permitted to reach the second engine -- noted in the test), and the recorded form must equal the engine's own `decide(odd).normalized` and differ from the destination as named. Under the mutation: `assertion left == right failed`, 19 passed, 1 failed, exit 101 |
+| **R6** untested | `SecondaryConfigError`: "never a silent fallback"; `from_operator_config`: a missing file "is **not** an error to be swallowed" | only `Malformed` was asserted; `return Ok(Self::default_deny())` for an unreadable path left both suites green. Reproduced: `exit=0` | `69fab3d`: an absent path must be `Err(Unreadable { path })` naming the file, and the rendered error must carry the path. Under the mutation: 18 passed, 2 failed, exit 101 |
+| **R7** untested | the constant "is the bounding sentence for a Mediated bound"; Task 0.4 requires the escape clause | six clauses were pinned in Rust, not "passes neither"; `passes through both` left both suites green. Reproduced: `exit=0` | `a6c469a`: the escape clause is asserted by value in `network_independence.rs` and in the I-09 corpus. Under the mutation (re-pointed at the new wording): `the_notes_refuse_to_imply_a_second_boundary ... FAILED`, 84 passed, 1 failed, exit 101 |
+| **Y2** vacuous | `engines_the_product_runs`: "Derived now, from the product sources alone" | with `product_sources()` returning `[]` the gate printed the good answer and all 30 pytest cases passed. Reproduced: `exit=0`, `30 passed` | `eabdc71`: `wiring_sources()` refuses an empty scan and a scan that did not include `rust/warrant/src/proxy.rs`; `main()` reports the refusal by name and exits 1. Under the mutation: `::error::network independence: the product-source scan found no Rust files`, exit 1, pytest 7 failed |
+| **Y7** untested | `docs/05` line 162 cites `("egress_hosts", BoundStrength::Mediated)` at `lib.rs` line 692 | `Enforced` on the page passed the gate, `check_invariants.py`, `check_docs.py` and pytest. Reproduced: `exit=0`. And line 692 is the `write_paths` arm; the egress arm is 695 | `969dca2` (+ `eb77bcc`): the tier word is in the citation needle; the page must cite the word the source holds at the line it is on. Under the mutation: exit 1 naming `lib.rs` line 695; pytest 4 failed |
+| **E1** false-claim | "the other three were conflict-free, because none of those commits touches a file this branch touches" | `comm -12` of `git diff --name-only 92b6018..065961b` and `main..HEAD` prints `docs/W1-delivery-gaps.md` | this file: conflict-free because the hunks did not overlap, and the shared file is named |
+| **E2** number-mismatch | "main gained 38 commits" | `f9c3523..92b6018` = 38, `..9bac709` = 40 (the cargo run's base), `..065961b` = 45 | this file: 40, with the other two counts and what each is the count of |
+| **E3** minor | the seven commits `92b6018..065961b` listed as six | `git log --oneline 92b6018..065961b` has 7; `775bfeb` was missing | this file: listed |
+| **E4** minor | three hashes not on the branch | same as C3 | same as C3 |
+| **E5** minor | chain transcript labeled HEAD `60b8d4c` | the log's mtime (06:46:13) is after `d36bddd` (06:44:50); the trees differ only in this file | this file: the label corrected; the chain re-run at the final tip below |
+| **E6** minor | the `INDEPENDENCE_NOTE` blockquote "byte-verbatim" | backticks around `--unshare-net` that the constant does not carry | this file: re-quoted from the final constant, no backticks; `docs/05`'s copy is now gated against the constant so a Markdown paraphrase cannot recur there |
+| **E7** untested | this file: "no other worktree was written to" | **the sentence describes this lane's writes and stays true; the reviewer read it as a claim about others' writes, which it never was.** The hazard behind the reading is real: at 07:55:26 another session changed `"policy_engine" => secondary.is_none()` to `=> true` in *this* worktree's `egress.rs` while the reviewer's cargo run was compiling -- the shape of a test-rigor mutation from another session on the same worktree ([[concurrent session hazard]]). It was restored and the tree sha-matched the baseline afterward | nothing in code. This file records it, and the regate below was bracketed by a sha256 of every tracked file except this one, before and after, so a foreign write during the run would have been named rather than absorbed |
+
+**Two things found while closing, not in any finding.** (1) `docs/05` cited `lib.rs` line 692 for
+the egress tier arm; the arm is on 695 and 692 is `write_paths`. The claim-honesty lens had marked
+that anchor verified. (2) The broker matches the warrant bound verbatim and never normalizes: a call
+naming `API.GitHub.COM.` under a bound of `api.github.com` is refused as `NotInCatalog`. That refuses
+in the safe direction and is not changed here; the R5 test records it.
+
+### The mutation table at the final tip
+
+Every row was run at `the final tip` in this lane's target directory after the full gate below, by the
+same runner (`mutate.py`: one byte-exact replacement, the command, restore, sha256 compared). The
+cargo rows run `cargo test -p warrantor-warrant --test network_independence --test invariants -j 2
+--no-fail-fast`; every one recompiled `warrantor-warrant`.
+
+```text
+MUTATION P2: exit=101 restored=identical sha256=2c4e515e40b7
+    test result: ok. 85 passed; 0 failed; 15 ignored; 0 measured; 0 filtered out; finished in 0.70s
+    test the_broker_decides_before_the_second_engine_so_a_refusal_is_attributed_to_the_engine_that_made_it ... FAILED
+    test a_second_engine_refusal_is_attributed_to_the_engine_in_memory_and_on_disk ... FAILED
+    test result: FAILED. 18 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+MUTATION R5: exit=101 restored=identical sha256=fa0a76c25eb0
+    test result: ok. 85 passed; 0 failed; 15 ignored; 0 measured; 0 filtered out; finished in 0.52s
+    test the_normalized_form_travels_with_the_refusal_and_is_the_form_the_engine_decided_against ... FAILED
+    test result: FAILED. 19 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+MUTATION R6: exit=101 restored=identical sha256=fa0a76c25eb0
+    test result: ok. 85 passed; 0 failed; 15 ignored; 0 measured; 0 filtered out; finished in 0.52s
+    test an_unreadable_operator_file_is_a_refusal_to_build_a_filter_and_not_a_silent_default ... FAILED
+    test result: FAILED. 19 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+MUTATION R7: exit=101 restored=identical sha256=fa0a76c25eb0
+    test i09_failure_is_safe::the_notes_refuse_to_imply_a_second_boundary ... FAILED
+    test result: FAILED. 84 passed; 1 failed; 15 ignored; 0 measured; 0 filtered out; finished in 0.53s
+    test the_note_names_all_three_absent_enforcement_mechanisms ... FAILED
+    test result: FAILED. 19 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+MUTATION P3b: exit=101 restored=identical sha256=2c4e515e40b7
+    test result: ok. 85 passed; 0 failed; 15 ignored; 0 measured; 0 filtered out; finished in 0.49s
+    test a_second_engine_refusal_is_attributed_to_the_engine_in_memory_and_on_disk ... FAILED
+    test the_rendered_rule_is_the_engine_s_own_reason_and_not_one_literal ... FAILED
+    test through_the_proxy_the_second_engine_narrows_what_the_warrant_permitted ... FAILED
+    test the_normalized_form_travels_with_the_refusal_and_is_the_form_the_engine_decided_against ... FAILED
+    test result: FAILED. 16 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+MUTATION Y2: exit=1 restored=identical sha256=33e382c6e3d6
+    ::error::network independence: the product-source scan found no Rust files under rust/*/src; the engine count cannot be derived from nothing and is not publ
+    FAILED tools/ci/test_network_independence.py::test_the_real_repository_passes_the_gate
+    FAILED tools/ci/test_network_independence.py::test_the_recorded_measurement_is_the_measured_one
+    FAILED tools/ci/test_network_independence.py::test_the_engine_count_the_product_runs_is_derived_from_the_product_sources
+    FAILED tools/ci/test_network_independence.py::test_write_then_gate_round_trips
+    FAILED tools/ci/test_network_independence.py::test_a_tampered_record_field_fails_the_gate
+    FAILED tools/ci/test_network_independence.py::test_measure_is_a_pure_function_of_the_sources
+    ::error::network independence: the product-source scan found no Rust files under rust/*/src; the engine count cannot be derived from nothing and is not publ
+MUTATION Y7: exit=1 restored=identical sha256=324734dc6b5f
+    ::error::network independence: docs/05-network-common-mode-analysis.md: does not cite rust/warrant/src/lib.rs line 695 for '("egress_hosts", BoundStrength::
+    ::error::network independence: docs/05-network-common-mode-analysis.md: does not cite rust/warrant/src/lib.rs line 695 for '("egress_hosts", BoundStrength::
+    FAILED tools/ci/test_network_independence.py::test_the_real_repository_passes_the_gate
+    FAILED tools/ci/test_network_independence.py::test_every_citation_anchor_resolves_in_the_real_tree
+    FAILED tools/ci/test_network_independence.py::test_the_egress_tier_word_the_analysis_cites_is_derived_from_the_source
+    FAILED tools/ci/test_network_independence.py::test_write_then_gate_round_trips
+    ::error::network independence: docs/05-network-common-mode-analysis.md: does not cite rust/warrant/src/lib.rs line 695 for '("egress_hosts", BoundStrength::
+MUTATION D1: exit=1 restored=identical sha256=324734dc6b5f
+    ::error::network independence: docs/05-network-common-mode-analysis.md: the paragraph it calls egress::INDEPENDENCE_NOTE is not the constant's value. Expect
+MUTATION M2: exit=0 restored=identical sha256=33e382c6e3d6
+    test the_gate_agrees_with_the_rust_answer ... FAILED
+    test result: FAILED. 19 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+evidence/network-independence.json: OK
+STATUS_END=[]
+```
+
+### The full gate on the final tip, exactly as measured
+
+Worktree `M:/wt-w3-5.4`, target `M:/wt-rv-5.4-target` (this lane's alone), `CARGO_BUILD_JOBS=2`,
+`disk_guard.py --require 100 && --require-commit 6` before every cargo invocation (all OK; the
+lowest reading across both runs was 9.1 GB of commit charge). Every exit code captured before any pipe. `git status --porcelain`
+was empty before the gate and after it (this file excepted, which cargo does not read). The cargo
+gate ran at the code tip `eabdc71`, and the commit that adds this section changes only this file, so `git diff eabdc71 HEAD -- rust tools evidence README.md docs/05-network-common-mode-analysis.md docs/W1-delivery-gaps.md` is empty at the final tip: the cargo gate tested exactly the tree the final tip holds outside this file. The non-cargo gates were run again on the final tree with this file in place, and their lines are the ones below.
+
+```text
+cargo fmt --all -- --check                                  FMT=0
+cargo clippy --workspace --all-targets -- -D warnings       CLIPPY=0
+cargo test --workspace --all-targets                        CARGO=0
+  120 suites, 1570 passed, 0 failed, 20 ignored   (summed over every `test result:` line)
+cargo test --workspace --doc                                DOC=0
+  40 suites, 1 passed, 0 failed, 0 ignored
+  => 160 suites, 1571 passed, 0 failed, 20 ignored
+  network_independence: 20 passed          invariants corpus: 85 passed, 15 ignored
+(cd rust && python ../tools/ci/wiring_census.py)            CENSUS=0
+  wiring census: 13 of 41 crates reachable from warrantor-warrant over 23 path edges
+python tools/ci/check_invariant_ratchet.py --show-findings  RATCHET=0
+  invariant ratchet: ok (85 passing at floor 85, 15 recorded findings at ceiling 15)
+  (its findings run prints `test result: FAILED. 1 passed; 14 failed` by design)
+python tools/ci/check_invariants.py                         LEDGER=0
+  invariant ledger: 12 invariants; enforced=2, orphaned=1, partial=8, unimplemented=1
+python tools/ci/check_docs.py                               DOCS=0
+  RESULT: PASS - 301 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
+python tools/ci/check_us_english.py main                    USEN=0   (at eabdc71, before this file changed)
+  us-english: 4858 added line(s) across 16 file(s), since main; matcher = vendored verify-us-english.mjs
+python tools/ci/check_us_english.py --files docs/task-evidence/task-5.4.md   (this file, every line, before commit)
+  us-english: ok
+  (the main-mode run at the final tip cannot be quoted by the commit it measures; it is in the LANE_STATUS record)
+python tools/ci/network_independence.py                     NETIND=0
+  network independence: 1 independent intercept on a permitted destination; 7 shared axes of 8 in the product, 6 once the second engine is wired; 1 policy engine decides in the product, 2 once a caller of the library wires the second (no CLI flag or configuration path reaches it today)
+(cd rust && python -m pytest ../tools/ci/test_network_independence.py \
+    ../tools/ci/test_wiring_census.py ../tools/ci/test_check_us_english.py -q)
+                                                            PYTEST=0   61 passed in 43.98s
+```
+
+Tracked-tree checksum before and after the cargo gate (every tracked file except this one):
+`TRACKED_TREE_UNCHANGED_DURING_GATE` on the first run, `TRACKED_TREE_UNCHANGED_DURING_GATE` on the second.
+
+**The first `cargo test --workspace --all-targets` on this tip exited 101 and is not the number
+above.** It stopped at suite 74 (831 passed, 1 failed, 4 ignored, fail-fast) on
+`supervise::tests::job_object_kills_the_child_tree_when_the_supervisor_drops` in
+`warrantor-warrant --lib`: *"ping ... (grandchild) survived the job handle closing"* -- a
+`#[cfg(windows)]` job-object test with a five-second budget, in a file this branch does not touch
+(`git diff main..HEAD -- rust/warrant/src/supervise.rs` is empty), which passed in phase 1's run and
+which CI never executes ([[windows rust paths are ungated]]). Run alone immediately afterward it
+exited 0 both times (`LIB_ALONE_1=0`, `LIB_ALONE_2=0`), and the whole workspace was then re-run with `--no-fail-fast`; the sums
+above are that second run's, and its `--doc` run is the second one too. The box was carrying this
+lane's cargo plus at least one other lane's during the first run (commit charge read as low as
+9.1 GB at a guard), which is the environment that test's budget is sensitive to. It is
+reported here rather than absorbed: a lane that sees it should check the box's load before reading
+it as its own.
+
+**Numbers that moved from phase 1, and why.** `network_independence` suite `15 -> 20`: five
+tests added (the cross-check, the order, the normalized form, the unreadable file, the durable
+record). Passing `1566 -> 1571`: those five and nothing removed. pytest `54 -> 61`: seven
+cases added to `test_network_independence.py` (the constant read from source, the paragraph gated
+both ways, the tier word, the constructor-derived source, the refused wiring, the refused empty scan).
+Ratchet `85 / 15`: unchanged, because the new Rust tests live in `network_independence.rs`, not the
+I-09 corpus; the corpus gained assertions, not tests. Census `13 of 41 / 23 edges`: unchanged, no
+manifest touched. Gate line: `7 shared axes of 8 in the product, 6 once the second engine is wired`
+replaces `6 shared axes of 8`, for the reason under C2.
+
+### The exit gate, re-run verbatim at `the final tip`
+
+```text
+network independence: 1 independent intercept on a permitted destination; 7 shared axes of 8 in the product, 6 once the second engine is wired; 1 policy engine decides in the product, 2 once a caller of the library wires the second (no CLI flag or configuration path reaches it today)
+network independence: ok
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.45s
+     Running tests\network_independence.rs (M:/wt-rv-5.4-target\debug\deps\network_independence-cbfc73113ec1a119.exe)
+
+running 20 tests
+test a_no_egress_warrant_is_the_only_two_layer_case_and_it_guards_nothing ... ok
+test a_repeated_refusal_is_counted_and_the_most_frequent_is_reported_first ... ok
+test drill_two_layer_b_removed_and_layer_a_must_still_refuse ... ok
+test drill_one_layer_a_removed_and_something_else_must_still_refuse ... ok
+test the_axes_are_asserted_not_described ... ok
+test the_broker_decides_before_the_second_engine_so_a_refusal_is_attributed_to_the_engine_that_made_it ... ok
+test the_count_sentence_labels_each_number_with_the_field_it_came_from ... ok
+test the_normalized_form_travels_with_the_refusal_and_is_the_form_the_engine_decided_against ... ok
+test the_gate_agrees_with_the_rust_answer ... ok
+test the_measurement_records_which_configuration_source_each_engine_read ... ok
+test the_note_names_all_three_absent_enforcement_mechanisms ... ok
+test the_proxy_reports_the_independence_of_the_configuration_it_is_actually_running ... ok
+test the_rendered_rule_is_the_engine_s_own_reason_and_not_one_literal ... ok
+test the_second_engine_allows_what_the_operator_permitted ... ok
+test an_unreadable_operator_file_is_a_refusal_to_build_a_filter_and_not_a_silent_default ... ok
+test the_second_engine_can_never_overturn_the_broker ... ok
+test through_the_proxy_the_second_engine_narrows_what_the_warrant_permitted ... ok
+test through_the_proxy_the_second_engine_cannot_overturn_the_broker ... ok
+test the_second_engine_can_be_built_from_a_real_operator_file ... ok
+test a_second_engine_refusal_is_attributed_to_the_engine_in_memory_and_on_disk ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 100 tests
+test adversary::every_finding_names_the_task_that_closes_it_and_no_finding_claims_a_refusal ... ok
+test adversary::the_module_doc_states_the_number_of_strategies_this_suite_actually_has ... ok
+test fixture::every_invariant_has_a_suite_module ... ok
+test i01_active_identity::the_local_subject_is_an_issued_identity_rather_than_a_constant ... ignored, I-01 currently violated: the CLI subject is a hardcoded constant, not an issued SVID (Task 3.1, 2026-09-02)
+test i01_active_identity::an_absent_svid_is_refused ... ok
+test i01_active_identity::an_expired_svid_cannot_carry_an_otherwise_valid_action ... ok
+test adversary::every_strategy_has_a_test_that_exists ... ok
+test fixture::statements_match_the_architecture_doc ... ok
+test i01_active_identity::the_identity_gate_is_declared_against_this_invariant ... ok
+test i03_purpose_bound_data_use::hop_02_a_shared_cache_read_for_another_purpose_is_refused ... ignored, I-03 unimplemented: bounds carry no purpose, so hop 2 is invisible to the boundary (2026-09-02)
+test i03_purpose_bound_data_use::hop_10_the_receipt_labels_the_provenance_of_what_drove_the_action ... ignored, I-03 unimplemented: receipts carry no provenance label for what drove the action (Task 2.6, 2026-09-02)
+test i03_purpose_bound_data_use::the_authorization_request_carries_a_purpose ... ignored, I-03 unimplemented: no purpose field on the authorization request; no plan task fixes it (2026-09-02)
+test i03_purpose_bound_data_use::the_receipt_carries_the_purpose_the_data_was_tagged_with ... ignored, I-03 unimplemented: the WAR predicate has no purpose field (2026-09-02)
+test i01_active_identity::the_products_own_notary_call_consults_a_revocation_source ... ok
+test i01_active_identity::hop_09_a_reused_third_party_credential_is_refused_at_the_identity_gate ... ok
+test i03_purpose_bound_data_use::the_notary_has_no_purpose_gate_and_does_not_pretend_to ... ok
+test i04_current_policy::a_policy_denial_refuses_the_action ... ok
+test i04_current_policy::a_policy_that_changes_after_the_start_check_denies_at_the_second_evaluation ... ok
+test i04_current_policy::the_post_commit_receipt_records_its_own_policy_evaluation ... ignored, I-04 partial: post-commit receipts copy the pre-commit decision block, so no commit-time evaluation is provable (Task 2.3, 2026-09-02)
+test i02_no_authority_expansion::a_capability_dropped_by_one_link_cannot_be_exercised ... ok
+test i04_current_policy::the_product_evaluates_policy_more_than_once_per_action ... ignored, I-04 partial: one notary call per action, so policy is never re-evaluated at commit (Task 2.3, 2026-09-02)
+test i04_current_policy::an_indeterminate_policy_is_a_denial_rather_than_a_pass ... ok
+test i05_bounded_revocation_latency::a_revocation_is_effective_within_the_decision_that_sees_it ... ok
+test i02_no_authority_expansion::a_forged_intersection_proof_is_refused_even_when_the_capability_set_is_honest ... ok
+test adversary::the_findings_are_exactly_the_strategies_the_delivery_gaps_document_names ... ok
+test i04_current_policy::the_policy_gate_is_declared_as_evaluated_now ... ok
+test i05_bounded_revocation_latency::a_revocation_landing_between_the_start_check_and_the_commit_stops_the_commit ... ok
+test i05_bounded_revocation_latency::hop_05_the_product_links_a_credential_vault_that_can_revoke ... ok
+test i06_exact_artifact_identity::an_unverified_digest_is_refused ... ok
+test i02_no_authority_expansion::the_chain_intersects_rather_than_unions ... ok
+test i02_no_authority_expansion::both_implementations_name_this_invariant_in_their_refusal ... ok
+test i02_no_authority_expansion::hop_06_a_forged_admin_token_does_not_survive_receipt_verification ... ok
+test i06_exact_artifact_identity::a_requester_cannot_vouch_for_its_own_artifact ... ok
+test i06_exact_artifact_identity::the_product_submits_artifacts_to_the_artifacts_gate ... ignored, I-06 partial: the product supplies no artifacts and no verified set, so the gate never fires (Task 2.2 / Task 2.4, 2026-09-02)
+test i05_bounded_revocation_latency::the_credential_revocation_budget_is_declared_as_one_second ... ok
+test i03_purpose_bound_data_use::hop_03_a_directory_name_channel_is_invisible_to_the_egress_boundary ... ok
+test i05_bounded_revocation_latency::a_revocation_source_exists_for_the_identity_half ... ok
+test i02_no_authority_expansion::the_intersection_proof_is_recomputable_by_a_stranger ... ok
+test i02_no_authority_expansion::the_two_intersection_implementations_still_agree ... ok
+test i08_non_delegable_human_authority::an_approval_names_the_human_who_gave_it ... ignored, I-08 partial: an approval carries no approver identity, so humanness is unrepresentable (Task 3.3, 2026-09-02)
+test i06_exact_artifact_identity::the_artifacts_gate_is_declared_against_this_invariant ... ok
+test i06_exact_artifact_identity::hop_08_a_substituted_plugin_body_is_refused_at_the_artifacts_gate ... ok
+test adversary::the_documents_ordinal_for_the_next_ignore_is_read_from_the_ratchet_and_not_from_the_plan ... ok
+test i07_evidence_precedes_commitment::the_commit_gate_names_this_invariant_in_its_refusal ... ok
+test i08_non_delegable_human_authority::an_invalid_approval_does_not_satisfy_the_gate ... ok
+test i08_non_delegable_human_authority::the_envelope_validator_checks_more_than_the_presence_of_an_approval ... ignored, I-08 partial: authority-spec accepts any non-empty approvals list (Task 3.3 / Task 4.1, 2026-09-02)
+test i08_non_delegable_human_authority::an_approval_that_was_itself_delegated_does_not_satisfy_the_gate ... ok
+test i08_non_delegable_human_authority::a_critical_action_with_no_approval_is_refused ... ok
+test adversary::substitution::a4_the_product_context_allows_a_verbatim_replay ... ok
+test i07_evidence_precedes_commitment::the_parent_receipt_field_is_the_proof_of_ordering ... ok
+test i08_non_delegable_human_authority::the_consequential_classes_are_the_ones_the_invariant_names ... ok
+test i09_failure_is_safe::an_unavailable_catalog_denies_rather_than_permits ... ok
+test i09_failure_is_safe::an_undeclared_budget_is_a_ceiling_of_zero_rather_than_unlimited ... ok
+test i09_failure_is_safe::an_empty_egress_allowlist_permits_nothing_rather_than_everything ... ok
+test i09_failure_is_safe::hop_01_an_impossible_task_fails_closed_rather_than_finding_a_route ... ok
+test i09_failure_is_safe::a_name_that_encodes_the_metadata_address_passes_both_engines_because_neither_resolves_dns ... ok
+test i09_failure_is_safe::the_product_links_the_preflight_that_refuses_an_unmeasured_boundary ... ignored, I-09 orphaned: eval-guard's fail-closed preflight is not linked by the warrantor binary (2026-09-02)
+test i05_bounded_revocation_latency::the_receipt_proves_which_action_the_revocation_stopped ... ok
+test i10_replay_is_detectable::the_product_remembers_the_nonces_it_has_already_seen ... ignored, I-10 partial: seen_nonces is hardcoded empty in report.rs, so no replay is detectable (Task 1.1 / Task 3.4, 2026-09-02)
+test i09_failure_is_safe::the_notes_refuse_to_imply_a_second_boundary ... ok
+test i09_failure_is_safe::the_only_second_layer_is_emitted_exactly_when_no_destination_is_permitted ... ok
+test i10_replay_is_detectable::the_freshness_gate_is_declared_against_this_invariant ... ok
+test i11_self_change_is_governed::every_denial_reason_the_broker_renders_can_actually_be_reached ... ignored, I-11 unimplemented at the broker: three DenyReason variants are rendered and never constructed (Task 2.5, 2026-09-02)
+test i11_self_change_is_governed::hop_04_a_redirect_out_of_the_resolved_set_is_refused ... ignored, I-11 unimplemented: the broker cannot observe a redirect, so hop 4 has no boundary (Task 2.5 / Task 5.2, 2026-09-02)
+test i11_self_change_is_governed::a_child_warrant_cannot_widen_the_bounds_it_was_delegated ... ok
+test i11_self_change_is_governed::an_unsigned_catalog_is_accepted_without_comment ... ok
+test i11_self_change_is_governed::hop_07_persistent_admin_users_cannot_be_added_to_a_warrant_derived_catalog ... ok
+test i11_self_change_is_governed::hop_07_the_broker_beneath_it_accepts_a_catalog_the_caller_extended ... ok
+test i11_self_change_is_governed::the_capability_token_has_no_field_that_could_grant_settle_authority ... ok
+test i11_self_change_is_governed::the_catalog_amendment_refusal_names_this_invariant ... ok
+test i06_exact_artifact_identity::the_receipt_records_the_refusal_without_naming_the_digest_that_failed ... ok
+test i09_failure_is_safe::the_egress_receipt_records_which_failure_closed_the_action ... ok
+test i07_evidence_precedes_commitment::the_product_issues_a_pre_commit_before_it_acts ... ok
+test i01_active_identity::the_receipt_records_the_identity_that_was_refused ... ok
+test i09_failure_is_safe::the_preflight_refusal_names_this_invariant ... ok
+test i10_replay_is_detectable::the_receipt_carries_the_nonce_that_makes_the_replay_visible ... ok
+test i08_non_delegable_human_authority::the_receipt_records_that_approval_was_the_gate_that_refused ... ok
+test i10_replay_is_detectable::a_captured_request_replayed_verbatim_is_refused ... ok
+test i10_replay_is_detectable::a_replay_with_a_refreshed_timestamp_is_still_refused_on_the_nonce ... ok
+test i10_replay_is_detectable::a_timestamp_outside_the_window_is_refused_in_both_directions ... ok
+test i12_safe_state_is_reachable::a_containment_pass_cannot_be_claimed_without_substantiated_elicitation ... ok
+test i12_safe_state_is_reachable::a_report_claiming_no_blind_spots_is_refused_outright ... ok
+test i12_safe_state_is_reachable::the_kill_path_is_stronger_than_advisory ... ignored, I-12 partial: promotion is per kernel via a drill receipt, and no kernel has earned one yet — this machine's drill cannot (existence checks measured at ~2.2s/tasklist exceed the budget); re-recorded 2026-09-05, Task 1.3
+test i12_safe_state_is_reachable::containment_holds_when_the_identity_plane_is_the_thing_that_failed ... ok
+test i12_safe_state_is_reachable::a_contained_scope_refuses_an_otherwise_perfect_request ... ok
+test i12_safe_state_is_reachable::the_containment_gate_is_declared_against_this_invariant ... ok
+test round_zero::the_chain_is_ten_hops_in_the_order_the_incident_ran_them ... ok
+test round_zero::every_hop_has_a_test ... ok
+test i07_evidence_precedes_commitment::a_two_phase_chain_verifies_end_to_end ... ok
+test i03_purpose_bound_data_use::the_absence_of_an_implementation_is_recorded_in_the_ledger ... ok
+test i12_safe_state_is_reachable::the_conformance_report_records_the_enforcement_mode_of_the_kill_path ... ok
+test i07_evidence_precedes_commitment::a_post_commit_pointing_at_a_different_pre_commit_is_refused ... ok
+test i07_evidence_precedes_commitment::an_orphan_post_commit_is_refused ... ok
+test adversary::forgery::a1_a_chain_forged_end_to_end_verifies_and_is_caught_only_by_the_anchor ... ok
+test adversary::mislabeling::a6_a_removed_limitation_fails_on_the_digest_and_a_forged_intersection_fails_on_the_proof ... ok
+test adversary::substitution::a3_a_genuine_receipt_lifted_onto_a_different_report_is_refused_as_a_binding ... ok
+test adversary::absence::a7_a_suppressed_receipt_is_indistinguishable_from_a_run_that_never_happened ... ok
+test adversary::forgery::a2_the_evidence_receipts_issuance_time_is_not_bound_to_the_report_it_covers ... ok
+test adversary::mislabeling::a9_the_bundles_rendered_mode_word_is_not_gated_against_the_receipts_on_the_verify_path ... ok
+test adversary::mislabeling::a5_a_mediated_per_effect_receipt_is_refused_even_when_the_bundle_does_not_list_it ... ok
+
+test result: ok. 85 passed; 0 failed; 15 ignored; 0 measured; 0 filtered out; finished in 0.53s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.45s
+     Running tests\invariants\main.rs (M:/wt-rv-5.4-target\debug\deps\invariants-a12a230b95869f37.exe)
+
+invariant ratchet: ok (85 passing at floor 85, 15 recorded findings at ceiling 15)
+wiring census: 13 of 41 crates reachable from warrantor-warrant over 23 path edges
+EXITGATE_EXIT=0
+```
+
+### The tier of every bound, re-read on the final tip
+
+Unchanged in tier from phase 1; two rows re-read against the changed code. Each Mediated row states
+what escapes it.
+
+| bound | tier | what escapes it |
+|---|---|---|
+| `egress_hosts`, the broker | **Mediated** (Tier B) | any call that does not traverse the Warrantor MCP proxy: a shell command, a harness built-in, a socket the agent opens itself; any hostname that resolves into a private or metadata range, because the broker does not resolve DNS; and a host written in a form the bound does not carry verbatim is refused rather than normalized, which is the safe direction |
+| the second engine, booked under `secondary_filter` | **Mediated** (Tier B), same point | exactly the same set: it runs inside the same `Proxy::decide` loop, after the broker, deny-only; it adds a policy domain and no place of refusal. In a shipped run it is not wired at all, and no CLI flag or configuration path can wire it -- only a Rust caller of the library |
+| the address floor (`hard_deny`) through either engine | **Mediated** (Tier B) | the same set again, plus a defect in `hard_deny` escapes both engines at once |
+| `--unshare-net` for an empty `egress_hosts` | **Enforced** (Tier A) -- not created here, not observable here | nothing at the socket layer if the operator launched the printed profile; everything if they did not, and this process cannot tell which. Never present for a warrant that permits any host |
+| the independence count | **Observed** | it refuses nothing; a measurement of the configuration |
+| the refusal log, now including second-engine refusals | **Observed** | written once at session end, unsigned, unchained; a refusal it lacks costs a tuning signal, not a guarantee, and no call is stopped by it |
+
+### What phase 3 does NOT establish
+
+Items 1-15 above stand. Added:
+
+16. **The shipped binary still wires no second engine.** Everything under C4 and C5 is exercised by
+    tests and by nothing a user runs; the record says `policy_engines_the_product_runs: 1` and that
+    number did not move.
+17. **`INDEPENDENCE_NOTE` is still rendered by no product code.** What changed is that its doc says
+    so, and that the one Markdown copy which claimed to be the constant is now gated against it. The
+    other two render targets carry the two required clauses in their own words, as before.
+18. **The anchors will move again.** Any line added above the destination loop in `proxy.rs` shifts
+    four citations in `docs/05`, and the gate refuses the tree until they are re-derived. That is the
+    intended behavior and it happened once inside this phase (`eb77bcc`).
+19. **The mutation table is the reviewer's mutations plus the ones that closed them, at this tip.**
+    It does not establish that no other survivor exists.
+
+### Not pushed, not merged
+
+Twenty-one commits on `feat/task-5.4-network-common-mode`, on `main` @ `065961b`, which did not
+move during this phase (`git merge-base --is-ancestor main HEAD` holds; checked last). Nothing was
+pushed, nothing was merged, and this lane wrote to no other worktree. A human merges, one branch at a
 time, per [[merging parallel PRs safely]].
