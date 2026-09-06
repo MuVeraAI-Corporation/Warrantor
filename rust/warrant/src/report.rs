@@ -784,6 +784,13 @@ fn limitations(
     // the hop count and the chain head are read off the record a reader can check, and the two
     // branches make two different claims because "no route was read" and "a route was read" are
     // different facts about the same bundle.
+    //
+    // Nothing in this crate calls `causal_verdict`: `build` records the route and `verify_export`
+    // checks integrity, so the sentence says the verdict was NOT computed here and who computes it.
+    // The first shipped wording said "is computed", in the present tense, about a computation the
+    // product never performs (claim-honesty review, 2026-09-06). The exact text below is pinned by
+    // `the_bundles_causal_sentence_is_rendered_from_the_section_it_describes` over two hop counts,
+    // so neither a stronger claim appended to it nor a hard-coded count survives that test.
     out.push(match causality {
         None => "No staged route was read when this report was built, so its evidence receipt \
                  carries no causality section, and a causal verdict over that receipt refuses as \
@@ -791,15 +798,19 @@ fn limitations(
                  staged."
             .to_string(),
         Some(section) => format!(
-            "The causal verdict is computed over the staged-effect order this notary recorded -- \
-             {} hop(s), pinned to staged-log chain head {} -- and it makes the recorded pathway \
-             tamper-evident: an operator cannot later rewrite the route without breaking a \
-             signature or that chain digest. It does **not** prove the recorded route is the route \
-             the agent actually took. Effects reach that record by being STAGED, and nothing \
-             intercepts the agent at each hop, so a route that never passed through the staging \
-             queue is invisible here. Ordering is this machine's observation of its own queue and \
-             not a distributed guarantee: two Warrantor installations produce two independent \
-             orders and nothing reconciles them.",
+            "No causal verdict was computed when this report was built, and `verify_export` \
+             computes none. A reader computes it with `warrantor_evidence::causal_verdict` over \
+             `evidence_receipt.predicate`, which records the staged-effect order this notary \
+             read -- {} hop(s), pinned to staged-log chain head {}. The signature over that record \
+             makes the recorded pathway tamper-evident to a reader who verifies it: an operator \
+             without the issuer key cannot rewrite the route undetected. An operator holding the \
+             issuer key can re-sign a different route, and nothing in this bundle shows that it \
+             happened; the verdict then judges whatever route was signed. It does **not** prove \
+             the recorded route is the route the agent actually took. Effects reach that record \
+             by being STAGED, and nothing intercepts the agent at each hop, so a route that never \
+             passed through the staging queue is invisible here. Ordering is this machine's \
+             observation of its own queue and not a distributed guarantee: two Warrantor \
+             installations produce two independent orders and nothing reconciles them.",
             section.step_count, section.queue_head,
         ),
     });

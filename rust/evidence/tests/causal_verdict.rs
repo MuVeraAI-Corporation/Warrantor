@@ -563,7 +563,9 @@ fn the_products_limitations_carry_the_tamper_evident_sentence_rather_than_a_proo
             .expect("report.rs is readable"),
     );
     for fragment in [
+        "No causal verdict was computed when this report was built",
         "makes the recorded pathway tamper-evident",
+        "An operator holding the issuer key can re-sign a different route",
         "does **not** prove the recorded route is the route the agent actually took",
         "not a distributed guarantee",
     ] {
