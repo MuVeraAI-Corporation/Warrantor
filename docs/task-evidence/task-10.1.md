@@ -975,11 +975,11 @@ inventing one: **claim-honesty 5 and evidence-truth 3, 4 and 5 are not recoverab
 what stands in their place is the re-derivation below, which found four further false or stale
 sentences of its own.
 
-**A note on the hashes below.** They are this branch's commits as of the tip that carries this
-section, on `main` @ `2463504`. Every rebase rewrites them -- this lane rebased twice and had to
-rewrite its own citations once already -- so where a claim has to survive that, the commit is named by
-its subject line instead. If a hash here does not resolve, the branch has been rebased again and the
-subject is the handle to search for.
+**Every fix below is named by its commit's subject line, not by a hash.** This lane rebased five
+times, `main` having moved five times under it, and each rebase rewrote every hash on the branch. The
+first draft of this section cited its own fixes by hash and was wrong within the hour -- the same
+defect class the section exists to close. A subject line survives a rebase; a hash does not. Use
+`git log --oneline main..HEAD` to map subjects to whatever the hashes are when you read this.
 
 ### Fixed in code, each with the mutation that now goes red
 
@@ -988,16 +988,20 @@ subject is the handle to search for.
   recorded", in the present tense, and nothing in `rust/warrant` calls `causal_verdict`;
   `verify_export` checks integrity by design. It also told an operator they "cannot later rewrite
   the route without breaking a signature or that chain digest", which is false for the party the
-  tier table already names. Fixed in `a996e7d`: the sentence now says no verdict was computed here,
-  names who computes it and from which field, and carries the issuer-key escape inside the bundle
-  rather than only in this file. Completed in `729b5e8`, which makes the presence test refuse the
+  tier table already names. Fixed in `fix(report): the bundle says the causal verdict was NOT
+  computed here, and names the issuer-key escape`: the sentence now says no verdict was computed
+  here, names who computes it and from which field, and carries the issuer-key escape inside the
+  bundle rather than only in this file. Completed in `test(evidence): refuse the present-tense causal
+  claim, not only require the new one`, which makes the presence test refuse the
   present-tense wording instead of only requiring the new one — a presence test cannot prove an
   absence, so the false wording could otherwise have been restored beside the true one.
 - **Claim-honesty 2 — a commit message overstated the rule-3 test.** The message of this task's first commit
   (`feat(evidence): compute a verdict over the pathway, not only the outcome`, named by subject
   because rebasing moves its hash) said the test "fails if any .rs file under rust/ ever claims the
   pathway is proven or enforced"; it matched five literal phrases, and "the pathway is enforced" and "the route is proven" walked past it. The
-  denylist went from 5 phrases to 23 in `1bcc832`, and in `ce01018` the test's own doc comment says
+  denylist went from 5 phrases to 23 in `test(evidence): say what the rule-3 test is, and widen its
+  denylist`, and in `docs(evidence): say what the rule-3 test is -- a denylist, not a semantic guard`
+  the test's own doc comment says
   what it is — a denylist of literal phrases, not a semantic guard — and points at the golden test
   that holds the shipped sentence exactly. Published history cannot be rewritten, so the correction
   lives where the next reader looks. The mutation that inserts "the pathway is enforced by this
@@ -1006,7 +1010,8 @@ subject is the handle to search for.
   the dev-dependency did not buy.** It said importing `authority-spec` meant the per-class test
   "iterates the real enum instead of a list of strings that would silently go stale when a class is
   added"; the test looped over five hand-written variants, and a sixth class compiled and passed.
-  Fixed in `70a1907`: the list is built from an exhaustive `match` with no wildcard arm, so a new
+  Fixed in `test(evidence): derive the per-class list from an exhaustive match over
+  SideEffectClass`: the list is built from an exhaustive `match` with no wildcard arm, so a new
   variant is `error[E0004]` in the test, and both comments now say that instead. Adding a sixth
   `SideEffectClass` variant fails to compile the test with
   `error[E0004]: non-exhaustive patterns: SideEffectClass::Mutation not covered`.
@@ -1014,23 +1019,27 @@ subject is the handle to search for.
   claim-honesty 1: the escape is now in the signed bundle's own sentence.
 - **Test-rigor M06 — the `Uninterpretable` branch was described and exercised by nothing.**
   Deleting it left every suite green, so a build that read a v9 route under the v2 rule would have
-  PASSED it. Fixed in `e3e9049` with a test over an unknown version and over no version at all;
+  PASSED it. Fixed in `test(evidence): a route under a version this build cannot read is
+  Uninterpretable, and is tested`, with a test over an unknown version and over no version at all;
   M06 re-applied against it gives `20 passed; 1 failed`.
 - **Test-rigor M07 — `UnversionedCausality` was covered only by the Python mirror.** Deleting the
-  Rust arm left every Rust suite green. Fixed in `8a92aaa`: the frozen-fixture suite now requires
+  Rust arm left every Rust suite green. Fixed in `test(evidence): the Rust version gate refuses a
+  causal section with no version`: the frozen-fixture suite now requires
   `verify_receipt` to refuse an unversioned causal section as `UnversionedCausality` and not as
   `InvalidSignature`, which is the misreport the gate exists to prevent. M07 re-applied gives
   `9 passed; 1 failed`.
 - **Test-rigor M11 and M13, with evidence-truth 1 and 2 — two fragment checks let a hard-coded hop
   count and an appended Enforced-tier claim into a signed bundle.** M11 hard-codes the count as `3`,
   which matched the only three-hop fixture; M13 appends "Every hop was enforced at the moment of
-  attempt." after the honest fragments. Both shipped green. Fixed in `60a2cde`: the test holds the
+  attempt." after the honest fragments. Both shipped green. Fixed in `test(warrant): pin the
+  bundle's causal sentence exactly, over two hop counts`: the test holds the
   exact sentence as a golden and compares with `assert_eq!` over a one-hop and a three-hop queue, so
   no hard-coded count agrees with both fixtures and nothing can be appended after the last full
   stop. Both mutations now give `7 passed; 1 failed`.
 - **Test-rigor M19 — no CI tool in this repository reads tier vocabulary.** Relabeling every causal
   refusal `Enforced` in this file's summary table left `check_docs.py`, `check_invariants.py` and
-  `check_us_english.py` all at exit 0. Fixed in `1277cc6`: a test walks every Markdown table row in
+  `check_us_english.py` all at exit 0. Fixed in `test(evidence): hold the evidence file's tier words
+  with a test, not a reviewer's eye`: a test walks every Markdown table row in
   this file and refuses a cell whose tier word is `Enforced` or `Mediated`, and refuses to pass on a
   file it did not really read by requiring at least forty rows. M19 now fails that test alone.
 
@@ -1042,8 +1051,9 @@ subject is the handle to search for.
   minted, so dependencies always point backward and `release_order` returns the staging order. What
   *was* wrong is what made the mutation look live — a doc comment claiming the orders "differ
   whenever an agent stages out of dependency sequence", which the API does not allow, and a fixture
-  comment promising an "interesting case" built in a test that does not exist. `19af8c3` corrects
-  both and adds the test that pins the enabling invariant: a forward reference is refused at `stage`
+  comment promising an "interesting case" built in a test that does not exist. `docs(staging): the
+  release order is the staging order today, and a test pins why` corrects both and adds the test that
+  pins the enabling invariant: a forward reference is refused at `stage`
   with the handle-provenance message, a refused stage writes nothing to the log, and the trace, the
   release order and the staging order are one sequence. That test goes red first on the day `stage`
   starts accepting a forward reference, which is the day the mutation stops being equivalent.
@@ -1056,7 +1066,8 @@ subject is the handle to search for.
 ### Found by this lane's own re-derivation, not by a numbered finding
 
 - **This file quoted a sentence the product no longer prints.** "The sentence that ships in the
-  product" still carried the pre-`a996e7d` wording. Corrected to the sentence `limitations()` renders
+  product" still carried the wording from before the bundle sentence was fixed. Corrected to the
+  sentence `limitations()` renders
   now, with a note saying what the first wording claimed and why it was false.
 - **The same section described the tests that hold it wrongly.** It named two tests, said the
   denylist matched five phrases, and said the golden test "asserts both appear". On this tip there
@@ -1085,51 +1096,62 @@ subject is the handle to search for.
 
 ### The full gate on the final tip, exit codes captured before any pipe
 
-Every cargo number in this subsection was measured on `19af8c3`, the last commit that changes code:
-the commits after it touch only `docs/task-evidence/task-10.1.md` and `docs/W1-delivery-gaps.md`, and
-the one test that reads a Markdown file — the tier-cell test — was re-run against this section's own
-text and passed (`causal_verdict`: 21 passed). It was measured in `M:/wt-w6-10.1` with
-`CARGO_TARGET_DIR=M:/wt-rv-10.1-target` — a directory owned by this lane alone — and
-`CARGO_BUILD_JOBS=2`. Both disk guards ran before every cargo invocation.
+**`main` moved five times while this lane ran, and every number below is from after the fifth move.**
+`ce5d02d` at the start, then `2463504`, `94119fc`, `78b27d6` and `ebe1d62` — a task board fix, then
+Task 12.3, then the computer-use coverage surface. The branch was rebased onto each one, its twenty
+commits replaying with no conflict every time, and the gate was measured again after each of the last
+three because the third and fifth moves changed Rust code. Rebasing also rewrote this branch's own
+hashes twice, which is why the corrections section above names its commits by hash *and* says a
+subject line is the stable handle. Everything in this subsection was measured on the tip rebased onto
+`ebe1d62`, in `M:/wt-w6-10.1`, with `CARGO_TARGET_DIR=M:/wt-rv-10.1-target` — a directory owned by
+this lane alone — and `CARGO_BUILD_JOBS=2`. Both disk guards ran before every cargo invocation. The
+two commits after the last code commit touch only this file, and the one test that reads a Markdown
+file — the tier-cell test — was re-run against this section's own text and passed.
 
-**`main` moved twice while this lane ran, and every number here is from after the second move.**
-The lane rebased onto `ce5d02d` at its start and measured the gate there; `main` then advanced to
-`2463504`, whose single commit touches only `docs/TASK-STATUS.md` and `scripts/task_status.py`. The
-branch was rebased again, all seventeen commits replayed with no conflict, and
-`git diff <pre-rebase tip> HEAD -- rust/` is empty — so the Rust tree measured before and after the
-second rebase is byte-identical. Even so, `fmt`, `clippy`, both `cargo test` runs, the ratchet and
-the exit gate were all re-run on the final tip rather than carried over; the counts below are from
-those re-runs, and they matched the pre-rebase run exactly. The nine mutation re-proofs in the next
-subsection were run on the pre-rebase tip, against that same byte-identical Rust tree.
-
-**One invocation is not in this record, and here is why.** After the second rebase, one exit-gate
-invocation was started while `--require-commit 5` was refusing at 4.1 GB, because a `;` where the
-lane's own discipline calls for `&&` let it through. It completed and printed the same counts, but a
-run started against a refusing guard is not evidence, so it was discarded and the exit gate below is
-a later invocation with both guards answering `OK` first.
+**The gate does not pass on the merged tree, and the failure is not this branch's.** One test fails:
+`rust/warrant/tests/instructions.rs::every_harness_the_registry_lists_can_be_shown`, with
+`` `agents list` names `Computer` and `agents show Computer` refuses it ``. The cause is in `main`,
+not here. `main`'s commit *"computer use is unmediated, and the product now says so on the coverage
+surface"* added a `COMPUTER USE:` block to `cmd_agents_list`, whose first line is indented by two
+spaces and begins with the word `Computer`; the test scrapes indented first words as harness ids, so
+it asks the binary to `agents show Computer`, and `harness::find("Computer")` correctly finds nothing.
+Neither file is in `git diff main..HEAD` — this branch touches no harness, no `warrantor.rs`, no
+`computer_use.rs` and no `instructions.rs` — and the same workspace run was green on this branch's
+code at `ce5d02d` and at `2463504`. It went red the moment `main` brought the new listing in. It is a
+scraper colliding with prose, not a broken bound, and it belongs to whoever owns Task 7.6; this lane
+records it rather than fixing another task's file inside this branch. **Consequence, stated plainly:
+this branch is not mergeable while `main`'s own suite is red, and the counts below say `1 failed` for
+that reason.**
 
 **The wait, recorded because it shaped the run.** `python tools/ci/disk_guard.py --require-commit 5`
-refused for roughly fifty minutes at the start of this lane, hovering between 0.7 GB and 4.9 GB of
-commit charge while sibling lanes built. Nothing was deleted and no process was killed; the lane did
-its git and prose work while polling, and every cargo step below ran after the guard cleared at
-20.7 GB. Disk was never the constraint: `--require 80` answered `OK` on every call, never below
-231 GB free.
+refused for roughly fifty minutes at the start of this lane, and repeatedly afterward, hovering
+between 0.7 GB and 4.9 GB of commit charge while sibling lanes built. Nothing was deleted and no
+process was killed; the lane did its git and prose work while polling, and every cargo step ran only
+after both guards answered `OK`. One exit-gate invocation was started while the commit guard was
+refusing at 4.1 GB, because a `;` stood where this lane's discipline calls for `&&`; it completed and
+printed the same counts, but a run started against a refusing guard is not evidence, so it was
+discarded and re-run guard-clean. Disk was never the constraint: `--require 80` answered `OK` on every
+call, never below 231 GB free.
 
 ```
 $ git rev-parse --short main
-2463504
+ebe1d62
 $ git merge-base --is-ancestor main HEAD ; echo $?
 0
 
 $ cd rust && cargo fmt --all -- --check                                   exit 0
 $ cargo clippy --workspace --all-targets -- -D warnings                   exit 0   (0 error/warning lines)
-$ cargo test --workspace --all-targets                                    exit 0
-  125 "test result:" lines: 1624 passed, 0 failed, 20 ignored
+$ cargo test --workspace --all-targets                                    exit 101
+  (stops at the first failing target, so it reported only 97 suites; re-run with
+   --no-fail-fast for the whole picture)
+$ cargo test --workspace --all-targets --no-fail-fast                     exit 101
+  126 "test result:" lines: 1630 passed, 1 failed, 20 ignored
+  the one failure: instructions.rs every_harness_the_registry_lists_can_be_shown  (main's, above)
 $ cargo test --workspace --doc                                            exit 0
    40 "test result:" lines:    1 passed, 0 failed,  0 ignored
-  (165 suites in total, 1625 passed, 0 failed, 20 ignored. The previous section measured
-   163 / 1588 / 20 on `71190e4`; the two new suites are this branch's own additions and the
-   rest of the rise is what `main` gained in Task 5.4 and Task 7.1.)
+  (166 suites in total, 1631 passed, 1 failed, 20 ignored. On `ce5d02d` and again on `2463504`
+   the same branch code gave 165 / 1625 / 0 / 20 with nothing failing; the rise and the failure
+   both arrived with `main`.)
 
   This task's suites, from the workspace run:
      append_only.rs                               7 passed; 0 failed; 2 ignored
@@ -1151,15 +1173,14 @@ invariant ratchet: ok (85 passing at floor 85, 15 recorded findings at ceiling 1
 $ python tools/ci/check_invariants.py                                     exit 0
 invariant ledger: 12 invariants; enforced=2, orphaned=1, partial=8, unimplemented=1  UNCHANGED
 $ python tools/ci/check_docs.py                                           exit 0
-RESULT: PASS - 302 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
+RESULT: PASS - 304 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
 $ python tools/ci/check_us_english.py main                                exit 0
-us-english: 3678 added line(s) across 18 file(s), since main; matcher = vendored verify-us-english.mjs
+us-english: 3706 added line(s) across 18 file(s), since main; matcher = vendored verify-us-english.mjs
 us-english: ok
-  (Measured on `18a28be`, the commit before the one that adds this note. The count rises with
-   every further Markdown line committed into this section -- it read 3694 on the next commit --
-   so what this line asserts is `ok`, not a total. Diff mode reads commits, so the two Markdown
-   files this section edits were additionally checked with `check_us_english.py --files`, which
-   reads every line: `us-english: ok`.)
+  (Measured on the commit before the one that adds this note; the count rises with every further
+   Markdown line committed into this section, so what this line asserts is `ok`, not a total.
+   Diff mode reads commits, so the two Markdown files this section edits were additionally
+   checked with `check_us_english.py --files`, which reads every line: `us-english: ok`.)
 $ PYTHONPATH=<both src dirs> python -m pytest python/warrantor_evidence/tests/test_evidence.py python/warrantor_notary/tests/test_notary.py -q
 36 passed
 ```
