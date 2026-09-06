@@ -42,6 +42,7 @@ pub mod catalog;
 pub mod conformance;
 pub mod corpus;
 pub mod daemon;
+pub mod effects;
 pub mod egress;
 pub mod guard;
 pub mod harness;
