@@ -62,6 +62,7 @@ fn stored() -> StoredWarrant {
         staged_classes: [SideEffectClass::Write].into_iter().collect(),
         expires_at: NOW + 3600,
         budget_cents_observed: Some(500),
+        max_tool_calls: Some(100),
         delegation_depth: 3,
     };
     let warrant = Warrant::grant(

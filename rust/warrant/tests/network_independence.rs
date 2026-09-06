@@ -31,6 +31,7 @@ fn bounds(egress: &[&str]) -> WarrantBounds {
         staged_classes: BTreeSet::new(),
         expires_at: 4_000_000_000,
         budget_cents_observed: None,
+        max_tool_calls: Some(100),
         delegation_depth: 0,
     }
 }

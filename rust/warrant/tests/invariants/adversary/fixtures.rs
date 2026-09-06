@@ -74,6 +74,7 @@ fn warrant(id: &str, goal: &str) -> Warrant {
         staged_classes: [SideEffectClass::Write].into_iter().collect(),
         expires_at: NOW + 3_600,
         budget_cents_observed: None,
+        max_tool_calls: Some(100),
         delegation_depth: 2,
     };
     Warrant::grant(
