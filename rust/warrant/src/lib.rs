@@ -33,6 +33,7 @@
 #![deny(missing_docs)]
 
 pub mod adapters;
+pub mod admission;
 pub mod anchor;
 pub mod archive_client;
 pub mod autofile;
