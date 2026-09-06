@@ -594,8 +594,13 @@ pub struct Independence {
 
 /// Measure the independence of the egress path.
 ///
-/// This is the function the machine-readable record and the drills both read, so the prose and the
-/// tests cannot diverge. Every answer it gives is derived from the two conditions that drive the
+/// This is the function the drills read, and the function the machine-readable record is checked
+/// against. The record itself is written by `tools/ci/network_independence.py`, which runs without
+/// cargo and so mirrors this function's answers rather than calling it; what stops the two from
+/// diverging is `the_gate_agrees_with_the_rust_answer` in `rust/warrant/tests/network_independence.rs`,
+/// which reads `evidence/network-independence.json` and asserts every field against this function for
+/// both configurations. (An earlier doc here said the record *read* this function. It never did.)
+/// Every answer it gives is derived from the two conditions that drive the
 /// two layers — `rust/warrant/src/egress.rs` line 196 and `rust/warrant/src/sandbox.rs` line 318 —
 /// which are the same field read with opposite senses.
 #[must_use]

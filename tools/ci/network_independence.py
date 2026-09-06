@@ -109,18 +109,38 @@ PROBES = (
     ),
 )
 
-# Which axes the layers share, and why each answer is what it is. This mirrors
-# `rust/warrant/src/egress.rs::independence`; `the_gate_agrees_with_the_rust_answer` in the Rust
-# suite is what keeps the two from drifting.
-SHARED = {
+# Which axes the layers share, and why each answer is what it is, for the configuration a shipped
+# run is in: one policy engine, so the `policy_engine` axis is trivially shared. This is a MIRROR of
+# `rust/warrant/src/egress.rs::independence(bounds, None)`, not a derivation from it: this gate runs
+# without cargo, so it cannot call the Rust function.
+#
+# CORRECTION (second adversarial review). This comment used to say a Rust test named
+# `the_gate_agrees_with_the_rust_answer` kept the two tables from drifting. No such test existed;
+# the only cross-check compared axis NAMES (`axes_match_the_rust_constant`), so a flipped answer here
+# that reached the record via --write produced a publishable record disagreeing with the Rust
+# answer and nothing went red. The test exists now, in rust/warrant/tests/network_independence.rs:
+# it reads evidence/network-independence.json and asserts every measured field against
+# `independence()` for both configurations. A flip here that reaches the record fails the Rust
+# suite; one that does not reach the record fails this gate's own record comparison.
+#
+# The record also used to carry ONE `shared_axes` list, which was the wired configuration's answer
+# (six of eight) beside an engine count that was the product's (one). One list with a footnote is
+# the shape the T7 correction removed from the engine count, so the axes are split the same way.
+SHARED_THE_PRODUCT_RUNS = {
     "enforcement_point": True,
-    "policy_engine": False,  # two evaluators once egress-filter is wired
+    "policy_engine": True,  # one evaluator in a shipped run, so nothing to be disjoint from
     "address_floor": True,  # both evaluators call hard_deny
     "configuration_source": True,  # one `egress_hosts` field, opposite senses
     "credential": False,  # neither holds a key: independent by absence
     "telemetry_path": True,  # both refusal maps live in one process
     "clock": True,  # one `expires_at`
     "dns_resolution": True,  # neither resolves: a shared blind spot
+}
+
+# The same table once a caller wires the second engine: the one axis that moves.
+SHARED_ONCE_THE_SECOND_IS_WIRED = {
+    **SHARED_THE_PRODUCT_RUNS,
+    "policy_engine": False,  # two evaluators once egress-filter is wired
 }
 
 # Where the count is published, and the exact string each file must carry. Copied in shape from
@@ -267,7 +287,8 @@ class Independence:
     policy_engines_when_an_operator_wires_one: int
     configuration_sources_the_product_runs: list[str]
     axes: list[str]
-    shared_axes: list[str]
+    shared_axes_the_product_runs: list[str]
+    shared_axes_once_the_second_is_wired: list[str]
     layers_on_a_permitted_host: list[str]
     layers_on_an_empty_bound: list[str]
 
@@ -361,7 +382,10 @@ def measure() -> Independence:
             ["warrant_claims"] if running == 1 else ["warrant_claims", "operator_file"]
         ),
         axes=list(AXES),
-        shared_axes=[axis for axis in AXES if SHARED[axis]],
+        shared_axes_the_product_runs=[axis for axis in AXES if SHARED_THE_PRODUCT_RUNS[axis]],
+        shared_axes_once_the_second_is_wired=[
+            axis for axis in AXES if SHARED_ONCE_THE_SECOND_IS_WIRED[axis]
+        ],
         layers_on_a_permitted_host=["mcp_proxy"],
         layers_on_an_empty_bound=["mcp_proxy", "network_namespace"],
     )
@@ -674,7 +698,9 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"network independence: {measurement.independent_intercepts_on_a_permitted_host} "
         f"independent intercept on a permitted destination; "
-        f"{len(measurement.shared_axes)} shared axes of {len(measurement.axes)}; "
+        f"{len(measurement.shared_axes_the_product_runs)} shared axes of "
+        f"{len(measurement.axes)} in the product, "
+        f"{len(measurement.shared_axes_once_the_second_is_wired)} once the second engine is wired; "
         f"{measurement.policy_engines_the_product_runs} policy "
         f"{engine_words(measurement.policy_engines_the_product_runs)} in the product, "
         f"{measurement.policy_engines_when_an_operator_wires_one} once an operator wires the second"

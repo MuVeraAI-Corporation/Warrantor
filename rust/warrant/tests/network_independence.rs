@@ -13,7 +13,7 @@ use std::collections::BTreeSet;
 
 use warrantor_warrant::egress::{
     independence, independence_sentence, EgressBroker, EgressVerdict, SecondaryFilter,
-    INDEPENDENCE_NOTE,
+    INDEPENDENCE_AXES, INDEPENDENCE_NOTE,
 };
 use warrantor_warrant::proxy::{Decision, Proxy, ProxyMode, ToolCall};
 use warrantor_warrant::staging::EffectRegistry;
@@ -466,6 +466,83 @@ fn the_proxy_reports_the_independence_of_the_configuration_it_is_actually_runnin
         "wiring the engine must not move the intercept count",
     );
     assert!(paired.secondary_filter().is_some());
+}
+
+// ── the record the gate writes, against the answer this crate computes ────────────────
+
+#[test]
+fn the_gate_agrees_with_the_rust_answer() {
+    // `tools/ci/network_independence.py` runs without cargo, so its axis table is a MIRROR of
+    // `independence()` and cannot call it. Its comment used to name this test as the thing that
+    // kept the two from drifting, and this test did not exist: flipping one answer in the Python
+    // table and running `--write` produced a publishable record that disagreed with
+    // `independence()` while every Rust test stayed green. This is the cross-check, field by
+    // field, for both configurations the record publishes. The Python gate refuses a record that
+    // disagrees with its own table; this refuses a record that disagrees with the code.
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../evidence/network-independence.json");
+    let text = std::fs::read_to_string(&path)
+        .unwrap_or_else(|error| panic!("{} must be readable: {error}", path.display()));
+    let record: serde_json::Value = serde_json::from_str(&text).expect("the record is JSON");
+    let number = |field: &str| -> u64 {
+        record[field]
+            .as_u64()
+            .unwrap_or_else(|| panic!("{field} must be a number in {}", path.display()))
+    };
+    let names = |field: &str| -> Vec<String> {
+        record[field]
+            .as_array()
+            .unwrap_or_else(|| panic!("{field} must be a list in {}", path.display()))
+            .iter()
+            .map(|value| value.as_str().expect("names are strings").to_string())
+            .collect()
+    };
+
+    let product = independence(&bounds(&[PERMITTED]), None);
+    let wired = independence(
+        &bounds(&[PERMITTED]),
+        Some(&SecondaryFilter::default_deny()),
+    );
+    let empty = independence(&bounds(&[]), None);
+
+    assert_eq!(
+        number("independent_intercepts_on_a_permitted_host"),
+        u64::try_from(product.intercepts).expect("fits"),
+        "the published intercept count must be the one this crate computes",
+    );
+    assert_eq!(
+        number("policy_engines_the_product_runs"),
+        u64::try_from(product.engines).expect("fits"),
+        "one engine in the configuration the product runs",
+    );
+    assert_eq!(
+        number("policy_engines_when_an_operator_wires_one"),
+        u64::try_from(wired.engines).expect("fits"),
+        "two once the second is wired",
+    );
+    assert_eq!(
+        names("configuration_sources_the_product_runs"),
+        product.configuration_sources,
+        "the product reads the signed claims and nothing else",
+    );
+    assert_eq!(
+        names("axes"),
+        INDEPENDENCE_AXES,
+        "the axis list is the Rust constant's"
+    );
+    assert_eq!(
+        names("shared_axes_the_product_runs"),
+        product.shared_axes,
+        "the shared axes in a shipped run: every axis but credential, because one engine has \
+         nothing to be disjoint from",
+    );
+    assert_eq!(
+        names("shared_axes_once_the_second_is_wired"),
+        wired.shared_axes,
+        "the shared axes once a second engine is wired: policy_engine stops being shared",
+    );
+    assert_eq!(names("layers_on_a_permitted_host"), product.layers);
+    assert_eq!(names("layers_on_an_empty_bound"), empty.layers);
 }
 
 // ── the sentence that bounds the count ────────────────────────────────────────────────

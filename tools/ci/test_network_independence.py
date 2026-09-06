@@ -24,7 +24,8 @@ from network_independence import (
     REFUSED_CAVEAT_CLAUSES,
     RENDER_TARGETS,
     REQUIRED_CAVEAT_CLAUSES,
-    SHARED,
+    SHARED_ONCE_THE_SECOND_IS_WIRED,
+    SHARED_THE_PRODUCT_RUNS,
     Independence,
     analysis_paragraph_is_the_constant,
     axes_match_the_rust_constant,
@@ -126,12 +127,14 @@ def test_a_product_source_that_wires_the_second_engine_moves_the_number(
     ]
 
 
-def test_the_shared_axes_are_the_six_the_analysis_names() -> None:
-    """`credential` and `policy_engine` are the only two that are not shared, and both for stated
-    reasons: the first by absence of any key, the second because a second evaluator is wired."""
+def test_the_shared_axes_are_published_per_configuration() -> None:
+    """CORRECTION (second review). The record carried one `shared_axes` list, and it was the wired
+    configuration's answer (six of eight) beside an engine count that was the product's (one). In a
+    shipped run every axis but `credential` is shared, because one engine has nothing to be disjoint
+    from; `policy_engine` stops being shared only once a caller wires the second engine."""
 
     record = load_record(RECORD_PATH)
-    assert set(record["shared_axes"]) == {
+    always = {
         "enforcement_point",
         "address_floor",
         "configuration_source",
@@ -139,15 +142,19 @@ def test_the_shared_axes_are_the_six_the_analysis_names() -> None:
         "clock",
         "dns_resolution",
     }
-    assert "credential" not in record["shared_axes"]
-    assert "policy_engine" not in record["shared_axes"]
+    assert set(record["shared_axes_the_product_runs"]) == always | {"policy_engine"}
+    assert set(record["shared_axes_once_the_second_is_wired"]) == always
+    assert "credential" not in record["shared_axes_the_product_runs"]
+    assert "credential" not in record["shared_axes_once_the_second_is_wired"]
+    assert "shared_axes" not in record, "the unlabeled list is gone; both configurations are named"
 
 
 def test_address_floor_is_shared_and_is_the_axis_task_7_1_created() -> None:
     """The finding this task added to the plan. Both evaluators call the one `hard_deny` matcher, so
     a defect there fails both -- which is the price of having one matcher instead of two."""
 
-    assert SHARED["address_floor"] is True
+    assert SHARED_THE_PRODUCT_RUNS["address_floor"] is True
+    assert SHARED_ONCE_THE_SECOND_IS_WIRED["address_floor"] is True
     floor_probes = [p for p in PROBES if p[0] == "address_floor"]
     assert len(floor_probes) == 2, "one probe per crate that delegates to hard_deny"
     assert {p[1] for p in floor_probes} == {
@@ -471,7 +478,7 @@ def test_a_tampered_record_field_fails_the_gate(tmp_path: Path) -> None:
     target = tmp_path / "network-independence.json"
     write_record(target, measure())
     record = json.loads(target.read_text(encoding="utf-8"))
-    record["shared_axes"] = ["credential"]
+    record["shared_axes_the_product_runs"] = ["credential"]
     target.write_text(json.dumps(record), encoding="utf-8")
     assert main(["--record", str(target)]) == 1
 

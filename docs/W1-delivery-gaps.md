@@ -994,9 +994,12 @@ describes are not merely coupled, they are **anti-correlated by one config field
 So exactly when one layer has a decision to make, the other is switched off. This is a single point
 of **configuration**, which is worse than a shared dependency.
 
-Six of the eight modeled axes are shared: `enforcement_point`, `address_floor`,
-`configuration_source`, `telemetry_path`, `clock`, `dns_resolution`. Only `credential` is not, and it
-is independent by *absence* — neither layer holds a key — rather than by design. The DNS row is the
+In a shipped run seven of the eight modeled axes are shared -- every axis but `credential`, which
+is independent by *absence* (neither layer holds a key) rather than by design; `policy_engine` is
+shared there because one engine has nothing to be disjoint from. Once a caller wires the second
+engine that axis stops being shared and six remain: `enforcement_point`, `address_floor`,
+`configuration_source`, `telemetry_path`, `clock`, `dns_resolution`. The record publishes both
+lists under their own names. The DNS row is the
 live exploit: neither layer resolves, so a hostname that resolves into `169.254.169.254` is caught
 only if the *name* is on `hard_deny`'s hostname list, and the layer that would catch it regardless is
 off whenever any host is permitted.
