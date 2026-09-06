@@ -1,0 +1,25 @@
+{
+  "format": "warrantor.effect-registry/1",
+  "tools": {
+    "files.read_file": ["net"],
+    "files.read_multiple_files": ["net"],
+    "files.list_directory": ["net"],
+    "files.search_files": ["net"],
+    "files.get_file_info": ["net"],
+    "files.write_file": ["mutate"],
+    "files.edit_file": ["mutate"],
+    "files.create_directory": ["mutate"],
+    "files.move_file": ["mutate"],
+    "github.create_issue": ["net", "mutate"],
+    "github.push_files": ["net", "mutate"],
+    "github.search_repositories": ["net"],
+    "slack.post_message": ["net", "msg"],
+    "fetch.fetch": ["net"],
+    "browser.navigate": ["net"],
+    "shell.run_command": ["exec"],
+    "k8s.delete_pod": ["net", "mutate", "actuate"],
+    "payments.create_charge": ["net", "spend"],
+    "vault.issue_token": ["net", "cred"],
+    "swarm.spawn_worker": ["delegate", "spend"]
+  }
+}

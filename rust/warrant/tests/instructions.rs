@@ -132,7 +132,14 @@ const ACCEPTED_FLAGS: &[&str] = &[
     "kind",
     // notify commands
     "allow-notify-command",
-    // upstream tool classes
+    // Task 2.1: upstream tool effect decompositions. `--upstream-effects` and
+    // `--upstream-effects-file` are read by upstream_decompositions and `--upstream-strict` by
+    // upstream_policy. `--upstream-class` is still listed because it is still READ -- by a branch
+    // that refuses it by name and says what to type instead; a removed flag that is merely
+    // ignored would forward as a read the very tool the operator typed it to protect.
+    "upstream-effects",
+    "upstream-effects-file",
+    "upstream-strict",
     "upstream-class",
     "upstream-refuse-unclassified",
     // mcp

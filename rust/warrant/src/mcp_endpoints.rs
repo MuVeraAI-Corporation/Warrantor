@@ -10,6 +10,7 @@ use ed25519_dalek::SigningKey;
 use serde_json::{json, Value};
 
 use crate::daemon::{process_is_alive, DaemonState, Reconciliation};
+use crate::effects::{Classified, DecompositionRegistry, UnclassifiedPolicy};
 use crate::mcp::{require_str, string_list, Endpoint, ToolResult, ToolSpec};
 use crate::proxy::{Decision, Proxy, ToolCall};
 use crate::settle::{settle, void, EffectPerformer};
@@ -696,16 +697,16 @@ pub struct AgentEndpoint {
     /// is the same answer this endpoint has always given — except that the remedy it names is now
     /// a flag that exists.
     upstreams: Option<crate::upstream::UpstreamSet>,
-    /// Side-effect classes an operator declared for upstream tools, by published tool name.
-    ///
-    /// Empty by default, which is the shipped behavior: everything the staging registry does not
-    /// know is classed `Read`. That fallback is a **guess**, and it became reachable the moment
-    /// forwarding did — an upstream `write_file` is forwarded rather than staged. This map is how
-    /// an operator replaces the guess with a statement.
-    classes: BTreeMap<String, SideEffectClass>,
-    /// Whether a tool with no declared class is refused rather than guessed at.
-    refuse_unclassified: bool,
-    /// Tools this session decided by the fallback, so the closing line can name them.
+    /// What every forwarded tool decomposes to, by published name. Starts as
+    /// [`DecompositionRegistry::builtin`] — the four tools this build can stage — and grows only
+    /// by what an operator declared: a class map inside signed claims would mean re-issuing a
+    /// warrant whenever a server added a tool.
+    decompositions: DecompositionRegistry,
+    /// What happens to a tool nobody declared. [`UnclassifiedPolicy::GuessRead`] is the shipped
+    /// default and it is a guess; `--upstream-strict` selects [`UnclassifiedPolicy::Refuse`].
+    unclassified_policy: UnclassifiedPolicy,
+    /// Tools this session decided by the guess, or refused for want of a declaration, so the
+    /// closing line can name them.
     unclassified: std::collections::BTreeSet<String>,
     /// How many calls this session actually forwarded, and how many failed in transport.
     ///
@@ -740,8 +741,8 @@ impl AgentEndpoint {
             allowed,
             guard: None,
             witness: None,
-            classes: BTreeMap::new(),
-            refuse_unclassified: false,
+            decompositions: DecompositionRegistry::builtin(),
+            unclassified_policy: UnclassifiedPolicy::GuessRead,
             unclassified: std::collections::BTreeSet::new(),
             upstreams: None,
             forwarded: 0,
@@ -764,20 +765,18 @@ impl AgentEndpoint {
         self
     }
 
-    /// Declare side-effect classes for upstream tools, and whether an undeclared one is refused.
+    /// Declare what upstream tools decompose to, and what happens to a tool nobody declared.
     ///
     /// A builder, like [`Self::with_upstreams`], and for the same reason: which tools an operator
-    /// has classified is a property of the session they started, not of the signed warrant. Putting
-    /// a class map inside granted claims would mean re-issuing a warrant whenever a server added a
-    /// tool.
+    /// has classified is a property of the session they started, not of the signed warrant.
     #[must_use]
-    pub fn with_classes(
+    pub fn with_decompositions(
         mut self,
-        classes: BTreeMap<String, SideEffectClass>,
-        refuse_unclassified: bool,
+        decompositions: DecompositionRegistry,
+        policy: UnclassifiedPolicy,
     ) -> Self {
-        self.classes = classes;
-        self.refuse_unclassified = refuse_unclassified;
+        self.decompositions = decompositions;
+        self.unclassified_policy = policy;
         self
     }
 
@@ -1096,31 +1095,20 @@ impl Endpoint for AgentEndpoint {
             })
             .collect();
 
-        // What CLASS of action is this? The answer decides whether the call is staged, forwarded or
-        // refused, and until forwarding existed the question had one reachable answer, so the guess
-        // below was invisible.
-        //
-        // The order is: what the staging registry knows, then what the operator declared, then the
-        // fallback. The registry wins because those four tools are the ones this build can actually
-        // stage; a declaration that contradicted it would promise staging for something the settle
-        // path cannot perform.
-        let declared = self.classes.get(tool).copied();
-        let side_effect = if EffectRegistry::github().get(tool).is_some() {
-            SideEffectClass::Write
-        } else if let Some(class) = declared {
-            class
-        } else {
-            // UNCLASSIFIED. `Read` is the shipped fallback and it is a guess: an upstream
-            // `write_file` is forwarded rather than staged, and nothing about the call says so.
-            // Counted here so the end of the session can report how many calls were decided by a
-            // guess, and refusable outright with `--upstream-refuse-unclassified`.
-            self.unclassified.insert(tool.to_string());
-            if self.refuse_unclassified {
-                return ToolResult::error(format!(
-                    "{tool} has no declared side-effect class, and this session was started with --upstream-refuse-unclassified. This build can only tell what a call DOES for the tools it stages; for everything else the class is whatever an operator declared, and an undeclared tool would be forwarded as if it only read. Declare it: --upstream-class '{tool}=write' (or =read, =destructive, =financial)."
-                ));
+        // What does this tool DO? The decomposition registry answers, or refuses to. The builtin
+        // four are in the registry already, so the settle path's own tools are never guessed at;
+        // a declaration that contradicted them was refused at the command line.
+        let side_effect = match self.decompositions.classify(tool, self.unclassified_policy) {
+            Ok(Classified::Declared(decomposition)) => decomposition.class(),
+            Ok(Classified::Guessed) => {
+                // Recorded so the end of the session can NAME what was guessed at.
+                self.unclassified.insert(tool.to_string());
+                SideEffectClass::Read
             }
-            SideEffectClass::Read
+            Err(refusal) => {
+                self.unclassified.insert(tool.to_string());
+                return ToolResult::error(refusal.to_string());
+            }
         };
 
         let mut call = ToolCall {
