@@ -1380,6 +1380,7 @@ fn verify_catalog_file(path: &str, body: &[u8], anchor: Option<&Anchor>, root: &
         );
     }
     println!("{ENFORCEMENT_NOTE}");
+    print_pin_revocation_limitation(anchor);
     ExitCode::SUCCESS
 }
 
@@ -1427,6 +1428,7 @@ fn verify_conformance_export(path: &str, body: &[u8], anchor: Option<&Anchor>) -
     for limitation in &signed.receipt.report.report.limitations {
         println!("  - {limitation}");
     }
+    print_pin_revocation_limitation(anchor);
     if signed.receipt.mode == stop::EnforcementMode::Enforced {
         ExitCode::SUCCESS
     } else {
@@ -1884,6 +1886,20 @@ fn print_anchor_limitations(anchor: Option<&Anchor>) {
     match anchor {
         None => println!("  - {NO_ANCHOR_LIMITATION}"),
         Some(_) => println!("  - {PIN_REVOCATION_LIMITATION}"),
+    }
+}
+
+/// The revocation sentence alone, for the anchored verdicts that render no anchor line.
+///
+/// `verify` on a destination catalog and on a conformance receipt both take `--issuer` and
+/// both check the signature against that pin, so both are anchored verdicts and the rule that
+/// every anchored verdict states revocation is not established covers them. Neither prints an
+/// anchor line, and neither may borrow `NO_ANCHOR_LIMITATION` for the unanchored case: the
+/// catalog arm falls back to this machine's own issuer key rather than to self-consistency, so
+/// "nothing here says WHICH key signed it" would be false there.
+fn print_pin_revocation_limitation(anchor: Option<&Anchor>) {
+    if anchor.is_some() {
+        println!("  - {PIN_REVOCATION_LIMITATION}");
     }
 }
 
