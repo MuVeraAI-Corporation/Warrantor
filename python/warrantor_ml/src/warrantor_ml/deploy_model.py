@@ -35,10 +35,12 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from . import serving
 from ._canonical import canonical_json, is_wellformed_digest, sha256_text
 from .model_card import IncompleteModelCardError, validate_card
 
@@ -94,11 +96,24 @@ class ScannerRegistration:
     card_digest: str
     advisory_declaration: str
     registry_owner: str
+    #: The parity decision this registration rests on: its verdict, its digest, and the serving
+    #: configuration the promoted candidate was measured at. Carried in the document so the claim
+    #: is re-auditable from the registration alone.
+    parity_receipt: Mapping[str, Any] = field(default_factory=dict)
     notes: tuple[str, ...] = field(default_factory=tuple)
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialise the registration document."""
+        """Serialise the registration document.
 
+        ``serving`` is rendered from the RECEIPT, not from :data:`serving.DEPLOYED`. The two are
+        equal for anything ``build_registration`` produced -- it refuses otherwise -- and rendering
+        the declared record instead would let a ``ScannerRegistration`` constructed directly, with
+        no receipt, publish a serving configuration nothing was promoted at. A rendered value must
+        be derived from the record it describes; a registration with no receipt says so, in the
+        field where a reader looks for the configuration.
+        """
+
+        promoted = self.parity_receipt.get("recorded_serving_configuration")
         return {
             "registration_version": REGISTRATION_VERSION,
             "scanner_id": self.scanner_id,
@@ -120,6 +135,9 @@ class ScannerRegistration:
             "model_card_digest": self.card_digest,
             "advisory_declaration": self.advisory_declaration,
             "registry_owner": self.registry_owner,
+            "parity_receipt": dict(self.parity_receipt),
+            "serving": dict(promoted) if isinstance(promoted, Mapping) else None,
+            "deployed_configuration_digest": serving.deployed_digest(),
             "notes": list(self.notes),
         }
 
@@ -144,20 +162,53 @@ def _rust_category_expression(target: str) -> str:
 def build_registration(
     card: dict[str, Any],
     endpoint: str,
+    parity_receipt: Mapping[str, Any],
     scanner_id: str | None = None,
     model_ref: str | None = None,
     request_timeout_ms: int = 5_000,
 ) -> ScannerRegistration:
-    """Build a registration from a validated model card.
+    """Build a registration from a validated model card and a ``promote`` parity receipt.
 
     The card is re-validated here rather than trusted. A scanner registered against an
     incomplete card would present a ``model_digest`` that binds to nothing, which is exactly
     the accountability gap the substrate cannot detect on its own.
 
+    ``parity_receipt`` is the decision document ``warrantor-ml-parity`` writes, and it is
+    REQUIRED rather than optional. Before Task 12.3 there was no reference to a parity decision
+    anywhere in this module -- the only refusals were an incomplete model card and a malformed
+    weights digest -- so an adapter could be registered, and a Rust ``ContentScanner`` emitted,
+    for a model no gate had ever compared. Every check below precedes every write, so a refused
+    registration leaves nothing on disk that could be mistaken for one.
+
     Raises:
         IncompleteModelCardError: the card is missing or malforming a required field.
-        RegistrationError: the digest is malformed, or the taxonomy map is unusable.
+        RegistrationError: the parity receipt is missing, malformed, not a promotion, or records a
+            serving configuration this build does not serve; or the digest or taxonomy is unusable.
     """
+
+    verdict = str(parity_receipt.get("verdict", ""))
+    if verdict != "promote":
+        raise RegistrationError(
+            f"parity verdict is {verdict!r}; only 'promote' may be registered. An adapter with no "
+            "gate receipt is an adapter whose ScannerVerdict.model_digest binds to a number nobody "
+            "compared -- and `insufficient_evidence` is not a weaker 'promote', it is the gate "
+            "saying it could not tell."
+        )
+    if not is_wellformed_digest(str(parity_receipt.get("decision_digest", ""))):
+        raise RegistrationError(
+            "the parity receipt carries no well-formed decision_digest, so the registration would "
+            "cite evidence that cannot be re-audited"
+        )
+    receipt_configuration = parity_receipt.get("recorded_serving_configuration")
+    if not isinstance(receipt_configuration, Mapping):
+        receipt_configuration = {}
+    if configuration_problems := serving.configuration_mismatch(receipt_configuration):
+        raise RegistrationError(
+            "the promoted candidate was evaluated at a configuration this build does not serve: "
+            + "; ".join(configuration_problems)
+            + ". A receipt that says 'promote' about a different configuration is a receipt for a "
+            "different model."
+        )
 
     problems = validate_card(card)
     if problems:
@@ -198,6 +249,11 @@ def build_registration(
         card_digest=sha256_text(canonical_json(card)),
         advisory_declaration=str(card["advisory_declaration"]),
         registry_owner=str(card["failure_semantics"]["registry_owner"]),
+        parity_receipt={
+            "verdict": verdict,
+            "decision_digest": str(parity_receipt["decision_digest"]),
+            "recorded_serving_configuration": dict(receipt_configuration),
+        },
         notes=(
             "Registered WITHOUT modifying enforcement code: decide(), ModerationVerdict, "
             "DenyReason, issue_receipt and verify_receipt are untouched.",
@@ -206,6 +262,13 @@ def build_registration(
             "returning is_harmful:false on error is a silent allow.",
             "The substrate DECIDES; this model ADVISES. Never wire the verdict to a "
             "terminating action.",
+            # THE TIER C HALF OF THE CLAIM, IN THE SHIPPED DOCUMENT AND NOT ONLY IN A PLAN.
+            "This gate compares the configuration recorded in the evaluation document against "
+            "the configuration this build declares it serves. It does not observe the serving "
+            "process. It cannot detect a context length overridden per request, a model "
+            "re-quantized under an unchanged tag, or a scanner reached by any path other than "
+            "the generated adapter -- and it gates only capabilities present in the evaluation "
+            "set.",
         ),
     )
 
@@ -254,6 +317,15 @@ impl {struct_name} {{
     /// The model's own operating threshold. `ModerationConfig.deny_threshold` cannot raise
     /// recall, so tuning happens here and a change requires a new model digest.
     pub const OPERATING_THRESHOLD: f64 = {operating_threshold};
+    /// The serving configuration this scanner was PROMOTED at. The transport closure is the
+    /// caller's, so these are values the caller MUST send -- this adapter cannot enforce them.
+    /// Sending different ones serves a model nobody measured. Quantization is the axis that
+    /// matters most here and the one with no knob at all on this side: between 4 and 18 verdicts
+    /// per thousand change at the deployed default, in a direction that differs by model family.
+    pub const SERVED_QUANTIZATION: &'static str = "{served_quantisation}";
+    pub const SERVED_NUM_CTX: u32 = {served_num_ctx};
+    pub const SERVED_SEED: i64 = {served_seed};
+    pub const SERVED_NUM_PREDICT: u32 = {served_num_predict};
 
     #[must_use]
     pub fn new(transport: GuardTransport) -> Self {{
@@ -390,6 +462,10 @@ def render_rust_adapter(registration: ScannerRegistration) -> str:
         operating_threshold=registration.operating_threshold,
         category_arms=arms,
         gating_literals=gating,
+        served_quantisation=serving.QUANTIZATION,
+        served_num_ctx=serving.NUM_CTX,
+        served_seed=serving.SEED,
+        served_num_predict=serving.NUM_PREDICT,
     )
 
 
@@ -414,6 +490,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--scanner-id", help="override the scanner id (defaults to model name)")
     parser.add_argument("--timeout-ms", type=int, default=5_000)
+    parser.add_argument(
+        "--parity-receipt",
+        type=Path,
+        required=True,
+        help="the decision document warrantor-ml-parity wrote. REQUIRED: a registration with no "
+        "promote receipt is a registration of a model no gate compared",
+    )
     parser.add_argument("--out", type=Path, help="write the registration JSON here")
     parser.add_argument("--emit-adapter", type=Path, help="write the generated Rust adapter here")
     return parser
@@ -424,10 +507,12 @@ def main(argv: list[str] | None = None) -> int:
 
     arguments = build_parser().parse_args(argv)
     card = json.loads(arguments.card.read_text(encoding="utf-8"))
+    receipt = json.loads(arguments.parity_receipt.read_text(encoding="utf-8"))
     try:
         registration = build_registration(
             card,
             endpoint=arguments.endpoint,
+            parity_receipt=receipt,
             scanner_id=arguments.scanner_id,
             request_timeout_ms=arguments.timeout_ms,
         )

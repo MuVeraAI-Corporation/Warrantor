@@ -415,6 +415,17 @@ jobs:
         run: python -m pytest tools/ci/test_check_us_english.py -q -p no:cacheprovider
       - name: Test the disk guard
         run: python -m pytest tools/ci/test_disk_guard.py -q -p no:cacheprovider
+      - name: Check deployment-configuration parity
+        # Refuses a promotion or a registration whose recorded serving configuration is not the
+        # one this build declares it serves. Quantization is not verdict-neutral at the deployed
+        # Q4_K_M, so the model that passes evaluation is not necessarily the model that ships.
+        run: python tools/ci/check_deployment_parity.py
+        env:
+          PYTHONPATH: python/warrantor_ml/src
+      - name: Test the deployment-parity gate
+        run: python -m pytest tools/ci/test_check_deployment_parity.py -q -p no:cacheprovider
+        env:
+          PYTHONPATH: python/warrantor_ml/src
       - name: Generate exhaustive implementation tracker
         run: python tools/implementation/generate_tracker.py --output evidence/implementation-tracker.json
       - name: Upload implementation inventory

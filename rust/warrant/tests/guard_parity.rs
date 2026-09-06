@@ -31,13 +31,57 @@ use warrantor_warrant::guard::{GuardKnobs, MEASURED_NUM_CTX};
 /// The Python evaluator, as a compile-time string.
 const EVALUATE_PY: &str = include_str!("../../../python/warrantor_ml/src/warrantor_ml/evaluate.py");
 
+/// The declared deployed configuration, as a compile-time string.
+///
+/// Added when `evaluate.py` stopped carrying its own literals. Its dataclass defaults and its
+/// `_options()` dict now read `serving.NUM_CTX`, `serving.TEMPERATURE` and so on, because four
+/// places in that repository declared a serving configuration and only three were bound to each
+/// other. These assertions must follow the VALUE, not the file it used to live in -- so the
+/// readers below chase a `serving.NAME` indirection into this file rather than comparing against
+/// the name of a constant. Deleting the chase would make every assertion here compare
+/// `"serving.NUM_CTX"` against `"8192"` and fail on punctuation, which is how a parity test gets
+/// deleted instead of fixed.
+const SERVING_PY: &str = include_str!("../../../python/warrantor_ml/src/warrantor_ml/serving.py");
+
+/// Resolve a `serving.NAME` indirection to the literal `serving.py` declares for `NAME`.
+///
+/// A value that is not an indirection is returned unchanged. An indirection naming a constant
+/// `serving.py` does not declare returns `None`, so the caller fails naming the field rather than
+/// comparing against the text `"serving.WHATEVER"` -- the failure mode this whole file exists to
+/// prevent is a comparison that silently stops being made.
+fn resolve_serving(value: &str) -> Option<String> {
+    let Some(name) = value.strip_prefix("serving.") else {
+        return Some(value.to_string());
+    };
+    for line in SERVING_PY.lines() {
+        let trimmed = line.trim();
+        let Some(rest) = trimmed.strip_prefix(name) else {
+            continue;
+        };
+        // `NUM_CTX: Final[int] = 8192` -- and not `NUM_CTX_SOMETHING`.
+        if !rest.starts_with(':') {
+            continue;
+        }
+        if let Some((_, literal)) = rest.split_once('=') {
+            return Some(literal.trim().trim_end_matches(',').to_string());
+        }
+    }
+    None
+}
+
 /// Read `name: type = value` out of the Python dataclass field list.
 ///
 /// Returns `None` when the field is absent or not in that shape. Every caller turns `None` into a
 /// failure naming the field, because a parity test that silently skips a field it could not find is
 /// a parity test that passes while the two drift.
 fn python_default(name: &str) -> Option<String> {
-    for line in EVALUATE_PY.lines() {
+    python_default_in(EVALUATE_PY, name)
+}
+
+/// `python_default`, against an explicitly named source. `serving.py` declares its values as
+/// `NAME: Final[int] = 8192`, which is the same `name: type = value` shape.
+fn python_default_in(source: &str, name: &str) -> Option<String> {
+    for line in source.lines() {
         let trimmed = line.trim();
         let Some(rest) = trimmed.strip_prefix(name) else {
             continue;
@@ -51,7 +95,7 @@ fn python_default(name: &str) -> Option<String> {
             // default (`num_ctx: int = 8192`) and inside a call (`num_ctx=..., `). Leaving it on
             // made the comparison fail on punctuation rather than on a real divergence, which is
             // exactly the noise that gets a parity test deleted.
-            return Some(value.trim().trim_end_matches(',').to_string());
+            return resolve_serving(value.trim().trim_end_matches(','));
         }
     }
     None
@@ -63,7 +107,7 @@ fn python_option(key: &str) -> Option<String> {
     for line in EVALUATE_PY.lines() {
         let trimmed = line.trim();
         if let Some(rest) = trimmed.strip_prefix(&needle) {
-            return Some(rest.trim().trim_end_matches(',').to_string());
+            return resolve_serving(rest.trim().trim_end_matches(','));
         }
     }
     None
@@ -179,4 +223,61 @@ fn the_python_source_is_still_shaped_the_way_these_assertions_read_it() {
             "cannot read the pinned Python option {option}: the parity comparison is not being made"
         );
     }
+}
+
+#[test]
+fn the_quantization_the_python_side_declares_is_the_one_this_crate_serves() {
+    // The axis nothing pinned. `num_ctx` was pinned twice and then measured inert -- 0 of 493
+    // decision changes across a sixteenfold range, both models (`R23`). Quantization was pinned
+    // nowhere and moves 4 to 18 verdicts per thousand at the deployed default, in a direction that
+    // differs by model family (`R13`, `R32`, `R33`), so a deployer may assume neither that it errs
+    // safe nor that it errs conservative.
+    //
+    // `GuardKnobs` has no quantization field, so there is no knob to compare. What this crate does
+    // carry is the model tag it resolves by default, and an Ollama tag names its quantization after
+    // the final colon. Asserting on the tag is the honest available binding: an unlabeled tag is a
+    // configuration nobody can check, which is the state of all five 2026-08-22 candidate tags.
+    let declared =
+        python_default_in(SERVING_PY, "QUANTIZATION").expect("serving.py declares QUANTIZATION");
+    assert_eq!(
+        declared, "\"Q4_K_M\"",
+        "serving.py's declared quantization moved. Every published guard figure was measured at \
+         the old one, and the effect is not verdict-neutral: re-measure, or do not move it"
+    );
+    let unquoted = declared.trim_matches('"');
+    assert!(
+        warrantor_warrant::guard::DEFAULT_GUARD_MODEL.contains(unquoted),
+        "the CLI's default guard model tag ({}) must name the quantization the Python side \
+         declares it measured at ({unquoted}); a tag that does not name it is a configuration \
+         nobody can check",
+        warrantor_warrant::guard::DEFAULT_GUARD_MODEL
+    );
+}
+
+#[test]
+fn the_deployed_record_declares_every_key_the_python_gate_compares() {
+    // `serving.REQUIRED_KEYS` is what the promotion gate refuses on. If a key could be listed
+    // there without a constant behind it, `DEPLOYED` would carry a value this side cannot read and
+    // the two implementations would be bound on a shorter list than the gate enforces.
+    for name in [
+        "QUANTIZATION",
+        "NUM_CTX",
+        "SEED",
+        "NUM_PREDICT",
+        "TEMPERATURE",
+        "TOP_P",
+        "TOP_K",
+    ] {
+        assert!(
+            python_default_in(SERVING_PY, name).is_some(),
+            "serving.py no longer declares {name}: the deployed configuration this crate is \
+             bound to is not the one the promotion gate compares against"
+        );
+    }
+    // The one that shipped wrong, asserted against the record rather than against evaluate.py.
+    assert_eq!(
+        python_default_in(SERVING_PY, "NUM_CTX").as_deref(),
+        Some(MEASURED_NUM_CTX.to_string().as_str()),
+        "MEASURED_NUM_CTX must equal the deployed record's num_ctx"
+    );
 }

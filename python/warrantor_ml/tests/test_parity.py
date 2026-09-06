@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 
+from warrantor_ml import serving
 from warrantor_ml.baselines import get_baseline
 from warrantor_ml.leakage import LeakageReport, leakage_report
 from warrantor_ml.parity import (
@@ -25,6 +26,31 @@ _EXPGUARD = get_baseline(_EXPGUARD_ID)
 #: What benchmark_wildguard / benchmark_expguard write as ``eval_set.source``.
 _WILDGUARD_SOURCE = "allenai/wildguardmix:test/wildguard_test.parquet"
 _EXPGUARD_SOURCE = "6rightjade/expguardmix:expguardtest.parquet"
+
+
+def _backend_at(configuration: dict[str, Any]) -> dict[str, Any]:
+    """A result document's ``backend`` block recording ``configuration``.
+
+    Shaped the way :meth:`warrantor_ml.evaluate.OllamaGuardBackend.descriptor` writes it -- the
+    sampling knobs nested under ``options`` and the quantization at the top level -- so a test
+    that passes here is a test about documents the evaluator actually produces.
+    """
+
+    return {
+        "kind": "ollama",
+        "model": "warrantor-guard-0.6b-expguard-weak-exp06-2026-08-22a",
+        "endpoint": "http://127.0.0.1:11434/api/chat",
+        "quantisation": configuration["quantisation"],
+        "seed": configuration["seed"],
+        "options": {
+            "temperature": configuration["temperature"],
+            "top_p": configuration["top_p"],
+            "top_k": configuration["top_k"],
+            "seed": configuration["seed"],
+            "num_predict": configuration["num_predict"],
+            "num_ctx": configuration["num_ctx"],
+        },
+    }
 
 
 def _clean_leakage() -> LeakageReport:
@@ -56,6 +82,7 @@ def _candidate(
     corpus_source: str = _WILDGUARD_SOURCE,
     eval_set_digest: str = "sha256:" + "2" * 64,
     slices: dict[str, dict[str, Any]] | None = None,
+    backend: dict[str, Any] | None = None,
 ) -> CandidateResult:
     return CandidateResult(
         candidate_id="guard-4b-weak-category",
@@ -74,6 +101,14 @@ def _candidate(
         else dict(_BASELINE.per_category_recall),
         backend_error_count=errors,
         scored_samples=positives + negatives,
+        # Defaults to the DEPLOYED configuration so every test in this file is about the condition
+        # it names. Before Task 12.3 this fixture left `backend` empty, which was faithful to
+        # `main` -- the field was loaded and read by nothing. Now that absence is a refusal, an
+        # empty default would make every unrelated assertion here fail on a configuration
+        # precondition rather than on the rule it was written to check. The FIXTURE is what
+        # changes; no assertion is weakened, and the tests that are about a configuration
+        # difference pass one explicitly.
+        backend=backend if backend is not None else _backend_at(serving.DEPLOYED),
     )
 
 
@@ -537,3 +572,106 @@ def test_a_document_without_a_breakdown_block_is_refused(tmp_path: Path) -> None
             precision="gguf-q4_k_m",
             manifest_digest="",
         )
+
+
+# ── deployment-configuration parity (Task 12.3, L9-08) ──────────────────────────────────
+
+
+def test_a_candidate_whose_document_records_a_different_context_length_is_refused() -> None:
+    """The gate holds ``candidate.backend`` and, before Task 12.3, read nothing out of it.
+
+    This is not hypothetical drift: this repository shipped ``num_ctx`` 4096 for eight releases
+    while every published figure came from 8192 (``rust/warrant/tests/guard_parity.rs`` lines
+    3-16). The Rust side is pinned against ``evaluate.py`` by that test; the PROMOTION path was
+    pinned against nothing, so a result document produced at any context length promoted.
+    """
+
+    decision = parity_gate(
+        _candidate(
+            caught=700,
+            false_positives=50,
+            backend=_backend_at({**serving.DEPLOYED, "num_ctx": 4096}),
+        ),
+        "overall",
+        _clean_leakage(),
+    )
+    assert decision.verdict == "insufficient_evidence"
+    assert any("num_ctx" in reason and "4096" in reason for reason in decision.reasons), (
+        "the gate must name the field and both values; 'configuration mismatch' is not a "
+        "reason an operator can act on"
+    )
+    assert decision.evidence["deployed_configuration_digest"]
+
+
+def test_a_candidate_recorded_at_the_deployed_configuration_still_promotes() -> None:
+    """The allowed control for the refusal above. A gate that refuses everything is not a gate."""
+
+    decision = parity_gate(
+        _candidate(caught=700, false_positives=50, backend=_backend_at(serving.DEPLOYED)),
+        "overall",
+        _clean_leakage(),
+    )
+    assert decision.verdict == "promote", decision.reasons
+    assert decision.evidence["recorded_serving_configuration"]["quantisation"] == "Q4_K_M"
+    assert decision.evidence["deployed_configuration_digest"] == serving.deployed_digest()
+
+
+def test_a_candidate_recording_no_quantization_at_all_is_refused() -> None:
+    """The state of all five committed candidate documents (Finding D).
+
+    Their Ollama tags carry no quantization label and ``descriptor()`` emitted no field, so the
+    gate held ``{"kind": "ollama", ...}`` and compared nothing. Absence is refused rather than
+    assumed to be the deployed value -- assuming it is how five unlabeled candidates would have
+    been promoted as configuration-matched.
+    """
+
+    backend = _backend_at(serving.DEPLOYED)
+    del backend["quantisation"]
+    decision = parity_gate(
+        _candidate(caught=700, false_positives=50, backend=backend),
+        "overall",
+        _clean_leakage(),
+    )
+    assert decision.verdict == "insufficient_evidence"
+    assert any("quantisation is absent" in reason for reason in decision.reasons), decision.reasons
+
+
+def test_a_quantization_difference_names_the_measured_effect_it_rests_on() -> None:
+    """The refusal has to carry its mechanism, or a later reader deletes it as pedantry."""
+
+    decision = parity_gate(
+        _candidate(
+            caught=700,
+            false_positives=50,
+            backend=_backend_at({**serving.DEPLOYED, "quantisation": "Q8_0"}),
+        ),
+        "overall",
+        _clean_leakage(),
+    )
+    assert decision.verdict == "insufficient_evidence"
+    (reason,) = [r for r in decision.reasons if "does not serve" in r]
+    assert "Q8_0" in reason and "Q4_K_M" in reason
+    assert "4 and 18" in reason, "the reason must cite the measurement, not just assert a rule"
+    assert "does not generalize" in reason
+
+
+def test_the_configuration_refusal_composes_with_the_other_preconditions() -> None:
+    """Placed WITH the preconditions, not before them, so it cannot mask a second defect.
+
+    A refusal that short-circuits hides everything after it, and an operator who fixes only the
+    named problem then discovers the next one on the next run. Both are reported at once.
+    """
+
+    decision = parity_gate(
+        _candidate(
+            caught=700,
+            false_positives=50,
+            lane="kaggle-t4",
+            backend=_backend_at({**serving.DEPLOYED, "num_ctx": 4096}),
+        ),
+        "overall",
+        _clean_leakage(),
+    )
+    assert decision.verdict == "insufficient_evidence"
+    assert any("does not serve" in reason for reason in decision.reasons)
+    assert any("lane" in reason and "kaggle-t4" in reason for reason in decision.reasons)

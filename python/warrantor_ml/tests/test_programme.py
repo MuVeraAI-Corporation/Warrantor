@@ -16,8 +16,10 @@ from pathlib import Path
 
 import pytest
 
+from warrantor_ml import serving
 from warrantor_ml.benchmark_expguard import build_eval_set_descriptor as expguard_descriptor
 from warrantor_ml.benchmark_wildguard import build_eval_set_descriptor as wildguard_descriptor
+from warrantor_ml.evaluate import DEFAULT_OLLAMA_MODEL, OllamaGuardBackend
 from warrantor_ml.programme import (
     _read_corpus,
     export_main,
@@ -27,6 +29,26 @@ from warrantor_ml.programme import (
 )
 
 PROMOTE, REJECT, INSUFFICIENT = 0, 1, 3
+
+
+def _served_backend(quantisation: str | None = None, **overrides: object) -> dict[str, object]:
+    """The ``backend`` block the real evaluator writes, so these fixtures record what it records.
+
+    Built from :class:`OllamaGuardBackend.descriptor` rather than hand-written. The previous
+    version of these fixtures wrote no ``backend`` block at all, which was faithful to `main`
+    only because nothing read one; a hand-written block would be a second shape that drifts from
+    the producer, which is the defect this whole task is about.
+    """
+
+    descriptor = OllamaGuardBackend(
+        model=DEFAULT_OLLAMA_MODEL, quantisation=quantisation
+    ).descriptor()
+    for key, value in overrides.items():
+        if key in descriptor["options"]:
+            descriptor["options"][key] = value
+        else:
+            descriptor[key] = value
+    return descriptor
 
 
 def _slice(caught: int, positives: int, false_positives: int, negatives: int) -> dict[str, object]:
@@ -48,6 +70,7 @@ def _wildguard_document(tmp_path: Path, caught: int = 700, false_positives: int 
         "result_digest": "sha256:" + "9" * 64,
         "eval_set": wildguard_descriptor(parquet, range(1725), range(1699), []),
         "backend_errors": {"count": 0},
+        "backend": _served_backend(),
         "wildguard_breakdowns": {
             "overall": _slice(caught, 753, false_positives, 946),
             "by_subcategory": {
@@ -69,6 +92,7 @@ def _expguard_document(tmp_path: Path) -> Path:
         "result_digest": "sha256:" + "7" * 64,
         "eval_set": expguard_descriptor(parquet, range(2275), range(2275), [], None, 0),
         "backend_errors": {"count": 0},
+        "backend": _served_backend(),
         "expguard_breakdowns": {
             "overall": _slice(1130, 1256, 20, 1019),
             "by_prompt_category": {"Unqualified Professional Advice": {"recall": 0.80}},
@@ -202,6 +226,7 @@ def _expguard_document_with_every_floor(tmp_path: Path, upa_recall: float) -> Pa
         "result_digest": "sha256:" + "9" * 64,
         "eval_set": expguard_descriptor(parquet, range(2275), range(2275), [], None, 0),
         "backend_errors": {"count": 0},
+        "backend": _served_backend(),
         "expguard_breakdowns": {
             # 960 of 1256 caught clears the measured bar of 942; 30 of 1019 false positives is
             # well under the 116 at which the FPR reads as a significant regression.
@@ -346,3 +371,141 @@ def test_the_gate_reads_the_eval_split_as_parquet(tmp_path: Path) -> None:
     assert rows[0]["prompt"] == "fake an invoice"
     # The key the leakage comparison actually reads.
     assert all("prompt" in row for row in rows)
+
+
+# ── deployment-configuration parity at the CLI (Task 12.3, L9-03 / L9-08) ────────────────
+
+
+def _argv_without_precision(
+    result: Path, recipe: str, breakdown: str = "wildguard_breakdowns"
+) -> list[str]:
+    """``_argv`` with the ``--precision`` pair removed."""
+
+    argv = _argv(result, recipe, breakdown)
+    index = argv.index("--precision")
+    return argv[:index] + argv[index + 2 :]
+
+
+def test_the_operator_cannot_declare_a_precision_the_document_contradicts(tmp_path: Path) -> None:
+    """The document is the evidence; argv is a claim about it.
+
+    Before Task 12.3 ``--precision`` was ``required=True`` and was the ONLY source of
+    ``CandidateResult.precision``, which is the field ``_lane_matches`` compares. So the promoted
+    2026-08-22 candidate was accepted as ``gguf-q4_k_m`` against a document that recorded no
+    quantization at all.
+    """
+
+    parquet = tmp_path / "wildguard_test.parquet"
+    parquet.write_bytes(b"a stand-in for the split; it only has to have a digest")
+    document = {
+        "result_digest": "sha256:" + "9" * 64,
+        "eval_set": wildguard_descriptor(parquet, range(1725), range(1699), []),
+        "backend_errors": {"count": 0},
+        "backend": _served_backend(quantisation="Q8_0"),
+        "wildguard_breakdowns": {
+            "overall": _slice(700, 753, 50, 946),
+            "by_subcategory": {"others": {"recall": 0.90}},
+        },
+    }
+    result = tmp_path / "q8_result.json"
+    result.write_text(json.dumps(document), encoding="utf-8")
+
+    decision_path = tmp_path / "decision.json"
+    exit_code = parity_main(
+        [
+            *_argv(result, "guard-4b-weak-category"),
+            *_leakage_corpora(tmp_path),
+            "--out",
+            str(decision_path),
+        ]
+    )
+    assert exit_code == INSUFFICIENT
+    # THE REFUSAL IS RECEIPTED. The plan for this task said a refused promotion "writes no
+    # decision document"; that contradicts the same item's own verification sentence, which
+    # requires the refusal to be receipted, and it would have destroyed the property the
+    # 2026-08-22 sweep is auditable by -- four refusals, each with a decision digest. What a
+    # refusal must not produce is a REGISTRATION or an adapter, and `build_registration` is where
+    # that is enforced.
+    assert decision_path.exists(), "a refusal must be receipted, not merely printed"
+    body = json.loads(decision_path.read_text(encoding="utf-8"))
+    assert body["verdict"] == "insufficient_evidence"
+    assert body["decision_digest"].startswith("sha256:")
+    assert any("declared precision" in reason for reason in body["reasons"]), body["reasons"]
+    assert any("does not serve" in reason for reason in body["reasons"]), body["reasons"]
+
+
+def test_the_document_alone_is_enough_and_precision_may_be_omitted(tmp_path: Path) -> None:
+    """Allowed control: the artifact decides, not the argument vector.
+
+    Omitting ``--precision`` entirely must still promote, because the precision is now derived
+    from the quantization the document records. ``--precision`` was ``required=True``; a flag that
+    must be supplied is a flag whose value nobody checks.
+    """
+
+    result = _wildguard_document(tmp_path)
+    decision_path = tmp_path / "decision.json"
+    exit_code = parity_main(
+        [
+            *_argv_without_precision(result, "guard-4b-weak-category"),
+            *_leakage_corpora(tmp_path),
+            "--out",
+            str(decision_path),
+        ]
+    )
+    assert exit_code == PROMOTE
+    body = json.loads(decision_path.read_text(encoding="utf-8"))
+    assert body["evidence"]["precision"] == "gguf-q4_k_m"
+    assert body["evidence"]["recorded_serving_configuration"]["quantisation"] == "Q4_K_M"
+    assert body["evidence"]["deployed_configuration_digest"] == serving.deployed_digest()
+
+
+def test_a_document_recording_no_quantization_is_refused_and_writes_nothing(
+    tmp_path: Path,
+) -> None:
+    """The state of all five committed 2026-08-22 candidate documents.
+
+    The model tag matters here: a fine-tuned candidate is pushed under a bare Ollama name with no
+    quantization label, so there is no third place for the reader to recover the fact from. Using
+    the 4B baseline's ``hf.co/...:Q4_K_M`` tag with the field deleted would NOT reproduce this
+    state -- the tag names the quantization, and the reader reads it.
+    """
+
+    parquet = tmp_path / "wildguard_test.parquet"
+    parquet.write_bytes(b"a stand-in for the split; it only has to have a digest")
+    backend = _served_backend()
+    backend["model"] = "warrantor-guard-0.6b-expguard-weak-exp06-2026-08-22a"
+    del backend["quantisation"]
+    document = {
+        "result_digest": "sha256:" + "9" * 64,
+        "eval_set": wildguard_descriptor(parquet, range(1725), range(1699), []),
+        "backend_errors": {"count": 0},
+        "backend": backend,
+        "wildguard_breakdowns": {
+            "overall": _slice(700, 753, 50, 946),
+            "by_subcategory": {"others": {"recall": 0.90}},
+        },
+    }
+    result = tmp_path / "unlabelled_result.json"
+    result.write_text(json.dumps(document), encoding="utf-8")
+
+    decision_path = tmp_path / "decision.json"
+    exit_code = parity_main(
+        [
+            *_argv_without_precision(result, "guard-4b-weak-category"),
+            *_leakage_corpora(tmp_path),
+            "--out",
+            str(decision_path),
+        ]
+    )
+    assert exit_code == INSUFFICIENT
+    body = json.loads(decision_path.read_text(encoding="utf-8"))
+    assert body["verdict"] == "insufficient_evidence"
+    assert any("quantisation is absent" in reason for reason in body["reasons"]), body["reasons"]
+    assert body["evidence"]["recorded_serving_configuration"] == {
+        "num_ctx": 8192,
+        "seed": 0,
+        "num_predict": 64,
+        "temperature": 0.0,
+        "top_p": 1.0,
+        "top_k": 1,
+    }, "everything but the one axis with a measured effect was recorded"

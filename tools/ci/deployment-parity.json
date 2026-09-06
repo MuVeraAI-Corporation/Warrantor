@@ -1,0 +1,10 @@
+{
+  "format": "warrantor.deployment-parity/1",
+  "recorded": "2026-09-06",
+  "source": "eval_results/",
+  "scanned": 7,
+  "parity": 2,
+  "refused": 5,
+  "deployed_digest": "sha256:823ab30e9a648515bb5fd66aa6bb50330bbb0aeaed30a06351318d0788f30350",
+  "note": "The record tools/ci/check_deployment_parity.py gates its own printed numbers against. parity=2 is the two 2026-08-21 baseline documents, whose Ollama tags name Q4_K_M; refused=5 is every 2026-08-22 candidate, whose tags name no quantization and whose backend blocks carry no quantisation field, so the one axis with a measured effect was never recorded for any of them. deployed_digest is sha256 over the canonical JSON of warrantor_ml.serving.DEPLOYED. MOVING IT IS A DECISION, NOT AN EDIT: every published guard figure was measured at this configuration, so a change invalidates each quoted recall until the benchmarks are re-run. The counts move only in the commit that earns them -- a rendered number not gated against a record is decoration. Expect refused to fall as documents are re-scored under evaluate.py SCHEMA_VERSION 2, which emits backend.quantisation; that is a re-measurement, and the record moves with it."
+}

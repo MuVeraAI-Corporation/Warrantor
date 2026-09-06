@@ -39,6 +39,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
+from . import serving
 from ._canonical import canonical_json, sha256_file, sha256_text
 from .metrics import (
     ConfusionMatrix,
@@ -67,7 +68,12 @@ __all__ = [
     "write_smoke_set",
 ]
 
-SCHEMA_VERSION = 1
+#: Bumped 1 -> 2 when ``backend.quantisation`` was added. The field sits inside the digested body,
+#: so a version-2 document has a different ``result_digest`` from a version-1 document of the same
+#: run. That is deliberate: the five version-1 candidate documents record no quantization at all,
+#: and a schema that could not tell them apart from version-2 documents would let the promotion
+#: gate read "did not say" as "said Q4_K_M".
+SCHEMA_VERSION = 2
 DEFAULT_OLLAMA_ENDPOINT = "http://127.0.0.1:11434/api/chat"
 DEFAULT_OLLAMA_MODEL = "hf.co/mradermacher/Qwen3Guard-Gen-4B-GGUF:Q4_K_M"
 
@@ -260,36 +266,70 @@ class OllamaGuardBackend:
 
     model: str = DEFAULT_OLLAMA_MODEL
     endpoint: str = DEFAULT_OLLAMA_ENDPOINT
-    seed: int = 0
+    #: Every knob below is DERIVED from :mod:`warrantor_ml.serving` rather than repeated next to
+    #: it. Four places in this repository used to declare a serving configuration and only three
+    #: of them were bound to each other; a value that is read from one module cannot drift from
+    #: itself, which is a stronger guarantee than a test that notices when two literals disagree.
+    seed: int = serving.SEED
     timeout_seconds: float = 120.0
-    num_predict: int = 64
+    num_predict: int = serving.NUM_PREDICT
     #: Context window. Pinned rather than left to the model default because the GGUF advertises
     #: 32768, and a 32768-token KV cache for this model needs ~4.8 GB of VRAM -- enough to make
     #: ``cudaMalloc failed: out of memory`` the first thing a real eval run sees on a 16 GB card.
     #: It is also part of the determinism contract: changing the context size changes results.
-    num_ctx: int = 8192
+    #: ``R23`` has since measured the decision-change rate across five values at 0 of 493 on both
+    #: models, so this is a reproducibility pin and not a measured effect -- unlike quantization.
+    num_ctx: int = serving.NUM_CTX
+    #: The GGUF quantization this backend serves, recorded in the result document so the promotion
+    #: gate can compare it. ``None`` means UNKNOWN and is recorded as absent, never defaulted:
+    #: the five 2026-08-22 candidate tags carry no quantization label, and defaulting the field
+    #: would make each of them silently agree with whatever this build happens to serve.
+    quantisation: str | None = None
     system_prompt: str | None = None
     gating_categories: frozenset[str] = DEFAULT_GATING_CATEGORIES
     controversial_is_harmful: bool = True
 
+    @property
+    def resolved_quantisation(self) -> str | None:
+        """The quantization this backend serves, from the tag when the tag names it.
+
+        Ollama tags name the quantization after the final colon
+        (``hf.co/mradermacher/Qwen3Guard-Gen-4B-GGUF:Q4_K_M``). An explicit ``quantisation``
+        overrides the tag; a tag that names nothing and no explicit value yields ``None``, which
+        the gate treats as a refusal rather than as agreement.
+        """
+
+        if self.quantisation:
+            return self.quantisation
+        return serving.quantisation_in_tag(self.model)
+
     def descriptor(self) -> dict[str, Any]:
         """Identity of this backend for the result document."""
 
-        return {
+        descriptor: dict[str, Any] = {
             "kind": "ollama",
             "model": self.model,
             "endpoint": self.endpoint,
             "seed": self.seed,
             "options": self._options(),
         }
+        # Added at SCHEMA_VERSION 2. Emitted only when it is KNOWN. The five 2026-08-22 candidate
+        # documents record no quantization at all -- their Ollama tags carry no label -- so the
+        # gate could not have compared it even if it had looked. Resolved from the tag when the tag
+        # names it, and from --quantization otherwise; NEVER defaulted, because a defaulted value
+        # would make every historical document silently agree with whatever this build serves.
+        resolved = self.resolved_quantisation
+        if resolved is not None:
+            descriptor["quantisation"] = resolved
+        return descriptor
 
     def _options(self) -> dict[str, Any]:
-        """Sampling options pinned for reproducibility."""
+        """Sampling options pinned for reproducibility, read from :mod:`warrantor_ml.serving`."""
 
         return {
-            "temperature": 0.0,
-            "top_p": 1.0,
-            "top_k": 1,
+            "temperature": serving.TEMPERATURE,
+            "top_p": serving.TOP_P,
+            "top_k": serving.TOP_K,
             "seed": self.seed,
             "num_predict": self.num_predict,
             "num_ctx": self.num_ctx,
@@ -664,8 +704,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--num-ctx",
         type=int,
-        default=8192,
+        default=serving.NUM_CTX,
         help="context window pinned on the backend; part of the determinism contract",
+    )
+    parser.add_argument(
+        "--quantization",
+        help="the GGUF quantization being served, when the model tag does not name it. Left "
+        "UNRECORDED rather than defaulted if neither says: the promotion gate refuses a "
+        "candidate whose quantization it cannot read, and a default would make it stop refusing "
+        "without anyone measuring anything",
     )
     parser.add_argument("--limit", type=int, help="evaluate only the first N samples (by id)")
     parser.add_argument(
@@ -693,6 +740,7 @@ def _build_backend(arguments: argparse.Namespace) -> GuardBackend:
         seed=arguments.seed,
         timeout_seconds=arguments.timeout,
         num_ctx=arguments.num_ctx,
+        quantisation=getattr(arguments, "quantization", None),
         controversial_is_harmful=not arguments.controversial_safe,
     )
 
