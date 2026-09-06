@@ -39,6 +39,7 @@ pub mod autofile;
 pub mod bench;
 pub mod bundle;
 pub mod catalog;
+pub mod computer_use;
 pub mod conformance;
 pub mod corpus;
 pub mod daemon;
