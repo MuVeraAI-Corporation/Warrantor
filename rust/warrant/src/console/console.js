@@ -896,6 +896,12 @@ export function timeoutBlock(timeout, youCan) {
  * The dependency block: which effects the server would release independently, and which
  * dependents the server would refuse if a dependency is unreleased. Empty on a warrant with
  * no dependencies.
+ *
+ * Task 11.5 added the reversibility marker. A releasable set that includes a write that
+ * cannot be undone by a settle or a void renders the irreversible count in the same block,
+ * because a non-developer approver must see the unrecoverable cost in plain language next
+ * to the rest of the dependency sentence, not in a separate block that a reader might
+ * skip. The server emits `irreversible_count`; the console does not recompute it.
  */
 export function partialReleaseBlock(partial, effects) {
   const frag = document.createDocumentFragment();
@@ -925,11 +931,91 @@ export function partialReleaseBlock(partial, effects) {
     ? `Refused if a dependency is unreleased: ${refusedNames.join('; ')}.`
     : 'No dependent effect would be refused by a partial release.';
   wrap.append(refP);
+  // Reversibility surface. A releasable set that contains at least one irreversible effect
+  // gets an explicit line in the same block; a set that is wholly reversible gets the prose
+  // "every releasable effect is reversible". The console composes no judgment about
+  // reversibility — `irreversible_count` comes from the server.
+  if (Number.isFinite(partial.irreversible_count) && partial.irreversible_count > 0) {
+    const irrev = document.createElement('p');
+    irrev.className = 'queue-partial-irreversible';
+    irrev.textContent =
+      `${partial.irreversible_count} of the releasable effect(s) are irreversible — once approved, they cannot be undone by a settle or a void.`;
+    wrap.append(irrev);
+  } else if (relNames.length > 0) {
+    const rev = document.createElement('p');
+    rev.className = 'queue-partial-reversible';
+    rev.textContent = 'Every releasable effect is reversible — a settle or a void would undo it.';
+    wrap.append(rev);
+  }
   if (typeof partial.reason === 'string' && partial.reason.length > 0) {
     const why = document.createElement('p');
     why.className = 'queue-partial-reason';
     why.textContent = `Why: ${partial.reason}`;
     wrap.append(why);
+  }
+  frag.append(wrap);
+  return frag;
+}
+
+/**
+ * Plain-language scope preview — one paragraph, before every other block, that names the
+ * effect(s) the warrant is asking the approver to release, the warrant's goal, and the
+ * dependency if there is one. A non-developer approver who reads only this paragraph and
+ * the act-bar label still knows what is being asked. Task 11.5 added this block; the
+ * discipline is "the strongest summary must never be composed by the console", so the
+ * preview recites the server's `proposed_effects[].summary` and the warrant's `goal` and
+ * `partial_release.reason` verbatim, in one sentence.
+ */
+export function scopePreview(entry) {
+  const frag = document.createDocumentFragment();
+  if (!entry || typeof entry !== 'object') return frag;
+  const wrap = document.createElement('div');
+  wrap.className = 'queue-scope-preview';
+  const p = document.createElement('p');
+  p.className = 'queue-scope';
+  const goal = typeof entry?.authority_chain?.[0]?.goal === 'string'
+    ? entry.authority_chain[0].goal
+    : null;
+  const effects = Array.isArray(entry?.proposed_effects) ? entry.proposed_effects : [];
+  const effectSummaries = effects
+    .map((e) => (typeof e?.summary === 'string' ? e.summary.replace(/[.\s]+$/, '') : null))
+    .filter(Boolean);
+  let sentence;
+  if (effectSummaries.length === 0) {
+    sentence = 'This warrant does not name its proposed effects. Do not approve without reading the proposed-effects block.';
+  } else if (goal) {
+    sentence = `You are being asked to release: ${effectSummaries.join('; ')}. The warrant's goal is "${goal}".`;
+  } else {
+    sentence = `You are being asked to release: ${effectSummaries.join('; ')}.`;
+  }
+  p.textContent = sentence;
+  wrap.append(p);
+  // Dependency summary, when one exists. The releasable and refused sets are named in the
+  // same sentence so a reader scanning only this paragraph cannot miss the dependent.
+  const partial = entry?.partial_release;
+  if (partial && typeof partial === 'object') {
+    const rel = Array.isArray(partial.independently_releasable) ? partial.independently_releasable : [];
+    const refused = Array.isArray(partial.refused_when_unreleased) ? partial.refused_when_unreleased : [];
+    if (rel.length > 0 && refused.length > 0) {
+      const relNames = rel
+        .filter((i) => Number.isInteger(i) && effects[i])
+        .map((i) => effects[i].summary.replace(/[.\s]+$/, ''));
+      const refusedNames = refused
+        .filter((i) => Number.isInteger(i) && effects[i])
+        .map((i) => effects[i].summary.replace(/[.\s]+$/, ''));
+      const d = document.createElement('p');
+      d.className = 'queue-scope-dependency';
+      d.textContent =
+        `Releasing only ${relNames.join('; ')} will not release ${refusedNames.join('; ')}: ${partial.reason ?? 'the server refused without naming a reason.'}`;
+      wrap.append(d);
+    }
+    if (Number.isFinite(partial.irreversible_count) && partial.irreversible_count > 0) {
+      const r = document.createElement('p');
+      r.className = 'queue-scope-irreversible';
+      r.textContent =
+        `${partial.irreversible_count} of the releasable effect(s) are irreversible — they cannot be undone by a settle or a void once approved.`;
+      wrap.append(r);
+    }
   }
   frag.append(wrap);
   return frag;
@@ -1008,10 +1094,12 @@ function queueRow(entry, you) {
     row.append(line);
   }
 
-  // L8-01 anti-ceremony order. The approver must see (1) the proposed effect, (2) the authority
+  // L8-01 anti-ceremony order, with the Task 11.5 plain-language scope preview on top.
+  // The approver must see (0) the scope preview, (1) the proposed effect, (2) the authority
   // chain, (3) the prior receipts, (4) the dependency and timeout context, BEFORE the act bar.
   // The act bar is appended last, in the same place it always was, so a test that pinned
   // "the act bar is the last interactive child" still holds.
+  row.append(scopePreview(entry));
   row.append(proposedEffectsBlock(entry?.proposed_effects));
   row.append(authorityChainBlock(entry?.authority_chain));
   row.append(priorReceiptsBlock(entry?.prior_receipts));
@@ -1027,11 +1115,51 @@ function queueRow(entry, you) {
   if (acts.length > 0 && !expired) {
     const bar = document.createElement('div');
     bar.className = 'queue-acts';
+    // The Task 11.5 dependent-stays-staged sentence. When `partial_release` lists a refused
+    // dependent, the approver must see the dependent's name and the consequence in prose
+    // BEFORE the act bar, and the approve button is relabeled so a reader who clicks
+    // without reading the partial-release block still sees which effects the click will
+    // release. The label names the independently-releasable set; the dependent is named
+    // in the paragraph above the bar.
+    const partial = entry?.partial_release;
+    const refused = partial && Array.isArray(partial.refused_when_unreleased) ? partial.refused_when_unreleased : [];
+    const rel = partial && Array.isArray(partial.independently_releasable) ? partial.independently_releasable : [];
+    if (refused.length > 0) {
+      const effects = Array.isArray(entry?.proposed_effects) ? entry.proposed_effects : [];
+      const refusedNames = refused
+        .filter((i) => Number.isInteger(i) && effects[i])
+        .map((i) => (effects[i].summary ?? `effect ${i}`).replace(/[.\s]+$/, ''));
+      const relNames = rel
+        .filter((i) => Number.isInteger(i) && effects[i])
+        .map((i) => (effects[i].summary ?? `effect ${i}`).replace(/[.\s]+$/, ''));
+      const before = document.createElement('p');
+      before.className = 'queue-acts-dependent';
+      before.textContent = relNames.length > 0
+        ? `Approving releases ${relNames.join('; ')}. ${refusedNames.join('; ')} will stay staged until its prerequisite(s) are released.`
+        : `Approving releases nothing. ${refusedNames.join('; ')} will stay staged because no prerequisite has been released.`;
+      row.append(before);
+    }
     for (const act of acts) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'act';
-      button.textContent = act === 'approve' ? 'Approve' : 'Settle';
+      // The label. When partial_release lists a refused dependent, the Approve button is
+      // relabeled "Release [effect summaries]" so the click target's text matches the
+      // consequence. A button that says "Approve" on a row whose only releasable set is a
+      // strict subset of the proposed effects would teach the operator that Approve is
+      // "approve everything" — the exact failure Task 11.5's exit gate names.
+      if (act === 'approve' && refused.length > 0 && rel.length > 0) {
+        const effects = Array.isArray(entry?.proposed_effects) ? entry.proposed_effects : [];
+        const relNames = rel
+          .filter((i) => Number.isInteger(i) && effects[i])
+          .map((i) => (effects[i].summary ?? `effect ${i}`).replace(/[.\s]+$/, ''));
+        button.textContent = `Release ${relNames.join('; ')}`;
+      } else if (act === 'approve' && refused.length > 0 && rel.length === 0) {
+        button.textContent = 'Release nothing — no prerequisite is releasable';
+        button.disabled = true;
+      } else {
+        button.textContent = act === 'approve' ? 'Approve' : 'Settle';
+      }
       button.addEventListener('click', () => actOnQueue(entry.warrant_id, act, button));
       bar.append(button);
     }

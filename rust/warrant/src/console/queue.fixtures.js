@@ -79,6 +79,7 @@ export const PROPOSED_EFFECT_SHAPE = Object.freeze({
   summary: 'string — one sentence stating what the effect would change',
   tier: 'one of "enforced" | "mediated" | "observed" — never "unknown"',
   covered_by: 'string — what the tier does NOT cover, in one clause',
+  reversible: 'boolean — true when a settled or void step can take it back; false for merges, publishes, and other writes that have already left the workspace',
 });
 
 /**
@@ -130,6 +131,7 @@ export const PARTIAL_RELEASE_SHAPE = Object.freeze({
   independently_releasable: 'string[] — effect indexes in proposed_effects',
   refused_when_unreleased: 'string[] — effect indexes the server would refuse',
   reason: 'string — one sentence naming the dependency',
+  irreversible_count: 'number — how many of the releasable effects are irreversible; surfaces in the preview so the approver sees the unrecoverable cost before clicking',
 });
 
 /**
@@ -281,6 +283,7 @@ export const dependencyQueue = Object.freeze({
             tier: 'mediated',
             covered_by:
               'Held only for calls that traverse the MCP proxy; a shell reaches past it.',
+            reversible: true,
           },
           {
             tool: 'fs.write',
@@ -289,6 +292,7 @@ export const dependencyQueue = Object.freeze({
             tier: 'mediated',
             covered_by:
               'Held only for calls that traverse the MCP proxy; a shell reaches past it.',
+            reversible: true,
           },
           {
             tool: 'cargo.test',
@@ -297,6 +301,7 @@ export const dependencyQueue = Object.freeze({
             tier: 'observed',
             covered_by:
               'Measured and reported after the fact; nothing refuses a test invocation as it happens.',
+            reversible: true,
           },
         ],
         authority_chain: [
@@ -337,6 +342,7 @@ export const dependencyQueue = Object.freeze({
           refused_when_unreleased: [2],
           reason:
             'Effect 2 runs cargo.test against the new signer; releasing it without effects 0 and 1 would test code that is not on disk.',
+          irreversible_count: 0,
         },
       },
     ],
@@ -473,6 +479,95 @@ export const minimalQueue = Object.freeze({
     policy: {
       required: 2,
       settler_may_approve: false,
+    },
+    you: { name: 'ben', via: 'operator-token', scopes: ['read', 'approve'] },
+  },
+});
+
+/**
+ * A warrant whose release set includes an irreversible effect — a GitHub
+ * merge. The reversibility marker lets the page distinguish "this can be
+ * undone by a void or a settle" from "this leaves the workspace once
+ * released". The partial-release block surfaces the irreversible_count so
+ * a non-developer approver sees the unrecoverable cost in plain language
+ * before reaching the approve control.
+ */
+export const irreversibleQueue = Object.freeze({
+  data: {
+    waiting: [
+      {
+        warrant_id: 'wrt_e',
+        state: 'open',
+        issued_at: 1_786_030_000,
+        staged_effects: 2,
+        blocker: {
+          blocker: 'awaiting-approval',
+          still_needed: 1,
+          could_approve: ['ben'],
+          approved_by: ['ana'],
+        },
+        you_can: ['approve'],
+        proposed_effects: [
+          {
+            tool: 'github.merge_pr',
+            target: 'muveraai/warrantor#214',
+            summary: 'Merge the auth-refactor pull request into main.',
+            tier: 'enforced',
+            covered_by:
+              'Held by the MCP proxy; the merge is performed, not staged, and a refusal halts the chain.',
+            reversible: false,
+          },
+          {
+            tool: 'github.create_issue',
+            target: 'muveraai/warrantor',
+            summary: 'Open a tracking issue for the follow-up work the merge enables.',
+            tier: 'enforced',
+            covered_by:
+              'Held by the MCP proxy; the issue is created, not merged, and a refusal halts the chain.',
+            reversible: true,
+          },
+        ],
+        authority_chain: [
+          {
+            warrant_id: 'wrt_e',
+            subject: 'spiffe://muveraai.com/agent/ops',
+            goal: 'ship the auth refactor to main behind a two-person rule',
+            granted_at: 1_786_030_000,
+            parent_digest: null,
+            delegated_by: null,
+          },
+        ],
+        prior_receipts: [],
+        timeout: {
+          deadline_at: 1_786_030_900,
+          remaining_seconds: 900,
+          on_expiry: 'deny',
+        },
+        partial_release: {
+          independently_releasable: [1],
+          refused_when_unreleased: [0],
+          reason:
+            'Effect 0 merges a pull request that depends on the tracking issue existing; releasing only the merge would leave the repo without the issue the merge announces.',
+          irreversible_count: 1,
+        },
+      },
+    ],
+    waiting_on_you: 1,
+    counts: { 'awaiting-approval': 1 },
+    undetermined: [],
+    unreadable_records: 0,
+    policy: {
+      required: 2,
+      settler_may_approve: false,
+      latency: {
+        window: 'last 24h',
+        sample_size: 17,
+        p50_seconds: 42,
+        p99_seconds: 312,
+        disagreement_rate: 0.12,
+        note:
+          'A disagreement rate trending to zero while latency improves is rubber-stamping, not improvement.',
+      },
     },
     you: { name: 'ben', via: 'operator-token', scopes: ['read', 'approve'] },
   },

@@ -1412,7 +1412,7 @@ test('warrant records that could not be read are counted separately and said out
 // everything under time pressure. The properties are the ones that, when they fail, make the
 // queue ceremony rather than judgment.
 
-const { baselineQueue, dependencyQueue, timedOutQueue, minimalQueue } = await import(
+const { baselineQueue, dependencyQueue, timedOutQueue, minimalQueue, irreversibleQueue } = await import(
   './queue.fixtures.js'
 );
 
@@ -3409,5 +3409,173 @@ test('the INCIDENT_BOUND_SHAPE is the shape every fixture honors', async () => {
       assert.ok(key in fixture, `fixture ${fixture.id} must carry the ${key} key`);
     }
   }
+});
+
+// ── Task 11.5 — plain-language scope and dependency-aware partial approval (L8-14, L8-15) ──
+//
+// "Releasing part of a batch must not silently release dependent effects." The exit gate is:
+// approving one item of a batch with a dependent effect surfaces the dependent BEFORE the
+// approve control is reachable, and a test asserts the dependent stays staged when only its
+// prerequisite is released.
+
+test('a dependent effect is rendered before the approve control is reachable', async () => {
+  // The exit gate, Step 2. The row's DOM order: scope preview, proposed
+  // effects, authority chain, prior receipts, timeout, partial release,
+  // THEN the act bar. The dependent's name appears in the partial-release
+  // block AND in the paragraph that precedes the act bar. A reader who
+  // clicks Approve has seen the dependent in prose at least twice.
+  const app = await openFixture(dependencyQueue);
+  const row = app.el('queue-rows').children[0];
+  const childClasses = Array.from(row.children).map((c) => c.className ?? '');
+  // The partial-release block precedes the act bar.
+  const partialIdx = childClasses.findIndex((c) => c.includes('queue-partial'));
+  const dependentIdx = childClasses.findIndex((c) => c === 'queue-acts-dependent');
+  const actsIdx = childClasses.findIndex((c) => c === 'queue-acts');
+  assert.ok(partialIdx >= 0, 'partial-release block is rendered');
+  assert.ok(dependentIdx >= 0, 'dependent-named paragraph is rendered');
+  assert.ok(actsIdx >= 0, 'act bar is rendered');
+  assert.ok(partialIdx < actsIdx, 'partial-release block must precede the act bar');
+  assert.ok(dependentIdx < actsIdx, 'dependent-named paragraph must precede the act bar');
+  // The dependent's name appears in the paragraph that precedes the bar.
+  const depPara = row.children[dependentIdx];
+  assert.match(textOf(depPara), /will stay staged until its prerequisite\(s\) are released/);
+  assert.match(textOf(depPara), /Run the new signer tests/);
+});
+
+test('releasing a prerequisite does not release its dependent', async () => {
+  // The exit gate, Step 3. The act bar's Approve button is relabeled
+  // "Release [independently-releasable summaries]" when a partial-release
+  // rule exists. The dependent effect's name appears in a paragraph that
+  // precedes the bar. A click on the relabeled button calls the server
+  // with `you_can: approve` — the server decides which effects actually
+  // release, and the console never recomputes that. The console's job is
+  // to surface the dependent BEFORE the click is reachable, not to enforce
+  // the refusal on the client (the server is the only authority on what
+  // releases).
+  const app = await openFixture(dependencyQueue);
+  const row = app.el('queue-rows').children[0];
+  const buttons = Array.from(row.children).filter((c) => c.tagName === 'BUTTON' || (c.className ?? '').includes('queue-acts'));
+  const bar = buttons.find((c) => c.className === 'queue-acts');
+  const approve = bar.children.find((b) => b.textContent?.startsWith('Release '));
+  assert.ok(approve, 'the Approve button is relabeled to "Release <effect summaries>"');
+  // The label names the independently-releasable set, NOT the dependent.
+  assert.match(approve.textContent, /Release Add the new signing entry point; Add the matching key-parsing path/);
+  assert.ok(!/Run the new signer tests/.test(approve.textContent), 'the dependent must NOT appear in the button label');
+  // And the dependent's name is in the paragraph that precedes the bar.
+  const depPara = row.children.find((c) => c.className === 'queue-acts-dependent');
+  assert.match(textOf(depPara), /Run the new signer tests/);
+  assert.match(textOf(depPara), /will stay staged/);
+});
+
+test('the partial-release preview distinguishes reversible from irreversible', async () => {
+  // The exit gate, Step 4. A releasable set that includes a write that
+  // cannot be undone by a settle or a void renders the irreversible count
+  // in the same block as the dependency sentence, so a non-developer
+  // approver sees the unrecoverable cost in plain language next to the
+  // rest of the dependency.
+  const app = await openFixture(irreversibleQueue);
+  const row = app.el('queue-rows').children[0];
+  const partial = row.children.find((c) => (c.className ?? '').includes('queue-partial'));
+  assert.ok(partial, 'partial-release block is rendered for the irreversible queue');
+  const irrev = partial.children.find((c) => c.className === 'queue-partial-irreversible');
+  assert.ok(irrev, 'the irreversible-count line is rendered');
+  assert.match(textOf(irrev), /1 of the releasable effect\(s\) are irreversible/);
+  // The dependency sentence and the irreversible sentence both render.
+  const ref = partial.children.find((c) => c.className === 'queue-partial-refused');
+  assert.match(textOf(ref), /Refused if a dependency is unreleased/);
+  // And the scope preview carries the irreversible count above the act bar.
+  const scope = row.children.find((c) => (c.className ?? '').includes('queue-scope-preview'));
+  assert.ok(scope, 'scope preview is rendered');
+  assert.match(textOf(scope), /1 of the releasable effect\(s\) are irreversible/);
+});
+
+test('the scope preview recites the warrant goal and the proposed-effect summaries', async () => {
+  // The exit gate, Step 5. The plain-language scope preview is one
+  // paragraph at the top of the row that names the goal and the
+  // effect summaries. The text comes from the server's own fields — the
+  // console composes no judgment, only the join.
+  const app = await openFixture(baselineQueue);
+  const row = app.el('queue-rows').children[0];
+  const preview = row.children.find((c) => (c.className ?? '').includes('queue-scope-preview'));
+  assert.ok(preview, 'scope preview is rendered');
+  const all = textOf(preview);
+  assert.match(all, /You are being asked to release:/);
+  assert.match(all, /Open a pull request titled "Fix auth" against main/);
+  assert.match(all, /Rewrite the refresh-token rotation to use the new signer/);
+  // The root warrant's goal — the preview reads authority_chain[0].goal,
+  // which is the root grant's stated purpose. A non-root warrant whose
+  // root grant is "coordinate a one-week auth refactor" carries that goal,
+  // not the leaf's "fix the auth bug". The fixture embeds a newline in the
+  // goal string; the regex must accept any whitespace between "runtime,"
+  // and "the desktop".
+  assert.match(all, /coordinate a one-week auth refactor across the runtime,[\s\S]+the desktop, and the console/);
+});
+
+test('a warrant with no dependency renders an empty dependency sentence', async () => {
+  // The baseline queue has `partial_release: null`. The scope preview
+  // renders without a dependency sentence, and the act bar carries an
+  // Approve button with the standard label.
+  const app = await openFixture(baselineQueue);
+  const row = app.el('queue-rows').children[0];
+  const preview = row.children.find((c) => (c.className ?? '').includes('queue-scope-preview'));
+  assert.ok(preview, 'scope preview is rendered');
+  assert.ok(!preview.children.some((c) => c.className === 'queue-scope-dependency'),
+    'no dependency sentence is rendered when partial_release is null');
+  const bar = row.children.find((c) => c.className === 'queue-acts');
+  const approve = bar.children.find((b) => b.textContent === 'Approve');
+  assert.ok(approve, 'Approve button is rendered with the standard label');
+});
+
+test('a row whose releasable set is empty disables the Approve button', async () => {
+  // Edge case: every effect is refused by the partial-release rule. A
+  // pane that offered an Approve button in that case would teach the
+  // operator that Approve means "approve everything" — but the releasable
+  // set is empty, so the button has nothing to release. The console
+  // disables it and labels the consequence.
+  const emptyRelFixture = {
+    data: {
+      waiting: [{
+        warrant_id: 'wrt_empty',
+        state: 'open',
+        issued_at: 1_786_040_000,
+        staged_effects: 1,
+        blocker: { blocker: 'awaiting-decision', approved_by: ['ana'] },
+        you_can: ['approve'],
+        proposed_effects: [{
+          tool: 'cargo.publish',
+          target: 'warrantor-warrant',
+          summary: 'Publish the new crate to crates.io.',
+          tier: 'enforced',
+          covered_by: 'Held by the MCP proxy; the publish is performed, not staged.',
+          reversible: false,
+        }],
+        authority_chain: [{
+          warrant_id: 'wrt_empty', subject: 'spiffe://muveraai.com/agent/ops',
+          goal: 'ship the v2 signer', granted_at: 1_786_040_000,
+          parent_digest: null, delegated_by: null,
+        }],
+        prior_receipts: [],
+        timeout: null,
+        partial_release: {
+          independently_releasable: [],
+          refused_when_unreleased: [0],
+          reason: 'Effect 0 publishes the crate; releasing it without the prior receipt on file would publish code that has not been approved.',
+          irreversible_count: 1,
+        },
+      }],
+      waiting_on_you: 1,
+      counts: { 'awaiting-decision': 1 },
+      undetermined: [],
+      unreadable_records: 0,
+      policy: { required: 2, settler_may_approve: false },
+      you: { name: 'ben', via: 'operator-token', scopes: ['read', 'approve'] },
+    },
+  };
+  const app = await openFixture(emptyRelFixture);
+  const row = app.el('queue-rows').children[0];
+  const bar = row.children.find((c) => c.className === 'queue-acts');
+  const approve = bar.children.find((b) => b.disabled);
+  assert.ok(approve, 'Approve button is disabled when releasable set is empty');
+  assert.match(approve.textContent, /Release nothing/);
 });
 
