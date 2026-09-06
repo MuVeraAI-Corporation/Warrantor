@@ -80,6 +80,7 @@
           <button id="view-crosswalk" class="view" type="button">Crosswalk</button>
           <button id="view-portal" class="view" type="button">Portal</button>
           <button id="view-trust-center" class="view" type="button">Trust center</button>
+          <button id="view-notice" class="view" type="button">Notice</button>
         </div>
 
         <div class="filters" role="group" aria-label="Filter by state">
@@ -921,6 +922,57 @@
           the list is shown "not eligible" and never a partial figure. The EU is a passing
           mention only. The trust center never says "all OK" when the underlying graph has a
           gap; the figures are computed once and shared with the portal.
+        </p>
+      </section>
+
+      <!-- The notice pane (L8-19, L8-16). The only surface in the
+           estate built for someone outside the buying organization.
+           "The affected party is not the operator." The pane renders
+           the decisions that concerned the affected party, the basis
+           for each decision (or a visible "basis: not stated" when
+           the basis is missing — never a fabricated citation), the
+           approver's competency with `unassessed` and `expired` as
+           visible states (never collapsed to "OK"), and the contest
+           route the affected party can reach without a terminal. A
+           decision without a contest route is rendered as "no
+           contest route", never as a misleading link. The pane
+           refuses cross-party disclosure at the helper level: a
+           query for one affected party that includes another
+           party's record blanks the page on purpose, because
+           disclosure cannot be undone by filtering. -->
+      <section id="notice" class="notice" hidden aria-labelledby="notice-headline">
+        <h2 id="notice-headline">Notice &mdash; decisions about you, the basis for each, and your route to contest</h2>
+
+        <p class="note">
+          This page is for the affected party, not the operator. It shows the decisions the
+          warrant estate made about the party whose id is in the page's address, the basis for
+          each decision, the approver's role competency, and the route to contest a decision
+          you disagree with. An empty basis is shown as "basis: not stated" so the page never
+          carries a citation the operator did not provide. An unassessed or expired approver
+          is shown as such, never as "OK" &mdash; a confidence collapse the discipline prevents.
+        </p>
+
+        <p id="notice-error" class="empty error" hidden>
+          This notice could not be read. A notice that cannot read its feed cannot say what
+          the decision was, and the page is blank on purpose.
+        </p>
+        <p id="notice-unreadable" class="note error"></p>
+        <p id="notice-empty" class="empty" hidden>
+          No decisions are recorded for this affected party yet. A notice that opened to an
+          empty page would be guessing about what the reader would see, and the page is blank
+          on purpose.
+        </p>
+
+        <div id="notice-summary" class="notice-summary"></div>
+        <ul id="notice-decisions" class="notice-decisions"></ul>
+
+        <p class="note">
+          The contest route on each decision is reachable from this page &mdash; an affected
+          party does not need a terminal or a developer to file a contest. A decision that
+          carries no contest route is shown as "no contest route", never as a misleading
+          link. The pane refuses cross-party disclosure at the helper level: a query that
+          includes another party's record blanks the page, because disclosure cannot be
+          undone by filtering.
         </p>
       </section>
 

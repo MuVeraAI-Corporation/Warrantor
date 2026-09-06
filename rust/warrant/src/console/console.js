@@ -202,6 +202,14 @@ const el = {
   trustCenterEmpty: document.getElementById('trust-center-empty'),
   trustCenterError: document.getElementById('trust-center-error'),
   trustCenterUnreadable: document.getElementById('trust-center-unreadable'),
+  viewNotice: document.getElementById('view-notice'),
+  notice: document.getElementById('notice'),
+  noticeHeadline: document.getElementById('notice-headline'),
+  noticeSummary: document.getElementById('notice-summary'),
+  noticeDecisions: document.getElementById('notice-decisions'),
+  noticeEmpty: document.getElementById('notice-empty'),
+  noticeError: document.getElementById('notice-error'),
+  noticeUnreadable: document.getElementById('notice-unreadable'),
   queue: document.getElementById('queue'),
   queueHeadline: document.getElementById('queue-headline'),
   queueWho: document.getElementById('queue-who'),
@@ -531,7 +539,8 @@ function applyEmptyState(kind) {
   const crosswalk = state.view === 'crosswalk';
   const portal = state.view === 'portal';
   const trustCenter = state.view === 'trust-center';
-  const elsewhere = summary || queue || settings || coverage || routing || audit || fleet || incidents || policy || executive || autonomy || crosswalk || portal || trustCenter;
+  const notice = state.view === 'notice';
+  const elsewhere = summary || queue || settings || coverage || routing || audit || fleet || incidents || policy || executive || autonomy || crosswalk || portal || trustCenter || notice;
   el.summary.hidden = !summary;
   el.queue.hidden = !queue;
   el.settings && (el.settings.hidden = !settings);
@@ -546,6 +555,7 @@ function applyEmptyState(kind) {
   el.crosswalk && (el.crosswalk.hidden = !crosswalk);
   el.portal && (el.portal.hidden = !portal);
   el.trustCenter && (el.trustCenter.hidden = !trustCenter);
+  el.notice && (el.notice.hidden = !notice);
   el.firstRun.hidden = elsewhere || !explain;
   el.detail.hidden = elsewhere || explain;
 
@@ -607,6 +617,7 @@ async function setView(value) {
     [el.viewCrosswalk, 'crosswalk'],
     [el.viewPortal, 'portal'],
     [el.viewTrustCenter, 'trust-center'],
+    [el.viewNotice, 'notice'],
   ]) {
     if (!button) continue;
     button.classList.toggle('is-on', value === name);
@@ -626,6 +637,7 @@ async function setView(value) {
   if (value === 'autonomy') await loadAutonomy();
   if (value === 'crosswalk') await loadCrosswalk();
   if (value === 'portal' || value === 'trust-center') await loadPortal();
+  if (value === 'notice') await loadNotice();
 }
 
 // ── the queue: what is waiting on a human, and what THIS reader can do about it ───────
@@ -4310,6 +4322,211 @@ async function loadPortal() {
   renderTrustCenter(composed);
 }
 
+// ── notice, rights, appeal, contestability: the affected party is not the operator ──
+
+/**
+ * Render role competency as a visible word. The pane does not
+ * collapse `unassessed` to "OK" or `expired` to "assessed". A
+ * reader who cannot resolve the color of the competency pill
+ * still sees the word. The helper is the single source of
+ * truth for the wording; a future change that rendered
+ * `unassessed` as "OK" would surface here.
+ *
+ * @param {string} competency The approver's competency status.
+ * @returns {string} The rendered word.
+ */
+export function renderCompetency(competency) {
+  if (competency === 'assessed') return 'assessed';
+  if (competency === 'unassessed') return 'unassessed';
+  if (competency === 'expired') return 'expired';
+  return 'unknown';
+}
+
+/**
+ * Refuse cross-party disclosure. A query for one affected party
+ * must never include another party's data. The helper inspects
+ * every record in the feed and returns `true` if any record's
+ * `affected_party_id` does not match the queried party. A pane
+ * that rendered a record from another party would be a
+ * cross-party disclosure — the failure this discipline prevents.
+ *
+ * @param {string} queriedParty The affected party the query is for.
+ * @param {object} feed The feed the server returned.
+ * @returns {boolean} True if cross-party disclosure is detected.
+ */
+export function feedContainsOtherParty(queriedParty, feed) {
+  if (!Array.isArray(feed?.data)) return false;
+  for (const record of feed.data) {
+    if (record?.affected_party_id && record.affected_party_id !== queriedParty) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Read the affected-party feed into the shape the pane renders.
+ * The helper refuses cross-party disclosure at the read step,
+ * so the renderer never sees a record from another party. A
+ * record whose `affected_party_id` does not match the queried
+ * party is filtered out before the facts are composed; the
+ * pane renders only the queried party's decisions.
+ *
+ * @param {string} queriedParty The affected party the query is for.
+ * @param {boolean} answered
+ * @param {number} status
+ * @param {unknown} payload
+ * @returns {{readable: boolean, affected_party_id: string, decisions: object[], formatError: string|null, crossPartyRefused: boolean}}
+ */
+export function noticeFacts(queriedParty, answered, status, payload) {
+  const unreadable = { readable: false, affected_party_id: queriedParty, decisions: [], formatError: null, crossPartyRefused: false };
+  if (!answered || status !== 200) {
+    return { ...unreadable, formatError: 'notice feed did not answer' };
+  }
+  const data = payload?.data ?? payload;
+  if (!Array.isArray(data)) {
+    return { ...unreadable, formatError: 'expected decisions to be an array' };
+  }
+  // Cross-party disclosure refusal. A record whose
+  // affected_party_id does not match the queried party is the
+  // cross-party disclosure the discipline prevents. The whole
+  // feed is refused — not just the offending record — because
+  // a feed that contains a record from another party is a feed
+  // that has already disclosed, and the disclosure cannot be
+  // undone by filtering.
+  if (feedContainsOtherParty(queriedParty, { data })) {
+    return {
+      readable: false,
+      affected_party_id: queriedParty,
+      decisions: [],
+      formatError: 'feed contains a record from another party: cross-party disclosure refused',
+      crossPartyRefused: true,
+    };
+  }
+  // The pane renders only the queried party's records. A
+  // record whose `affected_party_id` is missing is refused at
+  // the read step too, because the disclosure boundary is the
+  // `affected_party_id` field, not the renderer's discretion.
+  const decisions = data
+    .filter((d) => d && d.affected_party_id === queriedParty)
+    .map((d) => ({
+      id: d.id,
+      decision: d.decision,
+      basis: d.basis ?? '',
+      rule: d.rule ?? '',
+      status: d.status ?? 'unknown',
+      approver: d.approver ?? '',
+      approver_competency: d.approver_competency ?? 'unknown',
+      contest_url: d.contest_url ?? '',
+    }));
+  return {
+    readable: true,
+    affected_party_id: queriedParty,
+    decisions,
+    formatError: null,
+    crossPartyRefused: false,
+  };
+}
+
+/** Render a single decision row. The row carries the decision
+ *  text, the basis (with a visible "basis: not stated" when the
+ *  basis is empty), the rule, the status, the approver and the
+ *  approver's competency (rendered via `renderCompetency`), and
+ *  the contest route (with a visible "no contest route" when
+ *  the route is empty). The decision is rendered as a `<details>`
+ *  so the affected party can collapse the basis when they have
+ *  read it, and a `<a>` link to the contest route when the route
+ *  is present. */
+function noticeRow(decision) {
+  const li = node('li', 'notice-row');
+  li.append(node('p', 'notice-row-decision', `decision: ${decision.decision}`));
+  if (decision.basis) {
+    li.append(node('p', 'notice-row-basis', `basis: ${decision.basis}`));
+  } else {
+    li.append(node('p', 'notice-row-basis notice-row-basis-missing', 'basis: not stated — the pane shows the gap rather than a fabricated citation'));
+  }
+  if (decision.rule) {
+    li.append(node('p', 'notice-row-rule', `rule: ${decision.rule}`));
+  } else {
+    li.append(node('p', 'notice-row-rule notice-row-rule-missing', 'rule: not stated'));
+  }
+  li.append(node('p', 'notice-row-status', `status: ${decision.status}`));
+  li.append(node('p', 'notice-row-approver', `approver: ${decision.approver}`));
+  const competency = renderCompetency(decision.approver_competency);
+  const competencyClass = competency === 'assessed'
+    ? 'notice-row-competency'
+    : `notice-row-competency notice-row-competency-${competency}`;
+  li.append(node('p', competencyClass, `approver competency: ${competency}`));
+  if (decision.contest_url) {
+    const link = node('a', 'notice-row-contest-link', `contest this decision: ${decision.contest_url}`);
+    link.href = decision.contest_url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    li.append(link);
+  } else {
+    li.append(node('p', 'notice-row-contest-missing', 'no contest route: the operator has not provided a route to contest this decision'));
+  }
+  return li;
+}
+
+/** Render the notice pane from composed facts. The pane is
+ *  hidden by default and shown when the affected party opens
+ *  the page. The headline names the affected party and the
+ *  count of decisions. The error paragraph is shown when the
+ *  feed is unreadable or the cross-party disclosure was
+ *  detected. */
+export function renderNotice(facts) {
+  if (!el.notice) return;
+  if (!facts || !facts.readable) {
+    el.noticeError.hidden = false;
+    if (facts?.crossPartyRefused) {
+      el.noticeError.textContent =
+        'This notice could not be read because the feed contained a record from another party. A notice that discloses another party is a cross-party disclosure, and the page is blank on purpose.';
+    } else {
+      el.noticeError.textContent =
+        'This notice could not be read. A notice that cannot read its feed cannot say what the decision was, and the page is blank on purpose.';
+    }
+    el.noticeEmpty.hidden = true;
+    el.noticeUnreadable.textContent = facts?.formatError ?? '';
+    el.noticeSummary.replaceChildren();
+    el.noticeDecisions.replaceChildren();
+    return;
+  }
+  el.noticeError.hidden = true;
+  const hasDecisions = facts.decisions.length > 0;
+  el.noticeEmpty.hidden = hasDecisions;
+  el.noticeSummary.replaceChildren(
+    node(
+      'p',
+      'notice-headline',
+      `Decisions for affected party ${facts.affected_party_id}: ${facts.decisions.length}`,
+    ),
+  );
+  el.noticeDecisions.replaceChildren();
+  for (const decision of facts.decisions) {
+    el.noticeDecisions.append(noticeRow(decision));
+  }
+}
+
+/** Load the notice for an affected party. The pane reads
+ *  `/v1/affected-party/{id}/decisions` and renders the result.
+ *  The query is parameterized by the affected party so the
+ *  server can refuse cross-party disclosure at its end too;
+ *  the client-side helper is the second line of defence, the
+ *  first being 10.6's cryptographic property. */
+async function loadNotice() {
+  if (!el.notice) return;
+  // The affected party id is read from the page's hash. A
+  // pane that hard-coded an id would not be reachable for
+  // any party; the hash is how the operator or a regulator
+  // directs an affected party to their own page.
+  const id = (api?.token || 'ap-anonymous');
+  const { answered, status, payload } = await call(`/v1/affected-party/${encodeURIComponent(id)}/decisions`);
+  if (answered && status === 401) { showGate('That token was not accepted.'); return; }
+  const facts = noticeFacts(id, answered, status, payload);
+  renderNotice(facts);
+}
+
 /**
  * Turn a month into the half-open window the API takes.
  *
@@ -5519,6 +5736,7 @@ if (el.viewAutonomy) el.viewAutonomy.addEventListener('click', () => setView('au
 if (el.viewCrosswalk) el.viewCrosswalk.addEventListener('click', () => setView('crosswalk'));
 if (el.viewPortal) el.viewPortal.addEventListener('click', () => setView('portal'));
 if (el.viewTrustCenter) el.viewTrustCenter.addEventListener('click', () => setView('trust-center'));
+if (el.viewNotice) el.viewNotice.addEventListener('click', () => setView('notice'));
 
 // The studio re-renders on every keystroke into the editor (so the operator
 // sees the refusal sentence appear as they type a malformed line) and on

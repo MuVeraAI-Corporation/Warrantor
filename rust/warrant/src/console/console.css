@@ -960,3 +960,25 @@ kbd {
 .portal-pack p:last-child, .trust-center-pack p:last-child { margin-bottom: 0; }
 .portal-pack-gap, .trust-center-pack-gap { color: var(--ink); font-size: var(--text-sm); }
 .portal-pack-receipts, .trust-center-pack-receipts { color: var(--ink-soft); font-size: var(--text-sm); }
+
+/* The notice pane (L8-19, L8-16) — Task 11.12. The only surface
+   in the estate built for someone outside the buying organization.
+   The styling follows the trust center / portal vocabulary so the
+   affected party sees a page that looks like every other surface,
+   but the three states the page adds — a missing basis, an
+   unassessed or expired approver, and a missing contest route —
+   each carry their own class hook so the wording stays visible
+   even when the colors are not. */
+.notice-summary { margin-bottom: var(--space-3); }
+.notice-headline { font-size: var(--text-md); margin: 0; }
+.notice-decisions { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.notice-row { padding: var(--space-2); border: 1px solid var(--line); border-radius: 5px; }
+.notice-row p { margin: 0 0 var(--space-1); }
+.notice-row p:last-child { margin-bottom: 0; }
+.notice-row-basis-missing,
+.notice-row-rule-missing,
+.notice-row-contest-missing { color: var(--ink); font-size: var(--text-sm); }
+.notice-row-competency-unassessed,
+.notice-row-competency-expired,
+.notice-row-competency-unknown { color: var(--ink); font-size: var(--text-sm); }
+.notice-row-contest-link { color: var(--accent); text-decoration: underline; }

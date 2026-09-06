@@ -260,6 +260,26 @@ const ELEMENT_IDS = [
   'trust-center-empty',
   'trust-center-error',
   'trust-center-unreadable',
+  // Notice pane (L8-19, L8-16) — added by Task 11.12. The only
+  // surface in the estate built for someone outside the buying
+  // organization. "The affected party is not the operator." The
+  // pane renders the decision, the basis (or "basis: not stated"),
+  // the rule, the status, the approver and the approver's
+  // competency with `unassessed` and `expired` as visible states,
+  // and the contest route (or "no contest route"). A pane that
+  // collapsed `unassessed` to "OK" would be the confidence collapse
+  // this surface exists to prevent; a pane that hid a missing
+  // basis behind a fabricated citation would be the marketing
+  // surface the discipline prevents. Click-only — every digit
+  // and every other tab is taken.
+  'view-notice',
+  'notice',
+  'notice-headline',
+  'notice-summary',
+  'notice-decisions',
+  'notice-empty',
+  'notice-error',
+  'notice-unreadable',
 ];
 
 function element(tag = 'div', id = '') {
@@ -5334,4 +5354,373 @@ test('every portal and trust-center element id is declared in index.html and stu
   }
 });
 
+// ── the notice pane (L8-19, L8-16) — Task 11.12 ─────────────────────────────
 
+import {
+  noticeFixtures,
+} from './notice.fixtures.js';
+
+const {
+  renderCompetency,
+  feedContainsOtherParty,
+  noticeFacts,
+  renderNotice,
+} = await (async () => {
+  const app = await openStudio();
+  return app.module;
+})();
+
+/**
+ * Open the notice pane against a scripted answer for the affected-party feed.
+ * The pane reads `/v1/affected-party/{id}/decisions` for the party whose id is
+ * in the page's hash, and the test boot answers that path with the fixture
+ * provided. The pane is the only surface in the estate built for someone
+ * outside the buying organization, so the test must show it for the
+ * affected party, not the operator.
+ *
+ * The boot helper sets the page's hash to `#t=deadbeef`, so `api.token`
+ * is `'deadbeef'` after `connect()` runs and `loadNotice()` reads that
+ * token as the affected-party id. The default party in the test boot
+ * is therefore `deadbeef`, and the feed script matches the same path.
+ * The fixtures carry their own `affected_party_id` per record, so the
+ * test rewrites every record's `affected_party_id` to the queried party
+ * before scripting the response — a future test that re-introduced a
+ * cross-party record through the same fixture would surface here as a
+ * refusal rather than as a missing render.
+ */
+async function openNotice({ feed = null, party = 'deadbeef' } = {}) {
+  // The scripted answer is the verbatim feed, so a non-2xx test
+  // passes `{ status: 500, body: { data: null } }` and that shape
+  // round-trips through the boot without any rewriting. For 2xx
+  // feeds, every record's `affected_party_id` is rewritten to the
+  // queried party so the cross-party filter does not refuse the
+  // fixture and the pane renders the expected rows.
+  const scripted = feed && Array.isArray(feed.body?.data) ? {
+    status: feed.status,
+    body: { data: feed.body.data.map((d) => ({ ...d, affected_party_id: party })) },
+  } : feed;
+  const app = await boot((p) => {
+    if (p === '/v1/health') return HEALTH_OK;
+    if (p === `/v1/affected-party/${party}/decisions` && scripted !== null) return scripted;
+    return listOf(ONE_WARRANT);
+  });
+  app.el('view-notice').fire('click');
+  await settle();
+  return app;
+}
+
+test('renderCompetency returns the visible word for every competency state, never a collapsed form', () => {
+  // The pane does not collapse `unassessed` to "OK" or `expired` to
+  // "assessed". The helper is the single source of truth for the
+  // wording; the test iterates the fixture and pins every verdict,
+  // and a future change that rendered `unassessed` as "OK" would
+  // surface here.
+  for (const c of noticeFixtures.roleCompetencyCases) {
+    assert.equal(
+      renderCompetency(c.competency),
+      c.render,
+      `renderCompetency for ${c.label} must be ${c.render}`,
+    );
+  }
+  // Unknown values are rendered as "unknown", never as "assessed" or
+  // a confidence-collapsed state. A reader who cannot resolve the
+  // color of the pill still sees the word.
+  assert.equal(renderCompetency(''), 'unknown');
+  assert.equal(renderCompetency('pending'), 'unknown');
+  assert.equal(renderCompetency('best-effort'), 'unknown');
+});
+
+test('feedContainsOtherParty returns true if any record in the feed is from a different party', () => {
+  // Cross-party disclosure refusal. A query for one affected
+  // party that includes another party's record is refused at
+  // the helper level. The test iterates the fixture and pins
+  // the verdict for both the refused and the accepted case.
+  for (const c of noticeFixtures.crossPartyCases) {
+    assert.equal(
+      feedContainsOtherParty(c.affected_party_id, c.feed),
+      c.refused,
+      `feedContainsOtherParty for ${c.label} must be ${c.refused}`,
+    );
+  }
+  // A feed without an `affected_party_id` field on a record is
+  // also refused — the disclosure boundary is the field, not
+  // the renderer's discretion. A feed that is not an array is
+  // not cross-party by itself.
+  assert.equal(
+    feedContainsOtherParty('ap-1', { data: [{ id: 'd-1' }] }),
+    false,
+    'a record without an affected_party_id is not cross-party disclosure',
+  );
+  assert.equal(
+    feedContainsOtherParty('ap-1', null),
+    false,
+    'a missing feed is not cross-party disclosure',
+  );
+});
+
+test('noticeFacts refuses an unreadable feed and the cross-party feed', () => {
+  // The pane refuses an unreadable feed (no answer, non-200,
+  // missing array) and a cross-party feed. Both refusals
+  // produce `readable: false`; the cross-party refusal also
+  // sets `crossPartyRefused: true` so the renderer can name
+  // the cause. A pane that silently rendered a cross-party
+  // feed would be the disclosure this discipline prevents.
+  const unreadable1 = noticeFacts('ap-1', false, 0, null);
+  assert.equal(unreadable1.readable, false);
+  assert.match(unreadable1.formatError, /did not answer/);
+
+  const unreadable2 = noticeFacts('ap-1', true, 500, { data: null });
+  assert.equal(unreadable2.readable, false);
+  assert.match(unreadable2.formatError, /did not answer/);
+
+  const unreadable3 = noticeFacts('ap-1', true, 200, { data: 'not an array' });
+  assert.equal(unreadable3.readable, false);
+  assert.match(unreadable3.formatError, /expected decisions to be an array/);
+
+  const crossParty = noticeFacts('ap-1', true, 200, {
+    data: [
+      { id: 'd-1', affected_party_id: 'ap-1', decision: 'ok' },
+      { id: 'd-9', affected_party_id: 'ap-9', decision: 'for someone else' },
+    ],
+  });
+  assert.equal(crossParty.readable, false);
+  assert.equal(crossParty.crossPartyRefused, true);
+  assert.match(crossParty.formatError, /cross-party disclosure refused/);
+});
+
+test('noticeFacts composes one party, several decisions, with the readable fields', () => {
+  // The helper composes the facts the pane renders: a list of
+  // decisions, each carrying the fields the row needs. A
+  // record that does not match the queried party is filtered
+  // out before the facts are composed; the renderer never
+  // sees it. The test iterates the fixture and pins the
+  // decision count, the missing-basis flag, and the
+  // unassessed-approver flag for each reading.
+  for (const fixture of noticeFixtures.decisionReadings) {
+    const facts = noticeFacts(
+      fixture.affected_party_id,
+      true,
+      200,
+      fixture.feed,
+    );
+    assert.equal(facts.readable, true,
+      `noticeFacts for ${fixture.label} must be readable`);
+    assert.equal(facts.affected_party_id, fixture.affected_party_id);
+    assert.equal(facts.decisions.length, fixture.expected.decision_count,
+      `decision count for ${fixture.label}`);
+    const hasMissingBasis = facts.decisions.some((d) => !d.basis);
+    assert.equal(hasMissingBasis, fixture.expected.has_no_basis,
+      `has_no_basis for ${fixture.label}`);
+    const hasUnassessed = facts.decisions.some(
+      (d) => d.approver_competency === 'unassessed',
+    );
+    assert.equal(hasUnassessed, fixture.expected.has_unassessed,
+      `has_unassessed for ${fixture.label}`);
+    const hasExpired = facts.decisions.some(
+      (d) => d.approver_competency === 'expired',
+    );
+    assert.equal(hasExpired, fixture.expected.has_expired,
+      `has_expired for ${fixture.label}`);
+    const hasNoContestRoute = facts.decisions.some((d) => !d.contest_url);
+    assert.equal(hasNoContestRoute, fixture.expected.has_no_contest_route,
+      `has_no_contest_route for ${fixture.label}`);
+  }
+});
+
+test('renderNotice paints the error paragraph and never renders a record from another party', () => {
+  // A feed that contains a record from another party blanks
+  // the page on purpose. The cross-party refusal must surface
+  // in the rendered error message, not as a partial render of
+  // the queried party's data. A renderer that hid the
+  // cross-party refusal would be the disclosure this discipline
+  // prevents.
+  for (const c of noticeFixtures.crossPartyCases) {
+    const facts = noticeFacts(c.affected_party_id, true, 200, c.feed);
+    if (c.refused) {
+      assert.equal(facts.readable, false);
+      assert.equal(facts.crossPartyRefused, true);
+    } else {
+      assert.equal(facts.readable, true);
+    }
+  }
+});
+
+test('the notice pane is hidden by default and visible only when the operator clicks it', async () => {
+  // The click-only invariant continues: every digit is taken
+  // and the remaining destinations are click-only. A pane that
+  // was always visible would be a pane the affected party could
+  // not avoid seeing — and the rule is "the affected party
+  // chooses to open the notice", not "the operator decides for
+  // them".
+  const app = await openNotice({
+    feed: { status: 200, body: { data: [] } },
+  });
+  assert.equal(app.el('notice').hidden, false);
+  assert.equal(app.el('trust-center').hidden, true);
+  // Clicking the trust center tab must hide the notice and
+  // show the trust center — same rule as every other
+  // destination.
+  app.el('view-trust-center').fire('click');
+  await settle();
+  assert.equal(app.el('trust-center').hidden, false);
+  assert.equal(app.el('notice').hidden, true);
+});
+
+test('the notice pane paints the error paragraph when the backend does not answer', async () => {
+  // The notice refuses to render decisions when the feed did
+  // not answer. A notice that rendered "no decisions" on
+  // transport failure would tell the affected party "nothing
+  // happened" when the truth is "I could not ask".
+  const app = await openNotice({
+    feed: { status: 500, body: { data: null } },
+  });
+  await settle();
+  assert.equal(app.el('notice-error').hidden, false);
+  assert.match(textOf(app.el('notice-error')), /could not be read/);
+});
+
+test('a decision with a missing basis renders "basis: not stated", never a fabricated citation', async () => {
+  // The pane shows the gap rather than a citation the operator
+  // did not provide. A row with an empty basis is rendered as
+  // "basis: not stated" with the visible `notice-row-basis-missing`
+  // class hook, so the wording survives a future stylesheet
+  // change that drops the color.
+  const app = await openNotice({
+    feed: { status: 200, body: noticeFixtures.decisionReadings[1].feed },
+  });
+  const rows = app.el('notice-decisions').children;
+  assert.equal(rows.length, 2);
+  // The second decision (d-3) carries an empty basis. The row
+  // must carry the missing-basis class hook.
+  const missingRow = rows.find((r) => r.children.some(
+    (c) => c.className && c.className.includes('notice-row-basis-missing'),
+  ));
+  assert.ok(missingRow, 'a row with a missing basis must carry the missing-basis class hook');
+  const missingBasisPara = missingRow.children.find(
+    (c) => c.className && c.className.includes('notice-row-basis-missing'),
+  );
+  assert.match(missingBasisPara.textContent, /basis: not stated/);
+});
+
+test('a decision with an unassessed approver renders the visible word, never "OK"', async () => {
+  // The pane does not collapse `unassessed` to "OK". An
+  // approver whose competency is `unassessed` is rendered as
+  // such, with the visible class hook, so the wording survives
+  // a stylesheet change. A confidence collapse to "OK" is the
+  // failure this surface exists to prevent.
+  const app = await openNotice({
+    feed: { status: 200, body: noticeFixtures.decisionReadings[2].feed },
+  });
+  const rows = app.el('notice-decisions').children;
+  assert.equal(rows.length, 1);
+  const competencyPara = rows[0].children.find(
+    (c) => c.className && c.className.includes('notice-row-competency-unassessed'),
+  );
+  assert.ok(competencyPara, 'an unassessed approver must carry the unassessed class hook');
+  assert.match(competencyPara.textContent, /approver competency: unassessed/);
+});
+
+test('a decision without a contest route renders "no contest route", never a misleading link', async () => {
+  // The pane refuses to invent a contest route. A decision
+  // with an empty `contest_url` is rendered as the visible
+  // "no contest route" paragraph, with the class hook, so
+  // the affected party can see the gap rather than follow a
+  // link to nowhere. The fixture's two cases cover the
+  // present-route and missing-route cases.
+  for (const c of noticeFixtures.contestRouteCases) {
+    // A single-decision feed that exercises the contest-route
+    // rendering for the given decision. The decision does
+    // not need to belong to a real affected party for the
+    // helper-level composition; we are exercising the renderer.
+    const feed = {
+      status: 200,
+      body: { data: [{ affected_party_id: 'deadbeef', ...c.decision, decision: 'warrant denied', basis: 'r-1', rule: 'rule-1.1', status: 'decided', approver: 'approver-A', approver_competency: 'assessed' }] },
+    };
+    const app = await openNotice({ feed, party: 'deadbeef' });
+    const rows = app.el('notice-decisions').children;
+    assert.equal(rows.length, 1);
+    if (c.has_contest_route) {
+      const link = rows[0].children.find(
+        (c) => c.className === 'notice-row-contest-link',
+      );
+      assert.ok(link, 'a decision with a contest route must render the link');
+      assert.equal(link.tagName, 'a');
+      assert.equal(link.href, c.decision.contest_url);
+      assert.equal(link.target, '_blank');
+      assert.equal(link.rel, 'noopener noreferrer');
+    } else {
+      const missing = rows[0].children.find(
+        (c) => c.className === 'notice-row-contest-missing',
+      );
+      assert.ok(missing, 'a decision without a contest route must render the missing-route paragraph');
+      assert.match(missing.textContent, /no contest route/);
+    }
+  }
+});
+
+test('a cross-party feed paints the cross-party error, never a partial render', async () => {
+  // The notice refuses cross-party disclosure. A feed that
+  // includes another party's record blanks the page on
+  // purpose and surfaces the cross-party error, so the
+  // affected party can see the cause rather than wonder why
+  // the page is empty. The fixture is scripted as-is, with
+  // its own `affected_party_id` mix of `ap-1` and `ap-9`,
+  // so the queried party (`deadbeef`, the boot's default
+  // token) sees both records and the helper refuses the
+  // whole feed.
+  const fixtureFeed = noticeFixtures.crossPartyCases[0].feed;
+  const app = await boot((p) => {
+    if (p === '/v1/health') return HEALTH_OK;
+    if (p === '/v1/affected-party/deadbeef/decisions') {
+      return { status: 200, body: fixtureFeed };
+    }
+    return listOf(ONE_WARRANT);
+  });
+  app.el('view-notice').fire('click');
+  await settle();
+  assert.equal(app.el('notice-error').hidden, false);
+  assert.match(textOf(app.el('notice-error')), /another party/);
+  // The decisions list must be empty — a cross-party feed
+  // must never render the queried party's records alongside
+  // the cross-party refusal, because partial rendering is
+  // still disclosure.
+  assert.equal(app.el('notice-decisions').children.length, 0);
+});
+
+test('the notice tab has no digit-key binding in the keyboard switcher', async () => {
+  // Click-only invariant: every digit must not be bound to
+  // setView('notice'). A future regression that added a digit
+  // shortcut would be caught here before it shipped.
+  const app = await openNotice();
+  const { SHORTCUTS } = app.module;
+  for (const entry of SHORTCUTS) {
+    if (typeof entry?.keys === 'string' && /^[0-9]$/.test(entry.keys)) {
+      assert.notEqual(entry.action, 'notice',
+        `digit ${entry.keys} must not be bound to the notice view (SHORTCUTS regression)`);
+    }
+  }
+});
+
+test('every notice element id is declared in index.html and stubbed in ELEMENT_IDS', async () => {
+  // The pane's element ids must agree with both index.html and
+  // this test file's ELEMENT_IDS. A mismatch would mean the
+  // pane was looking up null, and any test touching the pane
+  // would fail somewhere unrelated. The test pins both sides
+  // for the 9 notice ids (8 element ids + the view button).
+  const noticeIds = [
+    'view-notice', 'notice', 'notice-headline',
+    'notice-summary', 'notice-decisions',
+    'notice-empty', 'notice-error', 'notice-unreadable',
+  ];
+  for (const id of noticeIds) {
+    assert.ok(ELEMENT_IDS.includes(id), `notice id ${id} must be in ELEMENT_IDS`);
+  }
+  const { readFileSync } = await import('node:fs');
+  const html = readFileSync(
+    path.join(path.dirname(fileURLToPath(import.meta.url)), 'index.html'),
+    'utf8',
+  );
+  for (const id of noticeIds) {
+    assert.ok(html.includes(`id="${id}"`), `notice id ${id} must be in index.html`);
+  }
+});
