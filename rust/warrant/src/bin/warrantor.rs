@@ -1046,7 +1046,7 @@ fn cmd_list(store: &WarrantStore) -> ExitCode {
 /// witnessed rather than replayed from whatever is on disk.
 fn open_queue(store: &WarrantStore, id: &str) -> Result<StagingQueue, String> {
     store
-        .open_queue(id, EffectRegistry::github())
+        .open_queue(id, EffectRegistry::builtin())
         .map_err(|e| e.to_string())
 }
 
@@ -4269,7 +4269,7 @@ fn cmd_queue(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
             }
         };
         let staged = store
-            .open_queue(id, EffectRegistry::github())
+            .open_queue(id, EffectRegistry::builtin())
             .ok()
             .map(|q| q.effects().len());
         if let Some(entry) = standing(

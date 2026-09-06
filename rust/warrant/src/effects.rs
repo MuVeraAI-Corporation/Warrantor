@@ -343,6 +343,12 @@ impl DecompositionRegistry {
             of("github.comment", &[Syscall::Net, Syscall::Msg]),
             of("github.request_review", &[Syscall::Net, Syscall::Msg]),
             of("github.add_label", &[Syscall::Net, Syscall::Mutate]),
+            // The governed HTTP call: it names a destination, which is network egress, and it
+            // carries a payload, which is the user's data in motion.
+            of(
+                crate::adapters::http::TOOL,
+                &[Syscall::Net],
+            ),
         ] {
             registry
                 .tools

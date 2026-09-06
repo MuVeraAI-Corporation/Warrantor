@@ -5,4 +5,5 @@
 //! the threat model rather than merely reducing its scope.
 
 pub mod github;
+pub mod http;
 pub mod substrate;

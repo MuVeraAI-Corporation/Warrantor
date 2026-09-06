@@ -174,6 +174,18 @@ impl EffectRegistry {
         registry
     }
 
+    /// Every effect kind this build can perform at settle: the GitHub four plus the governed
+    /// HTTP call. This is what the proxy, the endpoint and the settle path open queues with;
+    /// [`Self::github`] stays for the GitHub adapter's own tests.
+    #[must_use]
+    pub fn builtin() -> Self {
+        let mut registry = Self::github();
+        // Scheme `call`, not `http`: the handle the agent receives is `call://staged/<id>/1`,
+        // and a handle that began `http://` would read as the one thing this tool cannot express.
+        registry.register(crate::adapters::http::TOOL, "call", &[]);
+        registry
+    }
+
     /// Register an effect kind.
     pub fn register(&mut self, tool: &str, mints: &str, targets: &[&str]) {
         self.kinds.insert(
@@ -509,5 +521,22 @@ impl StagingQueue {
             }
         }
         Ok(ordered)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_builtin_registry_stages_http_calls_and_every_github_effect() {
+        let registry = EffectRegistry::builtin();
+        let http = registry.get("http.call").expect("http.call is a known effect kind");
+        assert_eq!(http.mints, "call", "the handle must not read as a URL");
+        assert!(http.targets.is_empty(), "an HTTP call takes no staged target");
+        for tool in ["github.create_pr", "github.comment", "github.request_review", "github.add_label"] {
+            assert!(registry.get(tool).is_some(), "{tool}");
+        }
+        assert!(EffectRegistry::github().get("http.call").is_none(), "github() is unchanged");
     }
 }

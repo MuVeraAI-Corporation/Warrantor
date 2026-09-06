@@ -98,7 +98,8 @@ fn a_decomposition_projects_to_its_most_consequential_class_never_lower() {
 #[test]
 fn the_builtin_registry_declares_exactly_the_four_staged_github_tools_as_writes() {
     let registry = DecompositionRegistry::builtin();
-    assert_eq!(registry.len(), 4);
+    // Four GitHub tools plus the governed HTTP call (Task 2.5), which is `net` only.
+    assert_eq!(registry.len(), 5);
     for tool in [
         "github.create_pr",
         "github.comment",
@@ -113,6 +114,12 @@ fn the_builtin_registry_declares_exactly_the_four_staged_github_tools_as_writes(
         assert!(d.syscalls().contains(&Syscall::Net), "{tool}");
         assert_eq!(d.class(), SideEffectClass::Write, "{tool}");
     }
+    // The HTTP call is net-only: it reads a response, so its projection is Read; the WRITE that
+    // matters (an outbound POST) is bounded by the catalog's permitted methods at settle.
+    let http = registry.get("http.call").expect("http.call is builtin");
+    assert!(http.syscalls().contains(&Syscall::Net));
+    assert_eq!(http.syscalls().len(), 1, "http.call is net only");
+    assert_eq!(http.class(), SideEffectClass::Read, "http.call");
     assert!(
         registry.get("github.merge_pr").is_none(),
         "nothing the settle path cannot perform"

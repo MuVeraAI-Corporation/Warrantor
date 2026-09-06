@@ -48,6 +48,7 @@ fn catalog_for(endpoints: &[&str]) -> egress::DestinationCatalog {
                 tls_identity: None,
                 permitted_methods: Vec::new(),
                 expires_at: scenario::NOW + 3_600,
+                max_data_class: None,
             })
             .collect(),
         digest: String::new(),
@@ -242,6 +243,7 @@ fn an_unsigned_catalog_is_accepted_without_comment() {
         tls_identity: None,
         permitted_methods: Vec::new(),
         expires_at: scenario::NOW + 3_600,
+        max_data_class: None,
     });
     // The digest is left stale on purpose: it no longer covers the entries. Nothing checks it.
 

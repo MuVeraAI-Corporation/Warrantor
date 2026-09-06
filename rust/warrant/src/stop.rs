@@ -377,7 +377,7 @@ pub fn execute(
         let count_and_head = crate::staging::StagingQueue::open(
             staged_path,
             &stored.warrant.claims.id,
-            crate::staging::EffectRegistry::github(),
+            crate::staging::EffectRegistry::builtin(),
         )
         .map(|q| (q.len() as u64, q.head_digest().to_string()))
         .unwrap_or((0, crate::staging::GENESIS.to_string()));

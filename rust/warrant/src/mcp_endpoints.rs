@@ -464,7 +464,7 @@ impl ControlEndpoint {
     fn open_queue(&self, id: &str) -> Result<StagingQueue, crate::WarrantError> {
         // Witnessed, not bare: a log that was deleted must not read back as "nothing was staged"
         // on the path that both reports and settles.
-        self.store.open_queue(id, EffectRegistry::github())
+        self.store.open_queue(id, EffectRegistry::builtin())
     }
 
     fn settle_warrant(&mut self, arguments: &BTreeMap<String, Value>) -> ToolResult {
@@ -864,7 +864,7 @@ impl AgentEndpoint {
     /// the handle, and an agent told the same about a real filesystem read will distrust a result
     /// it should have used.
     fn describe_permitted(&self, tool: &str) -> String {
-        if EffectRegistry::github().get(tool).is_some() {
+        if EffectRegistry::builtin().get(tool).is_some() {
             format!(
                 "{tool}, permitted by warrant {}. Write actions are staged rather than performed: \
                  you will receive a handle, and the real action happens only if a human settles \
@@ -892,7 +892,7 @@ impl AgentEndpoint {
         let Some(upstreams) = &self.upstreams else {
             return Vec::new();
         };
-        let registry = EffectRegistry::github();
+        let registry = EffectRegistry::builtin();
         self.allowed
             .iter()
             .filter(|name| !upstreams.has(name) && registry.get(name).is_none())
@@ -1034,7 +1034,7 @@ impl Endpoint for AgentEndpoint {
         };
 
         let observing = self.proxy.mode() == crate::proxy::ProxyMode::Observe;
-        let registry = EffectRegistry::github();
+        let registry = EffectRegistry::builtin();
         let mut published: Vec<ToolSpec> = Vec::new();
         let mut seen: BTreeMap<String, ()> = BTreeMap::new();
 
@@ -1305,9 +1305,9 @@ pub fn agent_endpoint_for(
     let queue = StagingQueue::open_witnessed(
         staged_path,
         &id,
-        EffectRegistry::github(),
+        EffectRegistry::builtin(),
         stored.staged_chain.as_ref(),
     )?;
-    let proxy = Proxy::new(bounds, mode, EffectRegistry::github());
+    let proxy = Proxy::new(bounds, mode, EffectRegistry::builtin());
     Ok(AgentEndpoint::new(id, proxy, queue, allowed, now))
 }

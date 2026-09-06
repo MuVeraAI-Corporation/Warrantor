@@ -2161,7 +2161,7 @@ fn queue_response(
         let staged_effects = crate::staging::StagingQueue::open_witnessed(
             store.staged_path(id),
             id,
-            EffectRegistry::github(),
+            EffectRegistry::builtin(),
             stored.staged_chain.as_ref(),
         )
         .ok()
@@ -2927,7 +2927,7 @@ impl StoreApi {
         let queue = StagingQueue::open_witnessed(
             self.store.staged_path(id),
             id,
-            EffectRegistry::github(),
+            EffectRegistry::builtin(),
             stored.staged_chain.as_ref(),
         );
         let queue_input: Result<&StagingQueue, String> = match &queue {
@@ -3628,7 +3628,7 @@ impl Api for StoreApi {
         let queue = match StagingQueue::open_witnessed(
             self.store.staged_path(id),
             id,
-            EffectRegistry::github(),
+            EffectRegistry::builtin(),
             stored.staged_chain.as_ref(),
         ) {
             Ok(q) => q,
