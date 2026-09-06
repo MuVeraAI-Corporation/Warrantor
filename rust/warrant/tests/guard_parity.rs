@@ -254,24 +254,103 @@ fn the_quantization_the_python_side_declares_is_the_one_this_crate_serves() {
     );
 }
 
+/// The body of a `NAME: Final[...] = (` or `= {` block in `serving.py`, one trimmed line per entry.
+///
+/// Returns `None` when the block is absent or not in that shape, so a caller fails naming what it
+/// could not read rather than looping over nothing and passing.
+fn python_block_body(source: &str, name: &str) -> Option<Vec<String>> {
+    let mut lines = source.lines();
+    let mut closer = None;
+    for line in lines.by_ref() {
+        let trimmed = line.trim();
+        let Some(rest) = trimmed.strip_prefix(name) else {
+            continue;
+        };
+        if !rest.starts_with(':') {
+            continue;
+        }
+        closer = match rest.trim_end().chars().last() {
+            Some('(') => Some(')'),
+            Some('{') => Some('}'),
+            _ => None,
+        };
+        if closer.is_some() {
+            break;
+        }
+    }
+    let closer = closer?;
+    let mut body = Vec::new();
+    for line in lines {
+        let trimmed = line.trim();
+        if trimmed.starts_with(closer) {
+            return Some(body);
+        }
+        if !trimmed.is_empty() && !trimmed.starts_with('#') {
+            body.push(trimmed.to_string());
+        }
+    }
+    None
+}
+
+/// The keys `serving.REQUIRED_KEYS` lists, read out of the tuple literal.
+fn python_required_keys() -> Option<Vec<String>> {
+    Some(
+        python_block_body(SERVING_PY, "REQUIRED_KEYS")?
+            .iter()
+            .map(|entry| entry.trim_end_matches(',').trim_matches('"').to_string())
+            .collect(),
+    )
+}
+
+/// `serving.DEPLOYED` as `(key, the NAME of the constant behind it)` pairs.
+fn python_deployed_entries() -> Option<Vec<(String, String)>> {
+    let mut entries = Vec::new();
+    for line in python_block_body(SERVING_PY, "DEPLOYED")? {
+        let (key, value) = line.split_once(':')?;
+        entries.push((
+            key.trim().trim_matches('"').to_string(),
+            value.trim().trim_end_matches(',').to_string(),
+        ));
+    }
+    Some(entries)
+}
+
 #[test]
 fn the_deployed_record_declares_every_key_the_python_gate_compares() {
     // `serving.REQUIRED_KEYS` is what the promotion gate refuses on. If a key could be listed
     // there without a constant behind it, `DEPLOYED` would carry a value this side cannot read and
     // the two implementations would be bound on a shorter list than the gate enforces.
-    for name in [
-        "QUANTIZATION",
-        "NUM_CTX",
-        "SEED",
-        "NUM_PREDICT",
-        "TEMPERATURE",
-        "TOP_P",
-        "TOP_K",
-    ] {
+    //
+    // The list is READ from REQUIRED_KEYS rather than written out here. Spelled as a literal
+    // array of seven names, this test asserted the seven it knew about and nothing about the list
+    // itself, so an eighth key in REQUIRED_KEYS with no constant behind it left cargo green -- the
+    // exact case the paragraph above claims to prevent. The Python suite catches a key added
+    // everywhere, because the evaluator's descriptor would not carry it; only this side can catch
+    // a key the record lists and declares nothing for.
+    let required = python_required_keys().expect("serving.py declares REQUIRED_KEYS as a tuple");
+    assert_eq!(
+        required.len(),
+        7,
+        "serving.REQUIRED_KEYS is {required:?}; a key added or removed there changes what the \
+         promotion gate refuses on, so it changes this binding too"
+    );
+    let deployed = python_deployed_entries().expect("serving.py declares DEPLOYED as a mapping");
+    let mut declared: Vec<String> = deployed.iter().map(|(key, _)| key.clone()).collect();
+    let mut compared = required.clone();
+    declared.sort();
+    compared.sort();
+    assert_eq!(
+        declared, compared,
+        "serving.DEPLOYED and serving.REQUIRED_KEYS disagree on which keys exist. The gate \
+         refuses on REQUIRED_KEYS and reads values out of DEPLOYED, so a key in one and not the \
+         other is either a comparison against a missing value or a value nothing compares"
+    );
+    for (key, constant) in &deployed {
         assert!(
-            python_default_in(SERVING_PY, name).is_some(),
-            "serving.py no longer declares {name}: the deployed configuration this crate is \
-             bound to is not the one the promotion gate compares against"
+            python_default_in(SERVING_PY, constant).is_some(),
+            "serving.DEPLOYED[{key:?}] is {constant}, which serving.py does not declare as a \
+             constant this side can read. A key the gate refuses on must have a value both \
+             implementations can see, or they are bound on a shorter list than the gate enforces"
         );
     }
     // The one that shipped wrong, asserted against the record rather than against evaluate.py.
