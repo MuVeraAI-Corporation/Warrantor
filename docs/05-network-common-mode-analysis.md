@@ -27,7 +27,7 @@ this prose. A sentence here that disagrees with the code fails the build.
 ### Layer A — the MCP proxy chokepoint
 
 Real, reachable, and the only layer that decides per host. `rust/warrant/src/proxy.rs` lines
-391-425 run every destination a call names through the broker and, only when a caller has wired
+408-442 run every destination a call names through the broker and, only when a caller has wired
 one, through the second engine. The shipped binary wires none: `Proxy::new` sets
 `secondary: None` and nothing in `warrantor.rs` constructs a `SecondaryFilter`, so a shipped run
 decides with **one** engine and the second `if let` below is never entered:
@@ -93,10 +93,10 @@ for destination in crate::egress::destinations_of(call) {
 
 Two properties of that loop matter for independence and are easy to misread:
 
-- `NEVER_IN_OBSERVE` (`rust/warrant/src/proxy.rs` lines 147-148) holds exactly
+- `NEVER_IN_OBSERVE` (`rust/warrant/src/proxy.rs` lines 159-160) holds exactly
   `[SideEffectClass::Destructive, SideEffectClass::Financial]`. It contains nothing egress-shaped,
   so **observe mode records every network call and refuses none.**
-- `staged_classes` is consulted *after* the egress loop (lines 427-434), so staging is never a
+- `staged_classes` is consulted *after* the egress loop (lines 444-451), so staging is never a
   substitute for an egress refusal.
 
 ### Layer B — the network namespace
@@ -162,7 +162,7 @@ everything. There is no configuration in which a permitted destination is guarde
 
 That is a common-mode failure of the strongest kind — a single point of *configuration*, not merely
 a single point of failure. It is invisible in every current rendering, because `bound_strengths()`
-reports `("egress_hosts", BoundStrength::Mediated)` (`rust/warrant/src/lib.rs` line 692) without
+reports `("egress_hosts", BoundStrength::Mediated)` (`rust/warrant/src/lib.rs` line 695) without
 saying that the count of independent intercepts is one.
 
 ---
@@ -176,7 +176,7 @@ The anchor's residual makes these the test. Two layers sharing any one of them a
 | **enforcement point** | `Proxy::decide`, in the `warrantor` process | the kernel, *if* an operator launched the printed profile | **shared in practice**: layer B is never emitted alongside a permitted host, so only one point ever acts on one |
 | **credential** | none — `rust/warrant/src/egress.rs` lines 53-56: *"the process that serves a supervised agent deliberately holds no key"* | none | **not shared** — and independent by *absence*, not by design |
 | **configuration source** | `WarrantBounds::egress_hosts`, inside the signed claims | the same field, read with the opposite sense | **shared** |
-| **telemetry path** | `Proxy::egress_refusals`, `Proxy::secondary_refusals` and `Proxy::requests` (`rust/warrant/src/proxy.rs` lines 127-140), in-process, no independent sink | **none at all**: a netns refusal is a `connect()` failure inside the agent that never reaches Warrantor | **shared** |
+| **telemetry path** | `Proxy::egress_refusals`, `Proxy::secondary_refusals` and `Proxy::requests` (`rust/warrant/src/proxy.rs` lines 139-152), in-process, no independent sink | **none at all**: a netns refusal is a `connect()` failure inside the agent that never reaches Warrantor | **shared** |
 
 L0-10's own residual names three more that any analysis must concede: *"an unmodeled shared
 dependency such as a resolver, a clock or a certificate authority is still common-mode."* Two of the
