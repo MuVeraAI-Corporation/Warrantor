@@ -26,14 +26,17 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+use ed25519_dalek::SigningKey;
 use warrantor_warrant::corpus::{self, LabelSource};
 use warrantor_warrant::guard::{
     GuardKnobs, GuardLog, GuardMode, GuardOutcome, GuardProvenance, GuardSignal,
 };
-use warrantor_warrant::operators::{Operator, OperatorRegistry, Scope};
+use warrantor_warrant::operators::{ApprovalPolicy, Operator, OperatorRegistry, Scope};
 use warrantor_warrant::sandbox::{self, Confinement, Divergence, Profile};
 use warrantor_warrant::scorer::{self, RegisteredThreshold, ScorerError};
-use warrantor_warrant::{SideEffectClass, WarrantBounds};
+use warrantor_warrant::serve::{handle_scoped, no_adapter, HttpRequest, SessionToken, StoreApi};
+use warrantor_warrant::store::{StoredWarrant, WarrantStore};
+use warrantor_warrant::{SideEffectClass, Warrant, WarrantBounds, WarrantState};
 
 const NOW: u64 = 1_786_000_000;
 
@@ -352,32 +355,154 @@ fn registry_with(entries: &[(&str, &[Scope])]) -> OperatorRegistry {
 
 #[test]
 fn a_principal_without_settle_scope_cannot_produce_the_state_that_becomes_a_label() {
-    // The gameable surface is not the grader's code — it is the state transition. `corpus.rs:194`
+    // The gameable surface is not the grader's code — it is the state transition. `corpus.rs`
     // derives a training label from `WarrantState`: Void -> Some(true), Settled -> Some(false). So
     // the party who can flip a label is the party who holds `Scope::Settle`, and separating that
     // from `Scope::Approve` is what keeps a reviewer from labeling its own run.
-    let registry = registry_with(&[
-        ("reviewer", &[Scope::Approve]),
-        ("releaser", &[Scope::Settle]),
-    ]);
+    //
+    // # Why this test was rewritten
+    //
+    // Its first version was a TAUTOLOGY and a reviewer proved it. It built its own
+    // `OperatorRegistry` with `registry_with(&[("reviewer",[Approve]),("releaser",[Settle])])` and
+    // then asserted that the reviewer entry did not contain Settle — but `Operator::allows` is
+    // nothing but `self.scopes.contains(&scope)`, so it asserted a set membership over scopes it had
+    // inserted itself. It called no settle path, no corpus function, and nothing in `serve`, so it
+    // made exactly the connection to the label derivation the evidence file claimed was missing:
+    // none. Mutating the real enforcement point — `serve::required_scope`, `"settle" | "void" =>
+    // Some(Scope::Settle)` to `None` — left it green while five pre-existing tests went red.
+    //
+    // So it now drives the real HTTP handler against a real store and reads the label out of
+    // `corpus::rows_from` afterwards. The refusal and the control both go through the same path, and
+    // that mutation reds this test.
+    let dir = tempdir("label-authority");
+    let store = store_with_open_warrant(&dir, "wrt_scored");
+    let reviewer = mint_operator(&dir, "reviewer", "approve");
+    let releaser = mint_operator(&dir, "releaser", "settle");
+    let log = log_with_one_harmful_signal();
 
-    // CONTROL: the releaser can, or the refusal below proves nothing at all.
-    assert!(
-        registry
-            .by_name("releaser")
-            .expect("releaser")
-            .allows(Scope::Settle),
-        "control: some principal must hold Settle"
+    // Before anybody acts: a harmful signal is exported and carries NO label, because no human has
+    // decided. This is the baseline the two arms move away from.
+    let before = corpus::rows_from(&log, &states(&store, "wrt_scored"));
+    assert_eq!(before.len(), 1, "control: the signal was exported");
+    assert_eq!(
+        before[0].label, None,
+        "an Open warrant is not a decision: {:?}",
+        before[0]
     );
 
-    let reviewer = registry.by_name("reviewer").expect("reviewer");
-    assert!(
-        !reviewer.allows(Scope::Settle),
-        "a reviewer holding Approve must not be able to settle, or approving and labeling are the \
-         same authority"
+    // THE REFUSAL: an approve-only reviewer cannot void, so it cannot mint the label its own run
+    // would be graded on.
+    let (status, body) = handler_call(&dir, &["v1", "warrants", "wrt_scored", "void"], &reviewer);
+    assert_eq!(status, 403, "{body}");
+    assert_eq!(
+        WarrantStore::open(&dir)
+            .expect("store")
+            .load("wrt_scored")
+            .expect("still there")
+            .warrant
+            .state,
+        WarrantState::Open,
+        "a refused void must not have happened"
     );
-    // And the scope it does hold is real, so this is a separation rather than an empty entry.
-    assert!(reviewer.allows(Scope::Approve));
+    let after_refusal = corpus::rows_from(&log, &states(&store, "wrt_scored"));
+    assert_eq!(
+        after_refusal[0].label, None,
+        "the reviewer must not have produced a label: {:?}",
+        after_refusal[0]
+    );
+
+    // THE CONTROL, and without it the refusal proves nothing: the releaser holding Settle does move
+    // the state, and that state DOES become a label. So the separation is what stopped the reviewer,
+    // not an inert path.
+    let (status, body) = handler_call(&dir, &["v1", "warrants", "wrt_scored", "void"], &releaser);
+    assert_eq!(status, 200, "{body}");
+    let after_control = corpus::rows_from(&log, &states(&store, "wrt_scored"));
+    assert_eq!(
+        after_control[0].label,
+        Some(true),
+        "a void is the human decision corpus.rs reads as harmful: {:?}",
+        after_control[0]
+    );
+    assert_eq!(after_control[0].label_source, LabelSource::WarrantVoided);
+}
+
+/// A store holding one open warrant, built the way the product builds one.
+fn store_with_open_warrant(dir: &Path, id: &str) -> WarrantStore {
+    let store = WarrantStore::open(dir).expect("store");
+    let issuer = SigningKey::from_bytes(&[1; 32]);
+    let settle = SigningKey::from_bytes(&[2; 32]);
+    let warrant = Warrant::grant(
+        id,
+        "graded run",
+        "spiffe://muveraai.com/agent/a",
+        no_egress_bounds(),
+        NOW,
+        &settle.verifying_key(),
+        &issuer,
+    )
+    .expect("grant");
+    store
+        .create(&StoredWarrant {
+            warrant,
+            worktree: None,
+            repo: None,
+            branch: None,
+            base_commit: None,
+            staged_chain: None,
+        })
+        .expect("stored");
+    store
+}
+
+/// The states map `corpus::rows_from` reads, taken from the store rather than asserted.
+///
+/// Re-opened from disk every call on purpose: the whole point is to read the state the HTTP handler
+/// actually wrote, not a copy captured before it ran.
+fn states(store: &WarrantStore, id: &str) -> BTreeMap<String, WarrantState> {
+    let fresh = WarrantStore::open(store.root()).expect("store");
+    let mut states = BTreeMap::new();
+    if let Ok(stored) = fresh.load(id) {
+        states.insert(id.to_string(), stored.warrant.state);
+    }
+    states
+}
+
+/// Mint a real operator token in the store's registry.
+fn mint_operator(dir: &Path, name: &str, scopes: &str) -> String {
+    let mut registry = OperatorRegistry::load(dir).expect("load");
+    let token = registry
+        .add(
+            name,
+            Scope::parse_list(scopes).expect("scopes"),
+            "bound out of band, in this test",
+            NOW,
+        )
+        .expect("added");
+    registry.save(dir).expect("saved");
+    token
+}
+
+/// Drive the same handler `serve_on` drives per connection. No sockets.
+fn handler_call(dir: &Path, path: &[&str], token: &str) -> (u16, String) {
+    let registry = OperatorRegistry::load(dir).expect("registry");
+    let approvals = ApprovalPolicy::load(dir).expect("policy");
+    let store = WarrantStore::open(dir).expect("store");
+    let mut api = StoreApi::new(
+        store,
+        dir.to_path_buf(),
+        SigningKey::from_bytes(&[1; 32]),
+        Some(SigningKey::from_bytes(&[2; 32])),
+        no_adapter,
+        || NOW,
+    );
+    let session = SessionToken::from_value(
+        "5e55107ec0de5e55107ec0de5e55107ec0de5e55107ec0de5e55107ec0de5e551",
+    );
+    let request = HttpRequest::new("POST", path, BTreeMap::new())
+        .with_bearer(token)
+        .with_body(&serde_json::json!({}));
+    let response = handle_scoped(&mut api, &session, &registry, &approvals, dir, &request);
+    (response.status, response.body.to_string())
 }
 
 #[test]
@@ -652,4 +777,250 @@ fn the_trend_is_ordered_by_the_runs_own_clock_and_names_the_first_crossing() {
     // is reading the order rather than picking the maximum.
     let low = scorer::trend(&root, &threshold(0.1, NOW - 1));
     assert_eq!(low.crossed.as_deref(), Some("wrt_early"));
+}
+
+// ── the shipped command, which had no behavior test at all ──────────────────────────
+
+/// The real binary. A reviewer's finding was that `cmd_scorer` -- 239 lines, including the refusal the
+/// deviations list presented as a guard -- was covered only by `tests/instructions.rs`, which compares
+/// the usage text against a HAND-MAINTAINED constant and so goes green the moment a flag name is added
+/// to that list whether or not anything reads it. These tests read the command's actual output.
+const EXE: &str = env!("CARGO_BIN_EXE_warrantor");
+
+/// A store the binary can be pointed at, holding one open warrant whose worktree is exactly the path
+/// this test wants to put in front of `--confined`.
+fn store_with_worktree(dir: &Path, id: &str, worktree: &str) -> WarrantStore {
+    let store = WarrantStore::open(dir).expect("store");
+    let issuer = SigningKey::from_bytes(&[1; 32]);
+    let settle = SigningKey::from_bytes(&[2; 32]);
+    let warrant = Warrant::grant(
+        id,
+        "graded run",
+        "spiffe://muveraai.com/agent/a",
+        no_egress_bounds(),
+        NOW,
+        &settle.verifying_key(),
+        &issuer,
+    )
+    .expect("grant");
+    store
+        .create(&StoredWarrant {
+            warrant,
+            worktree: Some(PathBuf::from(worktree)),
+            repo: None,
+            branch: None,
+            base_commit: None,
+            staged_chain: None,
+        })
+        .expect("stored");
+    store
+}
+
+/// A worktree of the shape this store writes on Windows, which is the platform this task was developed
+/// and measured on, and the shape `sandbox::check_worktree` refuses.
+///
+/// Built through `char::from(92)` for the reason `sandbox.rs` gives: every attempt to carry a literal
+/// backslash through the tooling that edits these files has mangled the escape, and a mangled escape
+/// turns this fixture into a POSIX-looking path that tests nothing.
+fn windows_worktree() -> String {
+    let sep = char::from(92);
+    format!("M:{sep}wt-w3-13.7{sep}.warrantor{sep}wrt_w1")
+}
+
+fn run(dir: &Path, args: &[&str]) -> (bool, String) {
+    let out = std::process::Command::new(EXE)
+        .arg("scorer")
+        .args(args)
+        .arg("--root")
+        .arg(dir)
+        .output()
+        .expect("run warrantor scorer");
+    let mut text = String::from_utf8_lossy(&out.stdout).to_string();
+    text.push_str(&String::from_utf8_lossy(&out.stderr));
+    (out.status.success(), text)
+}
+
+#[test]
+fn the_scorer_command_refuses_enforced_for_a_worktree_the_sandbox_command_also_refuses() {
+    // The reviewer's first and worst finding, at the surface a user sees. `warrantor scorer --confined`
+    // printed `enforced / held by operating system / ... fails with EROFS at the syscall` for exactly
+    // the warrants on which `warrantor sandbox` exits 1 refusing the identical path, and `cmd_scorer`
+    // never called that refusal. Two commands over one store must not disagree about whether a
+    // confinement for it can exist.
+    let dir = tempdir("cli-unprofilable");
+    store_with_worktree(&dir, "wrt_scored", &windows_worktree());
+    mint_operator(&dir, "env-owner", "stop");
+
+    // The sandbox command's answer first, so the assertion below is against a measured refusal and not
+    // against an assumption about this host.
+    let sandbox_out = std::process::Command::new(EXE)
+        .args(["sandbox", "wrt_scored", "--root"])
+        .arg(&dir)
+        .output()
+        .expect("run warrantor sandbox");
+    assert!(
+        !sandbox_out.status.success(),
+        "the fixture must be a path `warrantor sandbox` refuses: {}",
+        String::from_utf8_lossy(&sandbox_out.stdout)
+    );
+
+    let (_, text) = run(
+        &dir,
+        &["wrt_scored", "--confined", "--asserted-by", "env-owner"],
+    );
+    assert!(
+        text.contains("scorer_inputs_not_writable        observed"),
+        "the filesystem property must not be enforced here: {text}"
+    );
+    assert!(
+        text.contains("scorer_not_reachable_over_network mediated"),
+        "the namespace comes out of the same profile, so it drops with it: {text}"
+    );
+    assert!(
+        !text.contains("held by  operating system"),
+        "no operating-system mechanism is reachable for this worktree: {text}"
+    );
+    assert!(
+        text.contains("warrantor sandbox"),
+        "the record must name the command that refuses the same path: {text}"
+    );
+
+    // CONTROL, on the same binary and the same day: a worktree the sandbox command DOES accept still
+    // reaches Enforced, so this is a condition on the tier and not a command that refuses everything.
+    let ok = tempdir("cli-profilable");
+    store_with_worktree(&ok, "wrt_scored", WORKTREE);
+    mint_operator(&ok, "env-owner", "stop");
+    let (_, control) = run(
+        &ok,
+        &["wrt_scored", "--confined", "--asserted-by", "env-owner"],
+    );
+    assert!(
+        control.contains("scorer_inputs_not_writable        enforced"),
+        "control: {control}"
+    );
+    assert!(
+        control.contains("held by  operating system"),
+        "control: {control}"
+    );
+}
+
+#[test]
+fn the_rendered_caveat_names_the_holder_the_rendered_record_names() {
+    // Task 1.1 / Task 9.1's defect, at the surface. The caveat was a hardcoded literal asserting "the
+    // filesystem property is held by an operating system this process cannot interrogate" and it
+    // printed under the DEFAULT record, two lines below that record's own `observed` / `held by
+    // warrantor` / "nothing refuses a write ... as it happens". This asserts the two agree in the
+    // output a user actually reads.
+    let dir = tempdir("cli-caveat");
+    store_with_worktree(&dir, "wrt_scored", WORKTREE);
+
+    let (_, text) = run(&dir, &["wrt_scored"]);
+    assert!(
+        text.contains("scorer_inputs_not_writable        observed"),
+        "{text}"
+    );
+    assert!(
+        text.contains("the filesystem property is held by warrantor"),
+        "the caveat must name the holder the record names: {text}"
+    );
+    assert!(
+        !text.contains("the filesystem property is held by an operating system"),
+        "the record says warrantor holds it: {text}"
+    );
+
+    // CONTROL: under an asserted confinement the record DOES say the operating system holds it, and
+    // then so does the caveat. Without this arm the assertion above would pass on a caveat that never
+    // mentions an operating system at all.
+    mint_operator(&dir, "env-owner", "stop");
+    let (_, confined) = run(
+        &dir,
+        &["wrt_scored", "--confined", "--asserted-by", "env-owner"],
+    );
+    assert!(
+        confined.contains("the filesystem property is held by an operating system"),
+        "control: {confined}"
+    );
+}
+
+#[test]
+fn the_bare_command_refuses_on_the_boundary_it_actually_refuses_on() {
+    // The claim two CI-checked records made was that `warrantor scorer <id>` refuses "on the boundary
+    // standing for scorer_credentials_not_readable". It does not: unconfined,
+    // `scorer_not_reachable_over_network` is Mediated and `run_preflight` walks `BoundaryCheck::ALL` in
+    // order, so NetworkIsolation fails first. Both records now say so, and this pins the behavior
+    // they describe.
+    let dir = tempdir("cli-boundary");
+    store_with_worktree(&dir, "wrt_scored", WORKTREE);
+
+    let (_, bare) = run(&dir, &["wrt_scored"]);
+    assert!(
+        bare.contains("boundary check failed: NetworkIsolation"),
+        "{bare}"
+    );
+    // And the closing sentence is derived from THAT boundary rather than being a literal about a
+    // property nothing holds -- which is what it was, and which described a different refusal.
+    assert!(
+        bare.contains("this property carries a weaker tier"),
+        "the closing line must describe the boundary that failed: {bare}"
+    );
+
+    // The credential boundary is reachable, and only the way the corrected records say: --confined, on
+    // a zero-egress warrant, with the store outside the worktree.
+    mint_operator(&dir, "env-owner", "stop");
+    let (_, confined) = run(
+        &dir,
+        &["wrt_scored", "--confined", "--asserted-by", "env-owner"],
+    );
+    assert!(
+        confined.contains("boundary check failed: ProcessIsolation"),
+        "{confined}"
+    );
+    assert!(
+        confined.contains("NOTHING holds would be signing the gap"),
+        "there the literal IS the derived sentence: {confined}"
+    );
+}
+
+#[test]
+fn the_preflight_refuses_to_name_the_graded_warrant_as_the_party_that_asserted_the_confinement() {
+    // `asserted_by` was `format!("operator-at-cli:{id}")` -- the id of the warrant being GRADED, which
+    // names no party at all and is the anonymous assertion `Provenance::Asserted` exists to stop,
+    // wearing a prefix.
+    let dir = tempdir("cli-asserter");
+    store_with_worktree(&dir, "wrt_scored", WORKTREE);
+
+    // No party named at all.
+    let (ok, text) = run(&dir, &["wrt_scored", "--confined"]);
+    assert!(!ok, "{text}");
+    assert!(text.contains("--asserted-by"), "{text}");
+    assert!(
+        text.contains("the subject of a grading is not a party to it"),
+        "{text}"
+    );
+
+    // The warrant id, which is what it used to name.
+    let (ok, text) = run(
+        &dir,
+        &["wrt_scored", "--confined", "--asserted-by", "wrt_scored"],
+    );
+    assert!(!ok, "{text}");
+    assert!(text.contains("is not a registered operator"), "{text}");
+
+    // Naming a party where nobody asserted anything is refused in the other direction too.
+    let (ok, text) = run(&dir, &["wrt_scored", "--asserted-by", "env-owner"]);
+    assert!(!ok, "{text}");
+    assert!(text.contains("no confinement is asserted"), "{text}");
+
+    // CONTROL: a registered operator is accepted and the record proceeds, so this is a lookup rather
+    // than a refusal of everything.
+    mint_operator(&dir, "env-owner", "stop");
+    let (_, control) = run(
+        &dir,
+        &["wrt_scored", "--confined", "--asserted-by", "env-owner"],
+    );
+    assert!(
+        control.contains("scorer isolation for wrt_scored"),
+        "{control}"
+    );
+    assert!(control.contains("pre-flight REFUSED"), "{control}");
 }
