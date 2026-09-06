@@ -99,7 +99,8 @@ test result: FAILED. 84 passed; 1 failed; 15 ignored
 ```
 
 The first version asserted a `harness::source_contains` fragment **spanning two source lines**. This
-repository checks out **CRLF** on Windows, so the file the test read had `
+repository checks out **CRLF** on Windows, so the file the test read had `
+
 ` line endings and a
 needle containing `
 ` could not match. The author's worktree held the files as written, with LF, so
@@ -125,7 +126,8 @@ does not reintroduce it.
 
 Audited the rest of this branch for the same fragility:
 - `tools/ci/network_independence.py` is safe by construction. `Path.read_text()` opens in universal-
-  newline mode, so `
+  newline mode, so `
+
 ` is translated to `
 ` before any needle is matched — including the one
   `RENDER_TARGETS` needle that deliberately spans a line break.
@@ -165,11 +167,11 @@ python tools/ci/check_invariants.py                        LEDGER=0
   invariant ledger: 12 invariants; enforced=2, orphaned=1, partial=8, unimplemented=1
 python tools/ci/check_us_english.py main                   USEN=0
 python tools/ci/check_docs.py                              DOCS=0
-  RESULT: PASS - 267 Markdown files, 58 RFCs, 81 catalogue rows, all local links validated
+  RESULT: PASS - 268 Markdown files, 58 RFCs, 81 catalogue rows, all local links validated
 python tools/ci/network_independence.py                    NETIND=0
   network independence: 1 independent intercept on a permitted destination;
   6 shared axes of 8; 2 policy engines
-python -m pytest tools/ci/test_network_independence.py -q  29 passed (with test_wiring_census.py)
+python -m pytest test_network_independence.py test_wiring_census.py  29 passed
 ```
 
 The verbatim console capture is in the "Fresh-worktree gate" section at the end of this file.
@@ -358,4 +360,106 @@ Specific, not modest.
 
 ## Fresh-worktree gate
 
-Verbatim capture follows.
+Run at `M:/wt-fresh-5.4`, a **detached** worktree of `feat/task-5.4-network-common-mode` at
+`6864ec1`, with its own `CARGO_TARGET_DIR`. This is the run that caught the CRLF defect above; the
+capture below is the re-run after the fix.
+
+```text
+$ cd M:/wt-fresh-5.4 && git log --oneline -1
+6864ec1 fix(tests): assert the two egress notes by value, because CRLF broke the source match
+
+### git status --porcelain
+(empty)
+
+### git ls-files (every path a test or gate opens)
+README.md
+docs/05-network-common-mode-analysis.md
+docs/W1-delivery-gaps.md
+docs/task-evidence/task-5.3.md
+docs/task-evidence/task-5.4.md
+evidence/invariants.json
+evidence/network-independence.json
+evidence/wiring-coverage.json
+rust/eval-guard/src/cli.rs
+rust/warrant/tests/invariants/i09_failure_is_safe.rs
+rust/warrant/tests/network_independence.rs
+tools/ci/invariant-ratchet.json
+tools/ci/network_independence.py
+tools/ci/test_network_independence.py
+
+### git check-ignore -v (all of the above)
+CHECK_IGNORE=1        # 1 = no rule matched any path
+
+### cargo fmt --check
+FMT=0
+
+### cargo clippy --all-targets -- -D warnings
+CLIPPY=0
+0 lines matching '^error'
+
+### cargo test --workspace -j 2        (exit captured BEFORE any pipe)
+CARGO=0
+suites: 145  passed: 1520  failed: 0  ignored: 20
+
+### python tools/ci/wiring_census.py
+wiring census: 12 of 40 crates reachable from warrantor-warrant over 21 path edges
+CENSUS=0
+
+### python tools/ci/check_invariant_ratchet.py
+invariant ratchet: ok (85 passing at floor 85, 15 recorded findings at ceiling 15)
+RATCHET=0
+
+### python tools/ci/check_invariants.py
+invariant ledger: 12 invariants; enforced=2, orphaned=1, partial=8, unimplemented=1
+LEDGER=0
+
+### python tools/ci/check_us_english.py main
+us-english: 2331 added line(s) across 13 file(s), since main; matcher = vendored verify-us-english.mjs
+us-english: ok
+USEN=0
+
+### python tools/ci/check_docs.py
+RESULT: PASS - 268 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
+DOCS=0
+
+### python tools/ci/network_independence.py
+network independence: 1 independent intercept on a permitted destination; 6 shared axes of 8; 2 policy engines
+network independence: ok
+NETIND=0
+
+### python -m pytest tools/ci/test_network_independence.py tools/ci/test_wiring_census.py -q
+29 passed
+PYTEST=0
+```
+
+### The gate was also seen red, deliberately
+
+A gate that has only ever been green proves nothing. Each of these was run by hand before the pytest
+suite was written, and each is now covered by a case in `tools/ci/test_network_independence.py`:
+
+```text
+$ # a stale rendered count in the README
+::error::network independence: README.md: does not contain
+  '| Independent network intercepts on a permitted destination | **1**'
+GATE_WITH_STALE_README=1
+
+$ # the second engine unwired -- a moved mechanism, not a different answer
+::error::network independence: rust/warrant/Cargo.toml:
+  'warrantor-egress-filter = { path = "../egress-filter"' is gone
+  (policy_engine: the second evaluator is reachable from the product at all)
+network independence: the mechanisms this record is derived from have moved. Re-read the sources
+  and docs/05-network-common-mode-analysis.md before recording anything: a number whose
+  derivation is stale is worse than no number.
+GATE_WITH_UNWIRED_ENGINE=1
+```
+
+The second is the more important direction. A gate that recomputed a *fresh* number after its
+derivation moved would keep publishing a measured-looking value that nothing supports; this one
+refuses to publish at all.
+
+### Not pushed, not merged
+
+Three commits on `feat/task-5.4-network-common-mode`, based on local `main` at `f9c3523`. A human
+merges. Per [[merging parallel PRs safely]], rebase on the then-current `main` and re-run this gate
+before merging — Task 1.2 is editing `rust/warrant/src/egress.rs`, which this branch also edits, and
+PR CI tests the branch against the *old* main.
