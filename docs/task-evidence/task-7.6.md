@@ -175,3 +175,31 @@ Each applied to the tree, run, then restored and verified by sha256 against the 
 The first proves the disclosure test constrains the surface rather than decorating it. The second
 proves that rendering computer use as fully governed cannot be reached by editing a list: it is a
 compile error.
+
+## Post-merge gate on main `03bae12` (2026-09-06)
+
+Run on the merged tree with `CARGO_BUILD_JOBS=2` from `rust/`, four other lanes building at the
+same time, 1,401 processes on the machine.
+
+| Check | Result |
+|---|---|
+| `cargo fmt --all -- --check` | 0 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | 0 |
+| `cargo test --workspace --all-targets` | **101**: 80 suites ran before cargo stopped at the first failing binary; 932 passed, **1 failed**: `a_drill_on_this_kernel_produces_a_receipt_that_verifies_offline` |
+| `cargo test --workspace --doc` | 0; 40 suites, 1 passed |
+| Wiring census | 13 of 41 crates over 23 edges |
+| Invariant ratchet | ok, 85 at floor 85; 15 at ceiling 15 |
+| Invariant ledger | 12 invariants; enforced 2, orphaned 1, partial 8, unimplemented 1 |
+| `check_docs.py` | PASS, 303 Markdown files |
+| `check_us_english.py` | ok |
+
+**The red is not this task's, and it is not waved away.** The drill's observation loop could not
+confirm the killed tree within its ten-second deadline because `process_exists` spawns `tasklist`
+per poll and the machine had 1,401 processes; reproduced two of three times alone on the same
+tree, passed once, and passed on the previous `main` twenty minutes earlier. Task 7.6 touched no
+file the drill depends on. The cause, the product's honest Advisory derivation under those
+conditions, and the rail change that would fix it are in
+`finding-kill-drill-confirmation-under-load.md`. A full `--no-fail-fast` run of this tree is owed
+once the concurrent lanes finish and the process count drops; until then the workspace count for
+this merge is the 80-suite partial above, stated as partial.
+
