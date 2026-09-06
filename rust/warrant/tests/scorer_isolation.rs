@@ -372,7 +372,7 @@ fn a_principal_without_settle_scope_cannot_produce_the_state_that_becomes_a_labe
     // Some(Scope::Settle)` to `None` — left it green while five pre-existing tests went red.
     //
     // So it now drives the real HTTP handler against a real store and reads the label out of
-    // `corpus::rows_from` afterwards. The refusal and the control both go through the same path, and
+    // `corpus::rows_from` afterward. The refusal and the control both go through the same path, and
     // that mutation reds this test.
     let dir = tempdir("label-authority");
     let store = store_with_open_warrant(&dir, "wrt_scored");
@@ -884,6 +884,12 @@ fn the_scorer_command_refuses_enforced_for_a_worktree_the_sandbox_command_also_r
         text.contains("warrantor sandbox"),
         "the record must name the command that refuses the same path: {text}"
     );
+    // The HEADER too, which is the first line a reader gets. `--confined` alone printed
+    // `confined  bubblewrap` above properties denying that any profile can exist for this worktree.
+    assert!(
+        text.contains("no profile this repository writes can name this worktree"),
+        "the confined header must not claim a composition the record below denies: {text}"
+    );
 
     // CONTROL, on the same binary and the same day: a worktree the sandbox command DOES accept still
     // reaches Enforced, so this is a condition on the tier and not a command that refuses everything.
@@ -901,6 +907,10 @@ fn the_scorer_command_refuses_enforced_for_a_worktree_the_sandbox_command_also_r
     assert!(
         control.contains("held by  operating system"),
         "control: {control}"
+    );
+    assert!(
+        control.contains("ASSERTED by you; this process cannot check it"),
+        "control: the header names the assertion rather than reporting a fact: {control}"
     );
 }
 

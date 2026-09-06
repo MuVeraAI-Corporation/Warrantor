@@ -4656,9 +4656,26 @@ fn cmd_scorer(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     println!("scorer isolation for {id}");
     println!("  store     {}", root.display());
     println!("  worktree  {}", worktree.display());
+    // Derived, not asserted. `--confined` alone used to print `confined  bubblewrap` as the first
+    // line of the record, above properties saying no profile this repository writes can name the
+    // worktree -- a header claiming a composition the record below it denies. The qualifier comes
+    // from the same `check_worktree` call `isolation` and `cmd_sandbox` both make.
     println!(
         "  confined  {}",
-        confinement.map_or("no -- nothing is composed with", sandbox::Confinement::word)
+        match confinement {
+            None => "no -- nothing is composed with".to_string(),
+            Some(kind) => match sandbox::check_worktree(&worktree.to_string_lossy()) {
+                Ok(()) => format!(
+                    "{} -- ASSERTED by you; this process cannot check it",
+                    kind.word()
+                ),
+                Err(_) => format!(
+                    "{} -- ASSERTED, but no profile this repository writes can name this worktree, \
+                     so no property below is held by an operating system",
+                    kind.word()
+                ),
+            },
+        }
     );
     println!();
 
