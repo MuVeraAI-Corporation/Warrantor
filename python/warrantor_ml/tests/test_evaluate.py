@@ -12,6 +12,22 @@ import pytest
 
 from warrantor_ml import evaluate as ev
 from warrantor_ml import serving
+from warrantor_ml._canonical import canonical_json, sha256_text
+
+#: The keys ``EvaluationResult.to_document`` digests, in the order it builds them. Listed here so
+#: this test recomputes the digest from the document rather than from the producer.
+_DIGESTED_KEYS = (
+    "schema_version",
+    "metrics",
+    "per_category_recall",
+    "worst_recall_categories",
+    "eval_set",
+    "backend",
+    "determinism",
+    "failures",
+    "backend_errors",
+    "samples",
+)
 
 # ---------------------------------------------------------------------------
 # The parse layer -- the finding that matters most
@@ -389,4 +405,31 @@ def test_the_quantization_flag_reaches_the_result_document(tmp_path: Path) -> No
     assert "quantisation" not in ev._build_backend(without).descriptor(), (
         "the control: without the flag the field stays absent, so the assertion above is about "
         "the flag and not about a default"
+    )
+
+
+def test_this_build_writes_version_2_documents_and_the_version_is_digested(tmp_path: Path) -> None:
+    """The version number's two real properties, and not the one it was credited with.
+
+    Reverting SCHEMA_VERSION to 1 passed the whole suite, because nothing read it and nothing
+    asserted it. Its comment claimed the bump was what stopped the gate reading "did not say" as
+    "said Q4_K_M" -- that is the absent-field rule in serving.recorded_serving_configuration, which
+    refuses whatever version declared the document. What the number does do is label the shape and
+    sit inside the digested body, and those are the two things asserted here.
+    """
+
+    eval_set = ev.write_smoke_set(tmp_path / "smoke.jsonl")
+    out = tmp_path / "result.json"
+    assert ev.main(["--eval-set", str(eval_set), "--backend", "stub", "--out", str(out)]) == 0
+    document = json.loads(out.read_text(encoding="utf-8"))
+    assert document["schema_version"] == 2, (
+        "documents this build writes are version 2, the shape whose backend block can record a "
+        "quantization; the seven committed documents in eval_results/ are all version 1"
+    )
+
+    body = {key: value for key, value in document.items() if key in _DIGESTED_KEYS}
+    assert sha256_text(canonical_json(body)) == document["result_digest"]
+    body["schema_version"] = 1
+    assert sha256_text(canonical_json(body)) != document["result_digest"], (
+        "the version is a term in the digest, so a document cannot be relabeled without moving it"
     )

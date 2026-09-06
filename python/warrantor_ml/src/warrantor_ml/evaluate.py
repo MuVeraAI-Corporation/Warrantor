@@ -68,11 +68,17 @@ __all__ = [
     "write_smoke_set",
 ]
 
-#: Bumped 1 -> 2 when ``backend.quantisation`` was added. The field sits inside the digested body,
-#: so a version-2 document has a different ``result_digest`` from a version-1 document of the same
-#: run. That is deliberate: the five version-1 candidate documents record no quantization at all,
-#: and a schema that could not tell them apart from version-2 documents would let the promotion
-#: gate read "did not say" as "said Q4_K_M".
+#: Bumped 1 -> 2 when ``backend.quantisation`` was added. It sits inside the digested body, so a
+#: version-2 document has a different ``result_digest`` from a version-1 document of the same run,
+#: and a reader can tell which shape a committed document is without inspecting its fields -- the
+#: seven documents in ``eval_results/`` are all version 1, and none of them records a quantization.
+#:
+#: What this number does NOT do is any of the gate's work. Nothing reads ``schema_version``:
+#: :func:`warrantor_ml.serving.recorded_serving_configuration` discriminates by FIELD ABSENCE, and
+#: an absent key is refused whatever version declared it. The number is a label on the shape and a
+#: term in the digest; the refusal is the absent field. Saying otherwise would credit the version
+#: with the protection and leave the absence rule looking optional, which is the rule that stops
+#: the promotion gate reading "did not say" as "said Q4_K_M".
 SCHEMA_VERSION = 2
 DEFAULT_OLLAMA_ENDPOINT = "http://127.0.0.1:11434/api/chat"
 DEFAULT_OLLAMA_MODEL = "hf.co/mradermacher/Qwen3Guard-Gen-4B-GGUF:Q4_K_M"
