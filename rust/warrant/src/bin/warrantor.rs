@@ -1763,13 +1763,18 @@ fn cmd_tools_sign(args: &Args, root: &Path) -> ExitCode {
     };
     let signed = admission::sign_manifest(claims, &key);
     if let Err(e) = admission::verify_manifest(&signed, &key.verifying_key(), now()) {
-        return fail(&format!("{claims_path} would not verify even freshly signed: {e}"));
+        return fail(&format!(
+            "{claims_path} would not verify even freshly signed: {e}"
+        ));
     }
     let body = serde_json::to_vec_pretty(&signed).expect("a manifest serializes");
     if let Err(e) = std::fs::write(out, body) {
         return fail(&format!("write {out}: {e}"));
     }
-    println!("signed   {} v{} -> {out}", signed.claims.server, signed.claims.version);
+    println!(
+        "signed   {} v{} -> {out}",
+        signed.claims.server, signed.claims.version
+    );
     println!(
         "issuer   {}. The admitting machine must pin this key under that name, checked out of \
          band:\n         warrantor issuer add {} {}",
@@ -1849,8 +1854,12 @@ fn cmd_tools_list(root: &Path) -> ExitCode {
                 "admitted   {server:<20} v{} issuer {} expires {} ({:?})",
                 m.claims.version, m.claims.issuer, m.claims.expires_at, m.claims.kind
             ),
-            (Ok(None), Ok(Some((at, reason)))) => println!("revoked    {server:<20} at {at}: {reason}"),
-            (Ok(None), Ok(None)) => println!("refused    {server:<20} (never admitted; see the ledger)"),
+            (Ok(None), Ok(Some((at, reason)))) => {
+                println!("revoked    {server:<20} at {at}: {reason}")
+            }
+            (Ok(None), Ok(None)) => {
+                println!("refused    {server:<20} (never admitted; see the ledger)")
+            }
             (Err(e), _) | (_, Err(e)) => println!("unreadable {server:<20} {e}"),
         }
     }
@@ -1897,7 +1906,10 @@ fn cmd_tools_export(args: &Args, root: &Path) -> ExitCode {
         Err(e) => return fail(&e.to_string()),
     };
     let receipts: Vec<admission::Receipt> = match set.receipts() {
-        Ok(r) => r.into_iter().filter(|r| &r.claims.server == server).collect(),
+        Ok(r) => r
+            .into_iter()
+            .filter(|r| &r.claims.server == server)
+            .collect(),
         Err(e) => return fail(&e.to_string()),
     };
     if receipts.is_empty() {
@@ -1931,8 +1943,16 @@ fn cmd_tools_check_skill(args: &Args, root: &Path) -> ExitCode {
     };
     let manifest = match admission::AdmittedSet::open(root).load(server) {
         Ok(Some(m)) if m.claims.kind == admission::AdmissionKind::Skill => m,
-        Ok(Some(_)) => return fail(&format!("{server:?} is admitted as a tool server, not a skill")),
-        Ok(None) => return fail(&format!("{server:?} has no admitted manifest on this machine")),
+        Ok(Some(_)) => {
+            return fail(&format!(
+                "{server:?} is admitted as a tool server, not a skill"
+            ))
+        }
+        Ok(None) => {
+            return fail(&format!(
+                "{server:?} has no admitted manifest on this machine"
+            ))
+        }
         Err(e) => return fail(&e.to_string()),
     };
     let bytes = match std::fs::read(file) {
@@ -1967,7 +1987,12 @@ fn verify_admission_export(path: &str, body: &[u8], anchor: Option<&Anchor>) -> 
     };
     let export: AdmissionExport = match serde_json::from_slice(body) {
         Ok(e) => e,
-        Err(e) => return fail(&format!("{path} is not a {}: {e}", admission::EXPORT_FORMAT)),
+        Err(e) => {
+            return fail(&format!(
+                "{path} is not a {}: {e}",
+                admission::EXPORT_FORMAT
+            ))
+        }
     };
     for (i, receipt) in export.receipts.iter().enumerate() {
         if let Err(e) = admission::verify_receipt(receipt, &anchor.key) {
@@ -5626,7 +5651,8 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                             match admitted.load(&spec.name) {
                                 Err(e) => return fail(&e.to_string()),
                                 Ok(None) => {
-                                    if let Ok(Some((at, reason))) = admitted.is_revoked(&spec.name) {
+                                    if let Ok(Some((at, reason))) = admitted.is_revoked(&spec.name)
+                                    {
                                         return fail(&format!(
                                             "upstream {:?} was revoked at {at} ({reason}) and \
                                              will not be attached. Admit a new manifest by name \
@@ -5646,10 +5672,17 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                                     }
                                 }
                                 Ok(Some(manifest)) => {
-                                    if let Err(e) = admission::check_publication(&manifest, &published) {
+                                    if let Err(e) =
+                                        admission::check_publication(&manifest, &published)
+                                    {
                                         // The server's OWN behavior disagrees with its manifest:
                                         // revoked, receipted, refused, in that order.
-                                        if let Err(w) = admitted.revoke(&spec.name, &e.to_string(), &signer, now()) {
+                                        if let Err(w) = admitted.revoke(
+                                            &spec.name,
+                                            &e.to_string(),
+                                            &signer,
+                                            now(),
+                                        ) {
                                             eprintln!(
                                                 "warrantor: could not receipt the revocation of {:?}: {w}",
                                                 spec.name

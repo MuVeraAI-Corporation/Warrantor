@@ -271,7 +271,9 @@ pub fn check_publication(
             continue;
         };
         match manifest.claims.tools.get(bare) {
-            None => faults.push(format!("publishes {bare:?}, which the manifest does not name")),
+            None => faults.push(format!(
+                "publishes {bare:?}, which the manifest does not name"
+            )),
             Some(entry) => {
                 if let Some(pinned) = &entry.schema_digest {
                     let actual = schema_digest(&tool.input_schema);
@@ -456,7 +458,8 @@ impl AdmittedSet {
         writeln!(file, "{line}").map_err(|e| AdmissionError::Io(e.to_string()))?;
         // Durable before the caller acts on the decision: a receipt still in a buffer when the
         // process dies is a decision nobody can later find.
-        file.sync_all().map_err(|e| AdmissionError::Io(e.to_string()))?;
+        file.sync_all()
+            .map_err(|e| AdmissionError::Io(e.to_string()))?;
         Ok(receipt)
     }
 
@@ -720,7 +723,13 @@ mod tests {
         verify_manifest(&signed, &signer.verifying_key(), 1_786_000_100).expect("verifies");
 
         let mut tampered = signed.clone();
-        tampered.claims.tools.get_mut("echo").expect("echo").effects.insert(Syscall::Net);
+        tampered
+            .claims
+            .tools
+            .get_mut("echo")
+            .expect("echo")
+            .effects
+            .insert(Syscall::Net);
         assert_eq!(
             verify_manifest(&tampered, &signer.verifying_key(), 1_786_000_100),
             Err(AdmissionError::Signature)
@@ -734,7 +743,10 @@ mod tests {
             verify_manifest(&signed, &signer.verifying_key(), 1_786_000_000 + 86_401),
             Err(AdmissionError::Expired { .. })
         ));
-        let unsigned = SignedManifest { claims: claims(), signature: String::new() };
+        let unsigned = SignedManifest {
+            claims: claims(),
+            signature: String::new(),
+        };
         assert_eq!(
             verify_manifest(&unsigned, &signer.verifying_key(), 1_786_000_100),
             Err(AdmissionError::Unsigned)
@@ -742,24 +754,43 @@ mod tests {
     }
 
     #[test]
-    fn a_foreign_format_an_empty_effect_set_and_a_digestless_skill_are_refused_before_the_signature() {
+    fn a_foreign_format_an_empty_effect_set_and_a_digestless_skill_are_refused_before_the_signature(
+    ) {
         let mut other = claims();
         other.format = "warrantor.tool-manifest/2".to_string();
         let signed = sign_manifest(other, &key(7));
-        let err = verify_manifest(&signed, &key(7).verifying_key(), 1_786_000_100).expect_err("foreign");
-        assert!(matches!(&err, AdmissionError::Format(m) if m.contains("warrantor.tool-manifest/2")), "{err}");
+        let err =
+            verify_manifest(&signed, &key(7).verifying_key(), 1_786_000_100).expect_err("foreign");
+        assert!(
+            matches!(&err, AdmissionError::Format(m) if m.contains("warrantor.tool-manifest/2")),
+            "{err}"
+        );
 
         let mut empty = claims();
         empty.tools.insert("noop".to_string(), entry(&[]));
-        let err = verify_manifest(&sign_manifest(empty, &key(7)), &key(7).verifying_key(), 1_786_000_100)
-            .expect_err("empty effects");
-        assert!(matches!(&err, AdmissionError::Format(m) if m.contains("noop")), "{err}");
+        let err = verify_manifest(
+            &sign_manifest(empty, &key(7)),
+            &key(7).verifying_key(),
+            1_786_000_100,
+        )
+        .expect_err("empty effects");
+        assert!(
+            matches!(&err, AdmissionError::Format(m) if m.contains("noop")),
+            "{err}"
+        );
 
         let mut skill = claims();
         skill.kind = AdmissionKind::Skill;
-        let err = verify_manifest(&sign_manifest(skill, &key(7)), &key(7).verifying_key(), 1_786_000_100)
-            .expect_err("skill without digest");
-        assert!(matches!(&err, AdmissionError::Format(m) if m.contains("subject_digest")), "{err}");
+        let err = verify_manifest(
+            &sign_manifest(skill, &key(7)),
+            &key(7).verifying_key(),
+            1_786_000_100,
+        )
+        .expect_err("skill without digest");
+        assert!(
+            matches!(&err, AdmissionError::Format(m) if m.contains("subject_digest")),
+            "{err}"
+        );
     }
 
     #[test]
@@ -795,7 +826,8 @@ mod tests {
     #[test]
     fn a_pinned_schema_that_changed_is_a_publication_fault() {
         let mut pinned = claims();
-        let schema = serde_json::json!({"type": "object", "properties": {"text": {"type": "string"}}});
+        let schema =
+            serde_json::json!({"type": "object", "properties": {"text": {"type": "string"}}});
         pinned.tools.get_mut("echo").expect("echo").schema_digest = Some(schema_digest(&schema));
         let signed = sign_manifest(pinned, &key(7));
 
@@ -824,6 +856,9 @@ mod tests {
         let fetch = registry.get("selftest.fetch").expect("published name");
         assert_eq!(fetch.render(), "net");
         assert_eq!(fetch.class(), crate::SideEffectClass::Read);
-        assert!(registry.get("fetch").is_none(), "bare names are never declared");
+        assert!(
+            registry.get("fetch").is_none(),
+            "bare names are never declared"
+        );
     }
 }

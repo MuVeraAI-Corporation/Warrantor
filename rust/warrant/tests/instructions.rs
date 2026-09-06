@@ -93,6 +93,12 @@ const ACCEPTED_FLAGS: &[&str] = &[
     "url",
     "code",
     "out",
+    // Task 2.2: admission manifests. `--key` names the signing key on `tools sign`
+    // (cmd_tools_sign); `--require-admission` arms attach-time refusal of manifest-less servers
+    // on `mcp` (cmd_mcp) and is a VALUELESS_FLAGS entry. Both were wired with the usage lines
+    // that name them, in the same commit.
+    "key",
+    "require-admission",
     // spend
     "input",
     "output",

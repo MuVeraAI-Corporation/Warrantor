@@ -94,6 +94,41 @@ client, gets a refusal and an explanation rather than a config file.
 Still open here: the Python `warrantor-harness config` subcommand has not been removed, so the old
 generator remains reachable by anyone who finds it first.
 
+### 0.3 Tool and skill admission (L4-09) — **built, `Mediated`; the skill half is `Observed`**
+
+A tool server now carries a signed manifest (`warrantor.tool-manifest/1`) naming its effect
+decomposition per tool, its issuer by PINNED NAME, its version and its data classes, verified only
+against `trusted/issuers.json`; the file carries no key of its own. Every decision is a signed
+receipt (`warrantor.admission-receipt/1`, `admission/ledger.jsonl`), exported as
+`warrantor.admission-export/1` and verified offline with `warrantor verify --issuer`. What is
+refused: an unsigned manifest, an unpinned issuer, an expired manifest, a revoked server, a server
+publishing a tool or a schema its manifest does not name (revoked at attach, session refused), and
+under `--require-admission` any server with no admitted manifest. What is refused per call: a
+destination handed to a tool whose manifest declares no `net` (the `admission` bound; the manifest
+is not revoked by an agent's argument). What is NOT established: a compiled-in endpoint the server
+reaches without naming it; a server that changes its published tools after the one `tools/list` at
+attach (`listChanged` is not consumed); data classes are recorded, not yet checked against a
+warrant bound (Task 2.5); and the skill kind is a digest check of a file an operator names,
+because a skill is loaded by the harness and never traverses the proxy. `--require-admission` is
+opt-in in this PR and flips to default once the first live dogfood session below has produced an
+admitted-manifest receipt.
+
+The live dogfood (2026-09-06, `@modelcontextprotocol/server-filesystem`): the first run admitted a
+two-tool manifest, the server published fourteen tools, and attach revoked and receipted. The
+ledger, digest-shortened:
+
+```
+1788716739 files  admitted  22f382e01d65c852 issuer "dogfood-vendor" pinned; signature verifies
+1788716775 files  revoked   22f382e01d65c852 server "files" revoked: publishes "read_text_file", which the manifest does not name; ...
+1788716791 files  admitted  b7f72e666871d707 issuer "dogfood-vendor" pinned; signature verifies; this admission lifts the revocation of 1788716775
+```
+
+The second session's stderr line, after the full fourteen-tool manifest was admitted:
+
+```
+warrantor: admission -- 1 server(s) governed by an admitted manifest: files.
+```
+
 ### 0.3 A crate that compiled for nobody — **fixed 2026-09-02**
 
 `rust/reputation` (H-4, the scorer the identity graph defers to) sat on disk with a valid

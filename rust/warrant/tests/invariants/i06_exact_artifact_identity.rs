@@ -163,7 +163,11 @@ fn the_receipt_records_the_refusal_without_naming_the_digest_that_failed() {
 /// boundary to reach in the product — only in the notary the product barely consults.
 ///
 /// Fixed by: Task 2.2 (signed tool and skill admission manifests) and Task 2.4 (EXEC admission by
-/// content digest and declared execution surface). Recorded 2026-09-02.
+/// content digest and declared execution surface). Recorded 2026-09-02. Task 2.2 landed
+/// admission-side digests on 2026-09-06 (schema digests pinned in manifests, checked at attach;
+/// skill files checked against an admitted subject digest), but this finding is about the
+/// report path: `report.rs` still hands the Artifacts gate `verified_artifacts: Vec::new()`, so
+/// the finding stands and the test stays ignored until Task 2.4.
 #[test]
 #[ignore = "I-06 partial: the product supplies no artifacts and no verified set, so the gate never fires (Task 2.2 / Task 2.4, 2026-09-02)"]
 fn the_product_submits_artifacts_to_the_artifacts_gate() {
