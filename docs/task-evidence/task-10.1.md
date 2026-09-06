@@ -975,6 +975,12 @@ inventing one: **claim-honesty 5 and evidence-truth 3, 4 and 5 are not recoverab
 what stands in their place is the re-derivation below, which found four further false or stale
 sentences of its own.
 
+**A note on the hashes below.** They are this branch's commits as of the tip that carries this
+section, on `main` @ `2463504`. Every rebase rewrites them -- this lane rebased twice and had to
+rewrite its own citations once already -- so where a claim has to survive that, the commit is named by
+its subject line instead. If a hash here does not resolve, the branch has been rebased again and the
+subject is the handle to search for.
+
 ### Fixed in code, each with the mutation that now goes red
 
 - **Claim-honesty 1 — the bundle's causal sentence said the product computes the verdict.** The
@@ -982,15 +988,16 @@ sentences of its own.
   recorded", in the present tense, and nothing in `rust/warrant` calls `causal_verdict`;
   `verify_export` checks integrity by design. It also told an operator they "cannot later rewrite
   the route without breaking a signature or that chain digest", which is false for the party the
-  tier table already names. Fixed in `b895837`: the sentence now says no verdict was computed here,
+  tier table already names. Fixed in `a996e7d`: the sentence now says no verdict was computed here,
   names who computes it and from which field, and carries the issuer-key escape inside the bundle
-  rather than only in this file. Completed in `ce00050`, which makes the presence test refuse the
+  rather than only in this file. Completed in `729b5e8`, which makes the presence test refuse the
   present-tense wording instead of only requiring the new one — a presence test cannot prove an
   absence, so the false wording could otherwise have been restored beside the true one.
-- **Claim-honesty 2 — a commit message overstated the rule-3 test.** `d78c8b8` said the test "fails
-  if any .rs file under rust/ ever claims the pathway is proven or enforced"; it matched five
-  literal phrases, and "the pathway is enforced" and "the route is proven" walked past it. The
-  denylist went from 5 phrases to 23 in `3b1ecf3`, and in `a9dd778` the test's own doc comment says
+- **Claim-honesty 2 — a commit message overstated the rule-3 test.** The message of this task's first commit
+  (`feat(evidence): compute a verdict over the pathway, not only the outcome`, named by subject
+  because rebasing moves its hash) said the test "fails if any .rs file under rust/ ever claims the
+  pathway is proven or enforced"; it matched five literal phrases, and "the pathway is enforced" and "the route is proven" walked past it. The
+  denylist went from 5 phrases to 23 in `1bcc832`, and in `ce01018` the test's own doc comment says
   what it is — a denylist of literal phrases, not a semantic guard — and points at the golden test
   that holds the shipped sentence exactly. Published history cannot be rewritten, so the correction
   lives where the next reader looks. The mutation that inserts "the pathway is enforced by this
@@ -999,7 +1006,7 @@ sentences of its own.
   the dev-dependency did not buy.** It said importing `authority-spec` meant the per-class test
   "iterates the real enum instead of a list of strings that would silently go stale when a class is
   added"; the test looped over five hand-written variants, and a sixth class compiled and passed.
-  Fixed in `01326bf`: the list is built from an exhaustive `match` with no wildcard arm, so a new
+  Fixed in `70a1907`: the list is built from an exhaustive `match` with no wildcard arm, so a new
   variant is `error[E0004]` in the test, and both comments now say that instead. Adding a sixth
   `SideEffectClass` variant fails to compile the test with
   `error[E0004]: non-exhaustive patterns: SideEffectClass::Mutation not covered`.
@@ -1007,23 +1014,23 @@ sentences of its own.
   claim-honesty 1: the escape is now in the signed bundle's own sentence.
 - **Test-rigor M06 — the `Uninterpretable` branch was described and exercised by nothing.**
   Deleting it left every suite green, so a build that read a v9 route under the v2 rule would have
-  PASSED it. Fixed in `21e5b92` with a test over an unknown version and over no version at all;
+  PASSED it. Fixed in `e3e9049` with a test over an unknown version and over no version at all;
   M06 re-applied against it gives `20 passed; 1 failed`.
 - **Test-rigor M07 — `UnversionedCausality` was covered only by the Python mirror.** Deleting the
-  Rust arm left every Rust suite green. Fixed in `ef66ec4`: the frozen-fixture suite now requires
+  Rust arm left every Rust suite green. Fixed in `8a92aaa`: the frozen-fixture suite now requires
   `verify_receipt` to refuse an unversioned causal section as `UnversionedCausality` and not as
   `InvalidSignature`, which is the misreport the gate exists to prevent. M07 re-applied gives
   `9 passed; 1 failed`.
 - **Test-rigor M11 and M13, with evidence-truth 1 and 2 — two fragment checks let a hard-coded hop
   count and an appended Enforced-tier claim into a signed bundle.** M11 hard-codes the count as `3`,
   which matched the only three-hop fixture; M13 appends "Every hop was enforced at the moment of
-  attempt." after the honest fragments. Both shipped green. Fixed in `cf8d5e9`: the test holds the
+  attempt." after the honest fragments. Both shipped green. Fixed in `60a2cde`: the test holds the
   exact sentence as a golden and compares with `assert_eq!` over a one-hop and a three-hop queue, so
   no hard-coded count agrees with both fixtures and nothing can be appended after the last full
   stop. Both mutations now give `7 passed; 1 failed`.
 - **Test-rigor M19 — no CI tool in this repository reads tier vocabulary.** Relabeling every causal
   refusal `Enforced` in this file's summary table left `check_docs.py`, `check_invariants.py` and
-  `check_us_english.py` all at exit 0. Fixed in `c89c352`: a test walks every Markdown table row in
+  `check_us_english.py` all at exit 0. Fixed in `1277cc6`: a test walks every Markdown table row in
   this file and refuses a cell whose tier word is `Enforced` or `Mediated`, and refuses to pass on a
   file it did not really read by requiring at least forty rows. M19 now fails that test alone.
 
@@ -1035,7 +1042,7 @@ sentences of its own.
   minted, so dependencies always point backward and `release_order` returns the staging order. What
   *was* wrong is what made the mutation look live — a doc comment claiming the orders "differ
   whenever an agent stages out of dependency sequence", which the API does not allow, and a fixture
-  comment promising an "interesting case" built in a test that does not exist. `827d9c5` corrects
+  comment promising an "interesting case" built in a test that does not exist. `19af8c3` corrects
   both and adds the test that pins the enabling invariant: a forward reference is refused at `stage`
   with the handle-provenance message, a refused stage writes nothing to the log, and the trace, the
   release order and the staging order are one sequence. That test goes red first on the day `stage`
@@ -1049,7 +1056,7 @@ sentences of its own.
 ### Found by this lane's own re-derivation, not by a numbered finding
 
 - **This file quoted a sentence the product no longer prints.** "The sentence that ships in the
-  product" still carried the pre-`b895837` wording. Corrected to the sentence `limitations()` renders
+  product" still carried the pre-`a996e7d` wording. Corrected to the sentence `limitations()` renders
   now, with a note saying what the first wording claimed and why it was false.
 - **The same section described the tests that hold it wrongly.** It named two tests, said the
   denylist matched five phrases, and said the golden test "asserts both appear". On this tip there
@@ -1078,7 +1085,7 @@ sentences of its own.
 
 ### The full gate on the final tip, exit codes captured before any pipe
 
-Every cargo number in this subsection was measured on `827d9c5`, the last commit that changes code:
+Every cargo number in this subsection was measured on `19af8c3`, the last commit that changes code:
 the commits after it touch only `docs/task-evidence/task-10.1.md` and `docs/W1-delivery-gaps.md`, and
 the one test that reads a Markdown file — the tier-cell test — was re-run against this section's own
 text and passed (`causal_verdict`: 21 passed). It was measured in `M:/wt-w6-10.1` with

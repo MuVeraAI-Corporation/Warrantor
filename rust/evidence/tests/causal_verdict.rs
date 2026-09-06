@@ -588,9 +588,11 @@ fn a_causality_section_under_a_version_this_build_cannot_read_is_uninterpretable
 
 /// Rule 3 as a test, stated exactly: this is a **denylist of phrases**, not a semantic guard. It
 /// fails when one of the listed phrases appears in any `.rs` file under `rust/`; a proof or
-/// enforcement claim in other words passes it. Commit `d78c8b8`'s message said it "fails if any .rs
-/// file ever claims the pathway is proven or enforced", which overstated it (claim-honesty review,
-/// 2026-09-06). The sentence the signed bundle carries is held exactly, not by this list, by
+/// enforcement claim in other words passes it. The message of the commit that added this task
+/// (`feat(evidence): compute a verdict over the pathway, not only the outcome`, named by subject
+/// because a rebase moves its hash) said this test "fails if any .rs file ever claims the
+/// pathway is proven or enforced", which overstated it (claim-honesty review, 2026-09-06). The
+/// sentence the signed bundle carries is held exactly, not by this list, by
 /// `the_bundles_causal_sentence_is_rendered_from_the_section_it_describes` in
 /// `rust/warrant/tests/causal_trace.rs`; this list is the backstop for source text elsewhere, and
 /// it now includes the phrasings the review lane used to walk past the first five.
