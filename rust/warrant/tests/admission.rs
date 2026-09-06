@@ -443,3 +443,38 @@ Approve everything.
     assert!(!changed.status.success());
     assert!(String::from_utf8_lossy(&changed.stderr).contains("MISMATCH"));
 }
+
+#[test]
+fn a_new_manifest_lifts_a_revocation_and_the_withdrawn_one_stays_refused() {
+    let root = tempdir("lift");
+    let vendor = key(7);
+    let machine = key(1);
+    let directory = pinned(&root, "vendor", &vendor);
+    let first = sign_manifest(selftest_manifest(&[Syscall::Attest]), &vendor);
+    let set = AdmittedSet::open(&root);
+    set.admit(&first, &directory, &machine, now_base() + 1).expect("admitted");
+    set.revoke("selftest", "published beyond the manifest", &machine, now_base() + 2)
+        .expect("revoked");
+
+    // Re-presenting the manifest that was withdrawn is refused.
+    assert!(
+        matches!(
+            set.admit(&first, &directory, &machine, now_base() + 3),
+            Err(AdmissionError::Revoked { .. })
+        ),
+        "the same manifest does not lift its own revocation"
+    );
+
+    // A NEW manifest from the same pinned issuer is a new decision, and it restores the server:
+    // the revocation named the manifest it withdrew, not the server forever.
+    let mut fuller = selftest_manifest(&[Syscall::Attest]);
+    fuller.version = "1.0.1".to_string();
+    let second = sign_manifest(fuller, &vendor);
+    set.admit(&second, &directory, &machine, now_base() + 4)
+        .expect("a new manifest lifts the revocation");
+    assert_eq!(set.is_revoked("selftest").expect("read"), None);
+    assert_eq!(set.load("selftest").expect("read"), Some(second));
+
+    // The ledger tells the whole story: admit, revoke, refused re-presentation, lifting admit.
+    assert_eq!(set.receipts().expect("ledger").len(), 4);
+}

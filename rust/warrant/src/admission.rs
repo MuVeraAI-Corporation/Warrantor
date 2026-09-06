@@ -494,6 +494,12 @@ impl AdmittedSet {
     /// Verify a manifest against the pinned directory and, if it holds, make it the authority
     /// for its server. Every outcome, admitted or refused, is receipted before this returns.
     ///
+    /// A revocation withdraws ONE manifest, not the server forever: re-presenting the manifest
+    /// that was withdrawn is refused, and admitting a NEW manifest lifts the revocation and is
+    /// receipted like any admission. Only a digest match against the withdrawn record proves
+    /// "the same manifest"; when that record cannot be read, the presentation is treated as new,
+    /// because attach re-checks what the server publishes regardless.
+    ///
     /// # Errors
     /// The refusal, after its receipt is durable.
     pub fn admit(
@@ -509,23 +515,37 @@ impl AdmittedSet {
         let issuer_key = resolved
             .map(|k| hex::encode(k.to_bytes()))
             .unwrap_or_default();
-        let outcome = match self.is_revoked(&server)? {
-            Some((at, reason)) => Err(AdmissionError::Revoked {
+        let standing = self.is_revoked(&server)?;
+        let withdraws_the_same = match &standing {
+            None => false,
+            Some(_) => self
+                .withdrawn_digest(&server)?
+                .is_some_and(|d| d == manifest_digest(manifest)),
+        };
+        let outcome = match (&standing, withdraws_the_same) {
+            (Some((at, reason)), true) => Err(AdmissionError::Revoked {
                 server: server.clone(),
-                at,
-                reason,
+                at: *at,
+                reason: reason.clone(),
             }),
-            None => match resolved {
+            _ => match resolved {
                 None => Err(AdmissionError::UnpinnedIssuer(issuer_name.clone())),
                 Some(key) => verify_manifest(manifest, &key, now),
             },
         };
-        let (decision, reason) = match &outcome {
-            Ok(()) => (
+        let (decision, reason) = match (&outcome, &standing, withdraws_the_same) {
+            (Ok(()), Some((at, old)), _) => (
+                AdmissionDecision::Admitted,
+                format!(
+                    "issuer {issuer_name:?} pinned; signature verifies; this admission lifts the \
+                     revocation of {at} ({old})"
+                ),
+            ),
+            (Ok(()), None, _) => (
                 AdmissionDecision::Admitted,
                 format!("issuer {issuer_name:?} pinned; signature verifies"),
             ),
-            Err(e) => (AdmissionDecision::Refused, e.to_string()),
+            (Err(e), _, _) => (AdmissionDecision::Refused, e.to_string()),
         };
         let receipt = self.receipt(
             ReceiptClaims {
@@ -541,10 +561,29 @@ impl AdmittedSet {
             signer,
         )?;
         outcome?;
+        if standing.is_some() {
+            // The new manifest is the authority from here; the withdrawn record's story stays in
+            // the ledger.
+            std::fs::remove_file(revoked_path(&self.root, &server))
+                .map_err(|e| AdmissionError::Io(e.to_string()))?;
+        }
         let body = serde_json::to_vec_pretty(manifest)
             .map_err(|e| AdmissionError::Format(e.to_string()))?;
         Self::write_json(&admitted_path(&self.root, &server), &body)?;
         Ok(receipt)
+    }
+
+    /// The digest of the admitted record for a server as it sits on disk, read past any
+    /// revocation: `load` refuses a revoked server, but the withdrawn record stays beside the
+    /// revocation precisely so the presented manifest can be told from it.
+    fn withdrawn_digest(&self, server: &str) -> Result<Option<String>, AdmissionError> {
+        let Ok(bytes) = std::fs::read(admitted_path(&self.root, server)) else {
+            return Ok(None);
+        };
+        match serde_json::from_slice::<SignedManifest>(&bytes) {
+            Ok(withdrawn) => Ok(Some(manifest_digest(&withdrawn))),
+            Err(_) => Ok(None),
+        }
     }
 
     /// Withdraw a server's manifest. The admitted record stays on disk beside the revocation so
