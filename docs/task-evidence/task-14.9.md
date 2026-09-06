@@ -3,11 +3,14 @@
 **Catalog items:** L10-14 (public signed fact/claim/unknown ledger with versioned corrections),
 L10-10 (localized pack verifies against the same receipt digests as the source-language pack).
 
-**Branch:** `feat/public-claim-ledger` · **Base:** local `main` at `2463504`, rebased 2026-09-06.
+**Branch:** `feat/public-claim-ledger` · **Base:** local `main` at `6f41384`.
+Rebased three times on 2026-09-06 — onto `2463504`, then `8c0fbc3`, then `6f41384` — because `main`
+moved under this lane twice while its gate was running. Every gate below was re-run after each
+rebase and no number was carried across one.
 
 **Review worktree:** `M:/wt-w6-14.9` · `CARGO_TARGET_DIR=M:/wt-rv-14.9-target`. Every number
-under the *Rebase* heading was measured on `5a0569f`, which is the last commit on this branch that
-changes anything a gate reads. The commits after it add only the text of that section, so every
+under the *Rebase* heading was measured on **commit 4** of the table below, which is the last commit
+on this branch that changes anything a gate reads. Commits 5 and 6 add only text, so every
 number in it describes the tree a reviewer merges. Those later commits are deliberately **not**
 named by hash anywhere in this file: a file cannot carry the hash of the commit that adds it, and a
 hash written in one before its content settled would be the same stale rendering this task gates.
@@ -18,15 +21,26 @@ tips `3c2baa9` and `fb6e45c`.
 
 **Dates:** built 2026-09-05; corrected and re-verified after the rebase 2026-09-06.
 
-**Commits, in order, as they stand after the rebase onto `2463504`:**
+**Commits, in order.** Six, and this table gives no current hash on purpose. Three rebases replayed
+every one of them, so any hash written here is stale the next time `main` moves — and a rendered value
+that goes stale because nothing re-derives it is the exact defect this task exists to gate. Re-derive
+the column with `git log --format='%h %s' main..HEAD`; the order below is the order that prints.
 
-| commit | Steps | what |
-|---|---|---|
-| `bbcf2eb` | 1–8 | the ledger, the checker, the tests, the locales, both views, the four surface fixes, the CI steps |
-| `cad9230` | 9 | `check_published_state`: the same-version rewrite and the fabricated retained text |
-| `0b3818b` | 10 | the fresh-worktree verification at `fb6e45c`, verbatim |
-| `5a0569f` | 11 | the two records `main` moved, corrected by appending a version rather than editing |
-| (this file) | 11 | the *Rebase* section: the gate re-measured on the tip a reviewer merges. Text only |
+| # | originally | Steps | what |
+|---|---|---|---|
+| 1 | `3c2baa9` | 1–8 | the ledger, the checker, the tests, the locales, both views, the four surface fixes, the CI steps |
+| 2 | `fb6e45c` | 9 | `check_published_state`: the same-version rewrite and the fabricated retained text |
+| 3 | `237facc` | 10 | the fresh-worktree verification at `fb6e45c`, verbatim |
+| 4 | — | 11 | the two records `main` moved, corrected by appending a version rather than editing |
+| 5 | — | 11 | the *Rebase* section: the gate re-measured on the tip a reviewer merges. Text only |
+| 6 | — | 11 | the self-reference fix and the durable form of this table. Text only |
+
+The *originally* column holds the hashes the sections above were written against. Those commits are
+**not reachable from this branch** any more — they were replayed three times. They are kept because a
+measurement belongs to the tree it was taken on, and renaming them to today's hashes would assert
+that those runs happened on trees which did not exist when they were made. Commits 4 to 6 are named
+by position rather than hash for the same reason the *Rebase* section names none: this file cannot
+carry the hash of the commit that adds it.
 
 Every section below names the commit its numbers came from, because two of them moved on the rebase
 and the ledger refused the branch until they were corrected. The section *Rebase onto local `main` at
@@ -138,7 +152,7 @@ and the third was already repaired:
 
 | Path | New? | What it is |
 |---|---|---|
-| `evidence/claims.json` | new | The ledger. Format `warrantor.claim-ledger/1`, 17 entries; 11 retained corrections at `fb6e45c`, 13 at `5a0569f` after the rebase |
+| `evidence/claims.json` | new | The ledger. Format `warrantor.claim-ledger/1`, 17 entries; 11 retained corrections at `fb6e45c`, 13 at `dc95593` after the first rebase |
 | `tools/ci/check_claims.py` | new | The gate: falsifier required, renderings recomputed, the parent revision's published state compared, corrections append-only, two views compared |
 | `tools/ci/test_check_claims.py` | new | 52 pytest cases; every refusal paired with an allowed control |
 | `tools/ci/claim_locales.json` | new | The reviewed label vocabulary. Labels only, and the file says so about itself |
@@ -849,12 +863,16 @@ this lane's own target directory was deleted.
 
 ---
 
-## Rebase onto local `main` at `2463504` — 2026-09-06
+## Rebase onto local `main` — 2026-09-06, three times
 
-Every number in this section was measured in `M:/wt-w6-14.9` on tip `5a0569f`, with
-`CARGO_TARGET_DIR=M:/wt-rv-14.9-target` and `CARGO_BUILD_JOBS=2`. Nothing here is carried from
-`fb6e45c`; where a number differs from the sections above, both are shown with the commit each was
-read on.
+`main` moved under this lane twice while its gate was running, so this branch was rebased three
+times — onto `2463504`, then `8c0fbc3`, then `6f41384` — and the gate was re-run in full after each.
+**Every number in this section was measured on the final rebase, onto `6f41384`**, in
+`M:/wt-w6-14.9` with `CARGO_TARGET_DIR=M:/wt-rv-14.9-target` and `CARGO_BUILD_JOBS=2`. Nothing here
+is carried from `fb6e45c` or from either earlier rebase; where a number differs from the sections
+above, both are shown with the tree each was read on. The two refusals the *first* rebase produced
+are kept as the record of what the ledger caught, and the records they cite read the same at
+`6f41384` as at `2463504`, which is stated below rather than assumed.
 
 ### The exit gate, quoted verbatim from the plan
 
@@ -886,10 +904,10 @@ One qualification the exit gate's own wording invites, recorded because it is th
 gate that runs and a gate that reports success having never run. The gate's phrase is
 `git show HEAD:evidence/claims.json`, and `--parent-ref` defaults to `HEAD`. On a **clean** checkout
 `HEAD` is the commit under test, so that default compares the ledger against itself and the
-append-only comparison is a no-op. The run that actually exercises it here is `--parent-ref 0b3818b`,
-naming the commit rather than a tip-relative `HEAD~1`, because `0b3818b` is the last revision that
-carries the *pre-rebase* ledger and `HEAD~1` stopped meaning that the moment this section was
-committed. Both are quoted below with their exit codes. CI passes the branch base for the same reason, which is why the workflow
+append-only comparison is a no-op. The run that actually exercises it here names **commit 3**
+explicitly rather than a tip-relative `HEAD~1`, because commit 3 is the last revision carrying the
+*pre-rebase* ledger and `HEAD~1` stopped meaning that the moment this section was committed. Both
+are quoted below with their exit codes. CI passes the branch base for the same reason, which is why the workflow
 step reads `--parent-ref "$BASE_SHA"` and not `HEAD`.
 
 ### The rebase moved two records, and the ledger refused the branch for it
@@ -917,7 +935,11 @@ Two records moved under two published sentences, and neither sentence knew:
 | `evidence/wiring-coverage.json` `/edges` | 22 | 23 | Task 5.4's common-mode independence work added a path edge |
 | `tools/ci/invariant-ratchet.json` `/passing_floor` | 82 | 85 | Task 5.4 added three passing tests to the `i09` suite |
 
-Both were corrected in `5a0569f` by **appending** a versioned correction that retains what the parent
+Read again after the second and third rebases: `evidence/wiring-coverage.json` still reads 13 / 41 /
+23 with 28 names in `orphaned`, and `tools/ci/invariant-ratchet.json` still reads 85 / 15. Neither
+record moved again, so the corrected renderings are still the ones the records produce.
+
+Both were corrected in **commit 4** by **appending** a versioned correction that retains what the parent
 revision published, never by editing the published text: `CL-001` to version 2, `CL-002` to version 3.
 `CL-002`'s falsifier moved with its count, because a falsifier telling a reader to look for 82 would
 send them to the wrong number, so its correction carries `superseded_falsifier` as well, which the
@@ -931,7 +953,7 @@ recomputation, which is the whole claim of the task and the one thing a mutation
 
 ### The two bounds are still refused, checked on this tip and not assumed
 
-Both controls were applied to `5a0569f`'s own working tree and reverted; the file was restored and the
+Both controls were applied to **commit 4**'s own working tree and reverted; the file was restored and the
 gate re-run to 0 afterward, so neither is a claim about a fixture.
 
 ```
@@ -958,7 +980,7 @@ the parent revision can refuse it, and it did.
 ### Every rendered number re-derived from its record on this tip, independently of the gate
 
 The reductions were called directly rather than through `check_claim`, so this is a second reader
-agreeing with the first, on `5a0569f`:
+agreeing with the first, on **commit 4**:
 
 ```
 wiring_reachability(evidence/wiring-coverage.json)   -> [13, 41, 28, 23]
@@ -998,13 +1020,13 @@ never picked or added. Read here:
 
 ```
 $ python tools/ci/check_invariant_ratchet.py --show-findings
-test result: ok. 85 passed; 0 failed; 15 ignored; 0 measured; 0 filtered out; finished in 0.81s
-test result: FAILED. 1 passed; 14 failed; 0 ignored; 0 measured; 85 filtered out; finished in 15.39s
+test result: ok. 85 passed; 0 failed; 15 ignored; 0 measured; 0 filtered out; finished in 0.65s
+test result: FAILED. 1 passed; 14 failed; 0 ignored; 0 measured; 85 filtered out; finished in 16.66s
 invariant ratchet: ok (85 passing at floor 85, 15 recorded findings at ceiling 15)
 RATCHET=0
 ```
 
-**85 passing and 15 ignored, at floor 85 and ceiling 15 — identical to `main` at `2463504`.** This
+**85 passing and 15 ignored, at floor 85 and ceiling 15 — identical to `main` at `6f41384`.** This
 branch does not raise the floor and does not lower the ceiling, which is correct for a task that adds
 no Rust and earns no invariant. The second `test result:` line reads `FAILED` **by design**: it is the
 run of the recorded findings, which fail on purpose so that fixing one turns a test green instead of
@@ -1012,29 +1034,30 @@ letting it go stale. The line to read is `invariant ratchet:`, not an exit code 
 
 ### Every gate on the rebased tip, exit code captured before any pipe
 
-`M:/wt-w6-14.9`, tip `5a0569f`, `git status --porcelain` empty. Both guards were run before every cargo
+`M:/wt-w6-14.9`, rebased onto `6f41384`, `git status --porcelain` empty. Both guards were run before every cargo
 invocation. The commit-charge guard refused at 0.4 to 1.3 GB for roughly half an hour while other lanes
 built, and the cargo steps below were run after it cleared to 20.6 GB. Nothing was deleted and no
 process was killed to make room.
 
 ```
 $ python tools/ci/disk_guard.py --require 80
-disk guard: 193.1 GB free on M:\, require 80 GB -> OK
+disk guard: 148.3 GB free on M:\, require 80 GB -> OK
 $ python tools/ci/disk_guard.py --require-commit 5
-disk guard: 20.2 GB of commit charge available, require 5 GB -> OK
+disk guard: 11.6 GB of commit charge available, require 5 GB -> OK
 
 $ cd rust && cargo fmt --all -- --check
-FMT=0
+Diff in M:\wt-w6-14.9\rust\warrant\tests\instructions.rs:284:
+FMT=1     <-- NOT this branch. See the subsection below
 
 $ cargo clippy --workspace --all-targets -- -D warnings
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5m 43s
+    Finished `dev` profile [unoptimized + debuginfo] target(s)
 CLIPPY=0
 (0 lines in the log begin with `warning` or `error`)
 
 $ cargo test --workspace --all-targets
 TEST=0
-suites: 121   (121 `Running`/`Doc-tests` lines, 121 `test result:` lines)
-summed across every `test result:` line: 1580 passed, 0 failed, 20 ignored
+suites: 123 `test result:` lines
+summed across every `test result:` line: 1597 passed, 0 failed, 20 ignored
 `test result: FAILED` lines: 0
 
 $ cargo test --workspace --doc
@@ -1044,11 +1067,12 @@ suites: 40; summed: 1 passed, 0 failed, 0 ignored
 
 Suites and totals are summed across every `test result:` line rather than read from the last one,
 because a lane in this program once reported six failures when eight were failing by reading the final
-line. The count differs from the 150 suites and 1528 passing recorded at `fb6e45c` above for two
-reasons, both of them why the number is re-measured and not copied: `main` moved by Task 5.4 and
-others, and the invocation here is `cargo test --workspace --all-targets` where that section recorded a
-plain `cargo test --workspace -j 2`. A gate reporting exit 0 with zero suites has not run; 121 and 40
-are the counts read.
+line. The count differs from the 150 suites and 1528 passing recorded at `fb6e45c` above, and from the 121
+suites and 1580 passing measured on the first rebase, for two reasons — both of them why the number is
+re-measured after every rebase and never copied: `main` gained Task 5.4, Task 7.4, Task 7.6 and the
+listing-test fix in between, and the invocation here is `cargo test --workspace --all-targets` where
+the `fb6e45c` section recorded a plain `cargo test --workspace -j 2`. A gate reporting exit 0 with
+zero suites has not run; 123 and 40 are the counts read.
 
 ```
 $ cd rust && python ../tools/ci/wiring_census.py
@@ -1064,11 +1088,11 @@ invariant ledger: 12 invariants; enforced=2, orphaned=1, partial=8, unimplemente
 INV=0
 
 $ python tools/ci/check_docs.py
-RESULT: PASS - 304 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
+RESULT: PASS - 308 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
 DOCS=0
 
 $ python tools/ci/check_us_english.py main
-us-english: 2854 added line(s) across 8 file(s), since main; matcher = vendored verify-us-english.mjs
+us-english: 3175 added line(s) across 8 file(s), since main; matcher = vendored verify-us-english.mjs
 us-english: ok
 USEN=0
 
@@ -1076,7 +1100,7 @@ $ python tools/ci/check_claims.py                       # --parent-ref defaults 
 claim ledger: 17 claims; claim=9, fact=6, unknown=2; 13 retained corrections; head sha256:66545e055368496d5c136598295ef30cf4686b55347c26c987d77b037a3b0cc6
 CLAIMS_DEFAULT=0
 
-$ python tools/ci/check_claims.py --parent-ref 0b3818b  # the comparison that is not a no-op
+$ python tools/ci/check_claims.py --parent-ref <commit 3>  # the comparison that is not a no-op
 claim ledger: 17 claims; claim=9, fact=6, unknown=2; 13 retained corrections; head sha256:66545e055368496d5c136598295ef30cf4686b55347c26c987d77b037a3b0cc6
 CLAIMS_VS_PREREBASE=0
 
@@ -1086,7 +1110,7 @@ claim ledger: 17 claims; claim=9, fact=6, unknown=2; 13 retained corrections; he
 CLAIMS_VS_MAIN=0
 
 $ python -m pytest tools/ci/test_check_claims.py -q -p no:cacheprovider
-52 passed in 1.24s
+52 passed in 0.95s
 PYTEST=0
 
 $ python tools/ci/check_us_english.py --files docs/W1-delivery-gaps.md docs/public-claims.md docs/public-claims.ar.md evidence/claims.json
@@ -1099,12 +1123,83 @@ docs/public-claims.md:6:`head_digest` sha256:66545e055368496d5c136598295ef30cf46
 docs/public-claims.ar.md:6:`head_digest` sha256:66545e055368496d5c136598295ef30cf4686b55347c26c987d77b037a3b0cc6
 ```
 
-`CLAIMS_VS_MAIN=0` is worth naming rather than reporting as a pass. `main` at `2463504` does not carry
+`CLAIMS_VS_MAIN=0` is worth naming rather than reporting as a pass. `main` at `6f41384` does not carry
 `evidence/claims.json`, so against that ref the append-only comparison **has nothing to compare and
 says so**. That is honest for the commit that introduces the file, and it is also why the run against
 `HEAD~1` is in this transcript: on the very first merge, CI's `--parent-ref "$BASE_SHA"` step exercises
 everything in the checker *except* the append-only comparison. It becomes load-bearing on the second
 change to the ledger, not this one.
+
+### `FMT=1` is main's, and this branch cannot fix it without contradicting its own evidence
+
+`cargo fmt --all -- --check` exits 1 on the rebased tree. The offending file is
+`rust/warrant/tests/instructions.rs`, and it belongs to `main`, not to this branch. Three facts settle
+that, and each was read rather than reasoned:
+
+```
+$ git diff main HEAD -- rust/
+(0 lines)
+
+$ git rev-parse main:rust/warrant/tests/instructions.rs
+4a8dbe759947dcb5d24fb64580815214513394ee
+$ git hash-object rust/warrant/tests/instructions.rs
+4a8dbe759947dcb5d24fb64580815214513394ee
+
+$ git log --format="%h %s" -1 main -- rust/warrant/tests/instructions.rs
+6f41384 fix(test): the harness-listing test read Task 7.6's disclosure prose as a harness id
+```
+
+The blob in this worktree is the same object `main` points at, and the whole of `rust/` is
+byte-identical to `main`. The unformatted lines were introduced by `main`'s own tip commit, which is
+another lane's fix for a different failure this lane hit one rebase earlier and reported below. What
+rustfmt wants is a chained-method break:
+
+```
+-                && id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'))
++                && id
++                    .chars()
++                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'))
+```
+
+**It is left for the lane that owns that file, deliberately.** Applying it here would make this branch
+touch `rust/`, and the paragraphs above assert that it does not: *The orphan count did not move* rests
+on `git diff main...HEAD --stat -- rust/` being empty, and *What this task does NOT establish* rests on
+the checker and its tests being byte-identical across every replay. A docs branch that quietly picked
+up a Rust hunk to make its own gate green would be publishing a claim its diff contradicts, which is
+the one thing this task exists to refuse. The failure is reported instead of absorbed.
+
+**Consequence, stated plainly: this branch is not mergeable while `main` is red on `fmt`.** Not because
+of anything on it — every gate item that reads a file this branch changes passes — but because the
+merge result inherits `main`'s formatting defect, and the repository's own gate refuses it. The
+sequence a reviewer needs is: `fmt` fixed on `main` first, then this branch rebased onto that and the
+gate re-run, which by then is the fourth rebase and the fourth re-measurement.
+
+### The failure the previous rebase hit, and who fixed it
+
+Recorded because it is the same class of defect as the two the ledger caught, arriving through the
+corpus instead of through prose, and because this lane's report of it is the reason the tip it was
+rebased onto exists. On `main` at `8c0fbc3` the workspace test run failed:
+
+```
+$ cargo test --workspace --all-targets
+thread 'every_harness_the_registry_lists_can_be_shown' panicked at warrant/tests/instructions.rs:288:9:
+`agents list` names `Computer` and `agents show Computer` refuses it:
+warrantor: no harness "Computer". `warrantor agents list` names them all.
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out
+TEST=101
+suites: 94 (the run stops at the failing target); 1124 passed, 1 failed, 4 ignored
+```
+
+Task 7.6 added a `COMPUTER USE:` block to `warrantor agents list`, whose second line is the indented
+prose sentence *"Computer use is UNMEDIATED in this build. ..."*. The pre-existing test scraped the
+first word of every indented line as a harness id, so it read `Computer` as one and then asked
+`agents show` for it. Neither commit is wrong on its own: a rendered surface gained a paragraph and a
+test that parses that surface was never told. The failure appeared only where the two met, which is
+after a merge and therefore in nobody's PR.
+
+This branch contributed nothing to it and fixed nothing in it. It was reported, and `main` gained
+`6f41384` from the lane that owns the file — the fix narrows the scraper to aligned table rows rather
+than any indented line. That commit is also the one carrying the `fmt` defect above.
 
 ### What this rebase does NOT establish
 
@@ -1118,8 +1213,8 @@ change to the ledger, not this one.
   published on a surface no entry names is invisible to it, and this rebase did not audit the rest of
   `main`'s prose for renderings that concurrent work may have desynchronized.
 - **It does not re-verify the mutation battery.** The eleven checker mutations recorded above were run
-  at `fb6e45c` and were **not** re-run on `5a0569f`. `tools/ci/check_claims.py` and its test file are
-  byte-identical between those two commits — `git diff fb6e45c 5a0569f -- tools/ci/check_claims.py
+  at `fb6e45c` and were **not** re-run on **commit 4**. `tools/ci/check_claims.py` and its test file are
+  byte-identical across every replay of them — `git diff <commit 3> <commit 4> -- tools/ci/check_claims.py
   tools/ci/test_check_claims.py` is empty — and the 52 pytest cases pass here, which is why they were
   not repeated. But the battery is evidence about `fb6e45c`, and this section does not claim it of this
   tip.
