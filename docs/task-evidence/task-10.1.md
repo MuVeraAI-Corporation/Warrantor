@@ -625,3 +625,134 @@ flag three pre-existing `afterwards`/`behaviours` elsewhere in `docs/W1-delivery
 scoped to added lines. A first pass had rewritten those too; they were reverted to exactly what their
 authors wrote. Rewriting prose in a contended document to satisfy a check that never asked is how a
 needless conflict gets made.
+
+---
+
+## Review lane, 2026-09-06 — rebased onto today's `main` and re-proved green
+
+Phase 1 of the review lane for this branch. Everything below was measured in `M:/wt-w6-10.1` with
+`CARGO_TARGET_DIR=M:/wt-review-shared-target` and `CARGO_BUILD_JOBS=2`, the disk guard run before
+every cargo invocation (`--require 60` and `--require-commit 6`, every call `OK`).
+
+**Rebase.** The branch sat at `4a6319c` on merge-base `5d3e44d`; local `main` had moved to
+`92b6018`. `git rebase main` replayed all four commits with **no conflicts**, so no census artifact,
+ratchet number or code hunk was chosen by hand. The tree was clean before and after.
+
+| before | after | Steps | what |
+|---|---|---|---|
+| `c5014ec` | `2576093` | 1–10 | the causal verdict, the frozen fixtures, the product wiring, the Python parity |
+| `32198d8` | `6cdb983` | 11 | US spellings on the lines this branch added |
+| `556b07f` | `52f842c` | 11 | the fresh-worktree verification, verbatim |
+| `4a6319c` | `4b34c76` | 9 | stop using the word Enforced for a verification-time refusal |
+| (this section) | | 11 | the rebased gate, this review |
+
+**The word, checked against the code rather than the prior report.** The prior lane report said
+Enforced "became Tier A cryptographic". What the tree actually holds: no `.rs` file under `rust/` uses
+`Enforced`, `Mediated` or "Tier A" for the causal verdict; `bound_strengths()` in
+`rust/warrant/src/lib.rs` is untouched by the branch; the only rendered sentence,
+`limitations()` in `rust/warrant/src/report.rs`, is a `format!` over `section.step_count` and
+`section.queue_head` — derived from the `Causality` record it describes — and it says the recorded
+pathway is *tamper-evident* and "does **not** prove the recorded route is the route the agent
+actually took". The phrase "Tier A — cryptographic" appears only in prose: the tier table above and
+`docs/W1-delivery-gaps.md` §5.4, where it is the ledger's own pre-existing label (rows A3, A5, A6 of
+the Task 5.3 attack table use it for the same class of verification-time signature refusal), and both
+places say in the same cell that it is deliberately not the word `Enforced`, because the refusal
+happens when a reader verifies, not at the moment of attempt. No signed bundle carries a tier word for
+this bound. The prior report's sentence is therefore true of the documents and vacuous about the
+code, which never said Enforced in the first place.
+
+**One hazard found in the review, recorded because it will bite the next lane.** With the shared
+target directory, `cargo test -p warrantor-warrant --test invariants -j 2` — the exact command
+`tools/ci/check_invariant_ratchet.py` runs — failed to compile with ten errors of the form
+"struct `WarPredicate` has no field named `causality`", minutes after
+`cargo test --workspace --all-targets` had passed in the same directory. `cargo metadata` resolved
+`warrantor-evidence` to this worktree, and the source had the field. A `-p` build resolves features
+differently from a `--workspace` build, so it keys a different `warrantor-evidence` artifact, and the
+one it found under that key was stale. The ratchet script captures cargo's output and reports only
+"cargo test produced no `test result:` line; the corpus did not run", so the compile error is
+invisible from the gate's own message. Fix applied: `touch rust/evidence/src/lib.rs` (mtime only,
+content unchanged, `git status` still clean), after which the corpus compiled and ran:
+`82 passed; 0 failed; 15 ignored`. No `cargo clean` was run, because that would have removed other
+lanes' artifacts from the shared directory.
+
+**Python was gated against this worktree's source, verified.** `warrantor_evidence` and
+`warrantor_notary` are not installed in the interpreter, so the first direct `pytest` failed at
+collection. With `PYTHONPATH` set to the two `src` directories, `__file__` for both packages resolved
+under `M:/wt-w6-10.1/python/`, which is the check this repository's memory says to make before
+trusting a Python pass.
+
+### The full gate on the rebased tree, exit codes captured before any pipe
+
+```
+$ git rev-parse --short HEAD ; git rev-parse --short main
+4b34c76
+92b6018
+
+$ cd rust && cargo fmt --all -- --check                                   FMT_EXIT=0
+$ cargo clippy --workspace --all-targets -- -D warnings                   CLIPPY_EXIT=0
+$ cargo test --workspace --all-targets                                    TEST_EXIT=0
+  123 "test result:" lines: 1587 passed, 0 failed, 20 ignored
+$ cargo test --workspace --doc                                            DOC_EXIT=0
+   40 "test result:" lines:    1 passed, 0 failed,  0 ignored
+  (163 suites in total, 1588 passing, 0 failed, 20 ignored. The earlier count of 154/1568 was one
+   invocation without --all-targets; main has grown since, and the doc suites are counted separately
+   here. Ignored is unchanged at 20.)
+
+  This task's suites, from the workspace run:
+     append_only.rs                               7 passed; 0 failed; 2 ignored
+     verification_does_not_depend_on_the_archive  6 passed; 0 failed; 0 ignored
+     causal_verdict.rs                           19 passed; 0 failed; 0 ignored
+     v1_predicates_still_verify.rs                9 passed; 0 failed; 0 ignored
+     v1_receipt_fixture.rs                        5 passed; 0 failed; 0 ignored
+     causal_trace.rs                              7 passed; 0 failed; 0 ignored
+
+$ cd rust && python ../tools/ci/wiring_census.py                         exit 0
+wiring census: 13 of 41 crates reachable from warrantor-warrant over 22 path edges   UNCHANGED
+$ python tools/ci/check_invariant_ratchet.py --show-findings              exit 0
+invariant ratchet: ok (82 passing at floor 82, 15 recorded findings at ceiling 15)  UNCHANGED
+$ python tools/ci/check_invariants.py                                     exit 0
+invariant ledger: 12 invariants; enforced=2, orphaned=1, partial=8, unimplemented=1 UNCHANGED
+$ python tools/ci/check_docs.py                                           exit 0
+RESULT: PASS - 270 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
+$ python tools/ci/check_us_english.py main                                exit 0
+us-english: 2786 added line(s) across 18 file(s), since main; matcher = vendored verify-us-english.mjs
+us-english: ok
+$ python tools/ci/run_python_checks.py test                               PY_EXIT=0
+[ok  ] warrantor_evidence (1317ms)
+[ok  ] warrantor_notary (1078ms)
+RESULT: PASS - 54/54 Python projects passed test
+$ PYTHONPATH=<both src dirs> python -m pytest python/warrantor_evidence/tests/test_evidence.py -q
+21 passed
+$ PYTHONPATH=<both src dirs> python -m pytest python/warrantor_notary/tests/test_notary.py -q
+15 passed
+```
+
+The orphan count did not rise: the census line is byte-identical to the one recorded before the
+rebase. Nothing converted in the corpus and no ratchet number was typed; the ratchet measured the
+same 82 and 15.
+
+### Acceptance — RUN
+
+The plan's Task 10.1 has no paragraph headed "Acceptance"; its exit gate is the paragraph headed
+**Exit gate**, quoted verbatim in "The exit gate this task set for itself" above. The branch performs
+that run: the transcript below is that command, executed on the rebased tree `4b34c76` in this
+worktree, and it is the last thing in this file because Step 11 asks for it to be.
+
+```
+$ cd rust && cargo test -p warrantor-evidence --test causal_verdict --test v1_predicates_still_verify
+     Running tests\causal_verdict.rs
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+     Running tests\v1_predicates_still_verify.rs
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+EXITGATE_EVIDENCE=0
+$ cargo test -p warrantor-archive --test append_only --test verification_does_not_depend_on_the_archive
+     Running tests\append_only.rs
+test result: ok. 7 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.10s
+     Running tests\verification_does_not_depend_on_the_archive.rs
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+EXITGATE_ARCHIVE=0
+```
+
+Both archive suites show the required **7 passed, 2 ignored** and **6 passed, 0 failed**; the causal
+suite's refusals naming a hop by index and its accepted controls are the ones named under "The exit
+gate this task set for itself". The ledger may cite Task 10.1 as built.
