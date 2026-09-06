@@ -371,6 +371,133 @@ impl RevocationSection {
     }
 }
 
+/// One dimension of a warrant's horizon, as the bundle renders it (L3-04).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HorizonLine {
+    /// The dimension's stable word: `wall`, `effects` or `unattended`.
+    pub dimension: String,
+    /// The `Horizon` field this line reads.
+    pub field: String,
+    /// The declared ceiling.
+    pub limit: u64,
+    /// What was observed. For `effects` this is a floor — see
+    /// [`crate::horizon::EFFECT_COUNT_LIMITATION`].
+    pub observed: u64,
+    /// Whole percentage of the ceiling consumed, capped at 100.
+    pub percent: u8,
+    /// The tier THIS dimension's own mechanism earns, which is not always the tier the whole
+    /// `horizon` bound is labelled with in `bound_strengths()`.
+    pub strength: crate::BoundStrength,
+    /// What this dimension does not cover.
+    pub caveat: String,
+}
+
+/// Where a warrant stood against its horizon when the report was built (L3-04).
+///
+/// `None` on the bundle means **no horizon state was computed** — the true statement about every
+/// report exported before this section existed. `Some` with `declared: false` means the bounds were
+/// read and carry no horizon, which is a different claim: the warrant's only ceiling is its
+/// deadline. Neither renders as a pass.
+///
+/// **Every field here is derived from the record it describes.** `verdict_word` comes from
+/// [`crate::horizon::evaluate`] over the same `Horizon` and `HorizonUsage` that produced
+/// `dimensions`, and `breached` is populated from that verdict's own dimension rather than written
+/// beside it — the defect Task 9.1 shipped was a sentence that fired on a non-empty set without
+/// asking whether it held this warrant's subject, and a rendered horizon has the same shape of
+/// hazard.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HorizonSection {
+    /// Wire format.
+    pub format: String,
+    /// Whether the warrant declares a horizon at all.
+    pub declared: bool,
+    /// One line per declared dimension. Empty when `declared` is false: no dimension may be
+    /// rendered with a limit nobody granted.
+    pub dimensions: Vec<HorizonLine>,
+    /// `not-declared`, `within`, `escalate` or `breached`.
+    pub verdict_word: String,
+    /// The breach sentence, when the verdict is a breach. `None` otherwise, including for an
+    /// undeclared horizon, where nothing can be breached because nothing was declared.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub breached: Option<String>,
+    /// The dimension the verdict named, when it named one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verdict_dimension: Option<String>,
+}
+
+/// Build the horizon section from a warrant's bounds and its measured usage.
+///
+/// The one entry point, so the report, `warrantor horizon` and `warrantor status` cannot render
+/// three different answers from the same two inputs.
+#[must_use]
+pub fn horizon_section(
+    bounds: &crate::WarrantBounds,
+    usage: &crate::horizon::HorizonUsage,
+) -> HorizonSection {
+    use crate::horizon::{self, HorizonDimension, HorizonVerdict};
+
+    let Some(declared) = bounds.horizon.as_ref() else {
+        // An absent horizon is NOT a satisfied one. `not-declared` rather than `within`, because
+        // "within its horizon" said of an unbounded warrant is a pass nobody earned.
+        return HorizonSection {
+            format: horizon::HORIZON_STATE_FORMAT.to_string(),
+            declared: false,
+            dimensions: Vec::new(),
+            verdict_word: "not-declared".to_string(),
+            breached: None,
+            verdict_dimension: None,
+        };
+    };
+
+    let mut dimensions = Vec::new();
+    for dimension in HorizonDimension::ALL {
+        let Some(limit) = horizon::limit_of(declared, dimension) else {
+            continue;
+        };
+        let observed = usage.observed(dimension);
+        dimensions.push(HorizonLine {
+            dimension: dimension.word().to_string(),
+            field: dimension.field().to_string(),
+            limit,
+            observed,
+            // One implementation of the percentage, shared with `horizon::evaluate`: two would be
+            // two places this section and the CLI could disagree about how full a horizon is.
+            percent: horizon::percent_consumed(observed, limit),
+            strength: dimension.strength(),
+            caveat: dimension.caveat().to_string(),
+        });
+    }
+
+    let verdict = horizon::evaluate(declared, usage);
+    // Derived from the verdict, not written beside it: the sentence and the dimension both come out
+    // of the same value, so a section cannot say "breached" while naming no dimension or name a
+    // dimension the verdict did not reach.
+    let (breached, verdict_dimension) = match &verdict {
+        HorizonVerdict::Breached {
+            dimension,
+            limit,
+            observed,
+        } => (
+            Some(horizon::breach_reason(*dimension, *limit, *observed)),
+            Some(dimension.word().to_string()),
+        ),
+        HorizonVerdict::Escalate { dimension, .. } => (None, Some(dimension.word().to_string())),
+        HorizonVerdict::Within { nearest } => (
+            None,
+            nearest.map(|(dimension, _)| dimension.word().to_string()),
+        ),
+    };
+
+    HorizonSection {
+        format: horizon::HORIZON_STATE_FORMAT.to_string(),
+        declared: true,
+        dimensions,
+        verdict_word: verdict.word().to_string(),
+        breached,
+        verdict_dimension,
+    }
+}
+
 /// One staged effect's receipt chain, as the bundle lists it. The receipts themselves ride in
 /// [`SignedReport::effect_receipts`]; these ids are what the digest covers.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

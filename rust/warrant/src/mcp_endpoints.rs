@@ -82,6 +82,47 @@ fn whole_cents_from_f64(value: Option<f64>) -> Option<u64> {
     Some(cents as u64)
 }
 
+/// Parse the horizon (L3-04) an MCP `warrant_grant` declares, or `None` when it declares none.
+///
+/// Absent means the deadline is the only ceiling. That is a *true statement* about the warrant, not
+/// a permissive default: [`crate::report::horizon_section`] renders an absent horizon as
+/// `not-declared` and never as `within`, so an ungoverned warrant cannot read as a governed one.
+/// What must not happen is a malformed ceiling decaying into no ceiling, which is why every field
+/// goes through [`optional_cents`] — it refuses rather than drops — and why an out-of-range
+/// escalation percentage is named back to the caller instead of being clamped.
+fn parse_horizon(arguments: &BTreeMap<String, Value>) -> Result<Option<crate::Horizon>, String> {
+    let max_wall_seconds = optional_cents(arguments, "max_wall_seconds")?;
+    let max_effects = optional_cents(arguments, "max_effects")?;
+    let max_unattended_seconds = optional_cents(arguments, "max_unattended_seconds")?;
+    let escalate_at_percent = match optional_cents(arguments, "escalate_at_percent")? {
+        None => None,
+        Some(percent) => Some(u8::try_from(percent).map_err(|_| {
+            format!(
+                "\"escalate_at_percent\" must be a whole number in 1..=100; {percent} is not, so \
+                 the warrant was NOT granted"
+            )
+        })?),
+    };
+    let horizon = crate::Horizon {
+        max_wall_seconds,
+        max_effects,
+        max_unattended_seconds,
+        escalate_at_percent,
+    };
+    if horizon.is_empty() {
+        if escalate_at_percent.is_some() {
+            return Err(
+                "\"escalate_at_percent\" was given with no ceiling to measure it against. State \
+                 max_wall_seconds, max_effects or max_unattended_seconds too -- a percentage of \
+                 nothing would render as a configured escalation that can never fire."
+                    .to_string(),
+            );
+        }
+        return Ok(None);
+    }
+    Ok(Some(horizon))
+}
+
 // ── control endpoint ──────────────────────────────────────────────────────────────────
 
 /// The developer's own endpoint: the full warrant lifecycle as MCP tools.
@@ -158,6 +199,14 @@ impl ControlEndpoint {
             Err(message) => return ToolResult::error(message),
         };
 
+        // The horizon (L3-04). Parsed and refused before anything is signed, for the same reason
+        // the budget is: a ceiling that does not parse would leave the warrant with no ceiling at
+        // the exact moment one was being declared.
+        let horizon = match parse_horizon(arguments) {
+            Ok(horizon) => horizon,
+            Err(message) => return ToolResult::error(message),
+        };
+
         let now = (self.now)();
         let id = format!("wrt_{:016x}", now.wrapping_mul(0x9E37_79B9_7F4A_7C15));
         let bounds = WarrantBounds {
@@ -181,6 +230,10 @@ impl ControlEndpoint {
                 .and_then(Value::as_u64)
                 .and_then(|d| u32::try_from(d).ok())
                 .unwrap_or(1),
+            // Never defaulted to a fabricated ceiling: an absent horizon is the honest statement
+            // that the deadline is the only limit, and every surface renders it as `not-declared`
+            // rather than as a satisfied bound.
+            horizon,
         };
 
         let warrant = match Warrant::grant(
@@ -595,7 +648,11 @@ impl Endpoint for ControlEndpoint {
                         "deadline_seconds": {"type": "integer", "description": "How long the warrant lives. Default 28800 (8h)."},
                         "repo": {"type": "string", "description": "Path to the git repo to isolate. Strongly recommended; without it the agent is not isolated."},
                         "delegation_depth": {"type": "integer", "description": "How many levels of sub-warrant may be issued. Default 1."},
-                        "budget_cents": {"type": "integer", "description": "Spend ceiling in whole cents, e.g. 500 for $5.00. OBSERVED, not enforced: model API calls do not pass through Warrantor, so this is measured only from usage the agent itself reports. Absent means a ceiling of zero, not unlimited. A value that is not a whole, non-negative number of cents is REFUSED, not ignored -- the grant fails rather than quietly producing a warrant with no declared ceiling."}
+                        "budget_cents": {"type": "integer", "description": "Spend ceiling in whole cents, e.g. 500 for $5.00. OBSERVED, not enforced: model API calls do not pass through Warrantor, so this is measured only from usage the agent itself reports. Absent means a ceiling of zero, not unlimited. A value that is not a whole, non-negative number of cents is REFUSED, not ignored -- the grant fails rather than quietly producing a warrant with no declared ceiling."},
+                        "max_wall_seconds": {"type": "integer", "description": "Horizon (L3-04): wall-clock seconds from issue. Composes with deadline_seconds by taking the EARLIER of the two -- a horizon can only tighten a deadline, never extend it. ENFORCED: the supervisor terminates the process group through a Windows job object or setsid+PR_SET_PDEATHSIG."},
+                        "max_effects": {"type": "integer", "description": "Horizon (L3-04): how many effects Warrantor may admit under this warrant. MEDIATED: refused at the MCP proxy as the call arrives, so it holds for calls the agent routes through Warrantor and not for a shell. The count is a FLOOR: it covers the persisted staging queue plus this session's forwarded calls, and nothing that never reached the proxy."},
+                        "max_unattended_seconds": {"type": "integer", "description": "Horizon (L3-04): seconds this warrant may run without a NAMED operator appearing in its actor log. An entry with no operator name is the unscoped session token and does not count as human contact. ENFORCED by the same OS process link as max_wall_seconds."},
+                        "escalate_at_percent": {"type": "integer", "description": "Horizon (L3-04): percentage (1..=100) of the nearest ceiling at which a review request is raised. It establishes that a notification was queued ON THIS MACHINE; it does not establish that a human read it, and it adds no trust root. Requires at least one ceiling to measure against."}
                     }),
                     &["goal", "tools"],
                 ),
@@ -1308,6 +1365,14 @@ pub fn agent_endpoint_for(
         EffectRegistry::github(),
         stored.staged_chain.as_ref(),
     )?;
-    let proxy = Proxy::new(bounds, mode, EffectRegistry::github());
+    let mut proxy = Proxy::new(bounds, mode, EffectRegistry::github());
+    // The horizon's effect ceiling is seeded from the effects this warrant ALREADY staged, which is
+    // the only durable record of them: the staging log persists across sessions and is witnessed
+    // outside itself by `StoredWarrant::staged_chain`. A per-session counter starting at zero would
+    // hand every restart a fresh allowance, and an effect ceiling a restart resets bounds nothing
+    // over the horizon it is named after. What is NOT carried across is the forwarded (unstaged)
+    // half, which lives only in the proxy -- see `crate::horizon::EFFECT_COUNT_LIMITATION`, which
+    // says so on every surface rather than leaving the gap for a reader to find.
+    proxy.seed_horizon_effects(u64::try_from(queue.len()).unwrap_or(u64::MAX));
     Ok(AgentEndpoint::new(id, proxy, queue, allowed, now))
 }

@@ -448,6 +448,7 @@ fn tampered_report_bytes() -> Vec<u8> {
         expires_at: NOW + 3600,
         budget_cents_observed: Some(500),
         delegation_depth: 3,
+        horizon: None,
     };
     let mut warrant = Warrant::grant(
         "wrt_archive",

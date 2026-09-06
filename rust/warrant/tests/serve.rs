@@ -64,6 +64,7 @@ fn warrant_with(id: &str, expires_at: u64, issuer_seed: u8) -> StoredWarrant {
         expires_at,
         budget_cents_observed: None,
         delegation_depth: 1,
+        horizon: None,
     };
     let warrant = Warrant::grant(
         id,

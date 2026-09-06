@@ -34,6 +34,7 @@ fn bounds(hosts: &[&str], tools: &[&str]) -> WarrantBounds {
         expires_at: scenario::NOW + 3_600,
         budget_cents_observed: None,
         delegation_depth: 1,
+        horizon: None,
     }
 }
 

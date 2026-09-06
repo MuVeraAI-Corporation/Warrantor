@@ -48,6 +48,7 @@ pub mod effects;
 pub mod egress;
 pub mod guard;
 pub mod harness;
+pub mod horizon;
 pub mod lock;
 pub mod mcp;
 pub mod mcp_endpoints;
@@ -288,6 +289,181 @@ pub struct WarrantBounds {
     pub budget_cents_observed: Option<u64>,
     /// Maximum delegation depth remaining for sub-warrants.
     pub delegation_depth: u32,
+    /// Ceilings on how long and how far this warrant's autonomy may run. See [`Horizon`].
+    ///
+    /// **This is the one field in this struct where absent does NOT mean "not permitted".** The
+    /// horizon can only tighten limits the warrant already carries: `expires_at` is required and is
+    /// the outer bound on time, so an absent horizon means the deadline is the only ceiling — which
+    /// is the true statement about every warrant granted before this field existed. Rendering that
+    /// state as "within its horizon" would report an unbounded warrant as a pass, so
+    /// [`crate::report::horizon_section`] renders it as `not-declared` and never as `within`.
+    ///
+    /// `#[serde(default, skip_serializing_if = "Option::is_none")]` for the reason
+    /// [`crate::report::ReportBundle::custody`] gives at length: [`Warrant::verify`] checks a
+    /// signature over a *re-serialisation* of the parsed claims, so without the skip every warrant
+    /// signed before this field existed would re-serialise with `"horizon": null` and stop
+    /// verifying.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub horizon: Option<Horizon>,
+}
+
+/// Ceilings on the duration and reach of one warrant's autonomy (L3-04).
+///
+/// Three dimensions, three different mechanisms, and three different tiers — see
+/// [`crate::horizon::HorizonDimension::strength`]. The bound as a whole is
+/// [`BoundStrength::Mediated`], because a reader takes the first word and moves on and the weakest
+/// mechanism is the one that word has to describe.
+///
+/// Every dimension is optional and an absent one bounds nothing, but a `Horizon` with *no*
+/// dimension is refused by [`WarrantBounds::validate`]: a declared horizon that bounds nothing
+/// would render as a governed warrant.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Horizon {
+    /// Wall-clock seconds from issue. Composes with `expires_at` by taking the earlier of the two —
+    /// see [`crate::horizon::effective_deadline`]. It can only move the deadline in; a horizon that
+    /// could extend one would be an authority expansion wearing a governor's name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_wall_seconds: Option<u64>,
+    /// How many effects Warrantor may admit for this warrant. Refused at
+    /// [`crate::proxy::Proxy::decide`]; see [`crate::horizon`] for exactly what is and is not
+    /// counted, because the number is a floor and never a total.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_effects: Option<u64>,
+    /// Seconds this warrant may run without a *named* operator appearing in its actor log.
+    ///
+    /// [`crate::operators::ActorRecord::actor`] is `None` for the unscoped session token, and those
+    /// entries do not count: counting them would let an agent's own session pass for human contact.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_unattended_seconds: Option<u64>,
+    /// Percentage of the nearest ceiling at which a human is asked, in `1..=100`.
+    ///
+    /// The "automatic escalation to a human as the horizon extends" half of L3-04. It raises a local
+    /// review request and adds no trust root: it establishes that a notification was queued on this
+    /// machine, never that a human read it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub escalate_at_percent: Option<u8>,
+}
+
+impl Horizon {
+    /// A horizon with nothing declared, for use as a `..` base when stating one dimension.
+    ///
+    /// Not valid on a warrant by itself — [`WarrantBounds::validate`] refuses it — because a
+    /// declared horizon with no dimension bounds nothing while reading as a governed warrant.
+    #[must_use]
+    pub const fn none() -> Self {
+        Self {
+            max_wall_seconds: None,
+            max_effects: None,
+            max_unattended_seconds: None,
+            escalate_at_percent: None,
+        }
+    }
+
+    /// Is no dimension declared? `escalate_at_percent` is not a dimension: it says when to ask, not
+    /// what the ceiling is.
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.max_wall_seconds.is_none()
+            && self.max_effects.is_none()
+            && self.max_unattended_seconds.is_none()
+    }
+
+    /// One line naming every declared ceiling, for a refusal message and the CLI.
+    #[must_use]
+    pub fn describe(&self) -> String {
+        let mut parts = Vec::new();
+        if let Some(seconds) = self.max_wall_seconds {
+            parts.push(format!("max_wall_seconds={seconds}"));
+        }
+        if let Some(effects) = self.max_effects {
+            parts.push(format!("max_effects={effects}"));
+        }
+        if let Some(seconds) = self.max_unattended_seconds {
+            parts.push(format!("max_unattended_seconds={seconds}"));
+        }
+        if let Some(percent) = self.escalate_at_percent {
+            parts.push(format!("escalate_at_percent={percent}"));
+        }
+        if parts.is_empty() {
+            "no dimension declared".to_string()
+        } else {
+            parts.join(", ")
+        }
+    }
+
+    /// Is `child` entirely within this horizon?
+    ///
+    /// Two rules, and the second is the one that would be lost by anyone reasoning from "a smaller
+    /// number is narrower":
+    ///
+    /// 1. A declared ceiling may only shrink.
+    /// 2. Dropping a declared ceiling is an EXPANSION, not a narrowing — an absent dimension bounds
+    ///    nothing, so it is never inherited. Same shape as the dropped-budget rule in
+    ///    [`WarrantBounds::contains`], and for the same reason: the child would trade a governed
+    ///    dimension for an ungoverned one.
+    ///
+    /// `escalate_at_percent` is deliberately NOT compared. It is not authority: it decides when a
+    /// notification is queued, not what the agent may do, and neither raising nor lowering it moves
+    /// any ceiling.
+    ///
+    /// # Errors
+    /// [`WarrantError::AuthorityExpanded`] naming the dimension that grew or was dropped.
+    pub fn contains_horizon(&self, child: &Self) -> Result<(), WarrantError> {
+        for (field, parent_limit, child_limit) in [
+            (
+                "max_wall_seconds",
+                self.max_wall_seconds,
+                child.max_wall_seconds,
+            ),
+            ("max_effects", self.max_effects, child.max_effects),
+            (
+                "max_unattended_seconds",
+                self.max_unattended_seconds,
+                child.max_unattended_seconds,
+            ),
+        ] {
+            match (parent_limit, child_limit) {
+                // The parent does not bound this dimension: the child may bound it, or not.
+                (None, _) => {}
+                (Some(parent), None) => {
+                    return Err(WarrantError::AuthorityExpanded(format!(
+                        "horizon: the parent bounds {field} at {parent} but the child declares no \
+                         ceiling for it. An absent dimension bounds nothing, so it is not \
+                         inherited -- state the child's ceiling explicitly"
+                    )));
+                }
+                (Some(parent), Some(claimed)) if claimed > parent => {
+                    return Err(WarrantError::AuthorityExpanded(format!(
+                        "horizon: child {field} {claimed} exceeds parent {parent}"
+                    )));
+                }
+                (Some(_), Some(_)) => {}
+            }
+        }
+        Ok(())
+    }
+
+    fn validate(&self) -> Result<(), WarrantError> {
+        if self.is_empty() {
+            return Err(WarrantError::Invalid(
+                "horizon: a declared horizon with no dimension bounds nothing while reading as a \
+                 governed warrant. State max_wall_seconds, max_effects or max_unattended_seconds, \
+                 or leave the horizon absent -- an absent horizon honestly reports that the \
+                 deadline is the only ceiling"
+                    .into(),
+            ));
+        }
+        if let Some(percent) = self.escalate_at_percent {
+            if !(1..=100).contains(&percent) {
+                return Err(WarrantError::Invalid(format!(
+                    "horizon: escalate_at_percent must be in 1..=100, got {percent}. Zero would \
+                     escalate at grant and anything above 100 would never escalate; both render \
+                     as a configured escalation that does not work"
+                )));
+            }
+        }
+        Ok(())
+    }
 }
 
 impl WarrantBounds {
@@ -366,6 +542,24 @@ impl WarrantBounds {
                 other.delegation_depth, self.delegation_depth
             )));
         }
+        // The horizon, whose absent-means-nothing reading runs the OPPOSITE way to every other
+        // field above and so is spelled out rather than left to the pattern. A parent with no
+        // horizon may hand a child one -- that is a tightening, and refusing it would make the
+        // governor un-adoptable on every warrant granted before the field existed. A parent WITH
+        // one may not have it dropped, for the reason the budget rule gives: an absent horizon is
+        // bounded only by the deadline, so it is not inherited.
+        match (&self.horizon, &other.horizon) {
+            (None, _) => {}
+            (Some(parent), None) => {
+                return Err(WarrantError::AuthorityExpanded(format!(
+                    "horizon: the parent is bounded ({}) but the child declares no horizon. An \
+                     absent horizon is bounded only by the deadline, so it is not inherited -- \
+                     state the child's horizon explicitly",
+                    parent.describe()
+                )));
+            }
+            (Some(parent), Some(child)) => parent.contains_horizon(child)?,
+        }
         Ok(())
     }
 
@@ -379,6 +573,9 @@ impl WarrantBounds {
             return Err(WarrantError::Invalid(
                 "expires_at is required: a warrant without a deadline never ends".into(),
             ));
+        }
+        if let Some(horizon) = &self.horizon {
+            horizon.validate()?;
         }
         Ok(())
     }
@@ -702,6 +899,14 @@ pub fn bound_strengths() -> Vec<(&'static str, BoundStrength)> {
         ("delegation_depth", BoundStrength::Enforced),
         // Parsed from the agent's own usage reporting; defeatable by an agent that does not report.
         ("budget_cents_observed", BoundStrength::Observed),
+        // Two mechanisms, and this entry names the WEAKER of the two because a reader takes the
+        // first word and moves on. The wall-clock and unattended dimensions terminate through the
+        // supervisor's OS process link and are unbypassable while the supervisor is running; the
+        // effect ceiling is refused at the MCP proxy, which sees only what the agent routes through
+        // it. Mediated is the tier the whole bound earns. `horizon::HorizonDimension::strength`
+        // gives the per-dimension answer, and `warrantor horizon` prints it per dimension so the
+        // stronger half is not lost to this row.
+        ("horizon", BoundStrength::Mediated),
     ]
 }
 

@@ -1196,6 +1196,63 @@ What it does **not** establish:
 
 ---
 
+### 3.8 The horizon governor was a W1 item and was never scheduled — found 2026-09-05
+
+L3-04 in the master blueprint carries `data-status="partial"` `data-wave="W1"`, and it was **omitted
+from the original 41-task plan entirely**. Long-horizon autonomy is the risk this product exists to
+bound — OpenAI names model persistence over long task horizons as one of three factors in the
+confluence that produced the incident — and the control that bounds it had no task.
+
+**What `status=partial` actually referred to, measured rather than assumed.** The blueprint's own
+anchor says *"bounded deadline and process-lifetime expiry are Tier A properties the platform already
+ships"*. That is `WarrantBounds::expires_at` plus `supervise.rs`, and `bound_strengths()` already
+declared `("expires_at", Enforced)`. So **the partial was the wall-clock half only, and it was the
+half that was easy.** Missing: (a) any count-shaped bound — `grep` for a public `count`, `steps`,
+`max_` or `ceiling` in `rust/warrant/src/lib.rs` returned *nothing*, and `delegation_depth` is a tree
+depth checked at issue rather than a count of anything an agent does; (b) the escalation to a human
+as a horizon extends — nothing in the crate raised an approval on the approach to a limit.
+
+**What this task closed.** `rust/warrant/src/horizon.rs`, a `Horizon` on `WarrantBounds` with three
+dimensions and an escalation threshold, the containment rule in both `WarrantBounds::contains` and
+its Python mirror, a refusal at `Proxy::decide` for the effect ceiling, a sliced supervision wait that
+re-evaluates the unattended clock while a run is live, `CompletionRecord::horizon_breach` so a halt
+names its dimension, a `HorizonSection` on the report bundle, `warrantor horizon <id>`, and four
+`grant` flags.
+
+**What it did not close, stated plainly rather than modestly.**
+
+- The effect count is a **floor**, never a total. It has two components with different durability:
+  the persisted, chain-witnessed staging queue, and the current session's forwarded calls, which live
+  in memory and start at zero after a restart. A persisted forwarded counter was considered and
+  rejected — it would be a second source of truth for a warrant's effect count, competing with the
+  staging chain that already witnesses effects, and an unwitnessed counter is one an editor can lower
+  to buy horizon. The choice was the witnessed floor, declared as a floor in
+  `horizon::EFFECT_COUNT_LIMITATION`, which every surface prints.
+- **The supervisor cannot see the proxy's forwarded count at all.** There is no daemon IPC in this
+  system, so the polled usage the supervision loop evaluates is the staged length only. Forwarded
+  calls are bounded by the proxy's own refusal, within one session.
+- The wall-clock and unattended dimensions terminate through `supervise.rs`, which is **unmodified**:
+  the horizon supplies a smaller number to the wait budget the supervisor already computes. That
+  inherits `describe_linkage`'s honest caveat — on a platform where `survives_supervisor_death` is
+  `false` (anything that is neither Windows nor Linux, macOS included) an agent outlives a supervisor
+  killed uncleanly, and this ceiling with it.
+- Escalation writes a review request under the store root and calls the existing notification path.
+  It establishes that a notification was **queued on this machine**. It does not establish that a
+  human read it, and it adds no trust root.
+- L3-04's verification clause says the halt goes *"through the kernel's `halt()` verb"*. `stop::halt`
+  exists on `main` as of Task 1.3, and the CLI supervision path now calls it on a horizon breach. The
+  **supervision loop itself does not**: `supervise_run` holds no store handle and no signing key, and
+  giving the unattended daemon one to satisfy a sentence would be the wrong trade. The loop
+  terminates the process group and returns the breach; `cmd_supervise`, which already loads the
+  issuer key, performs the halt. A run reached by any other route gets the termination and the
+  `CompletionRecord`, and no signed stop receipt.
+- L3-04's own residual stands untouched: a population can pass work between short-lived instances,
+  and this governor bounds one warrant's horizon, not a population's. That is L3-11 and Task 8.4.
+
+(`3.7` was taken by the delegation-algebra entry; `3.6` by the Windows-CI entry. This is `3.8`.)
+
+---
+
 ## Tier 4 — model intelligence
 
 ### 4.1 The guard is wired in as observe-only signals — **partly done**

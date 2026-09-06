@@ -35,6 +35,13 @@ The four asymmetries mirrored from ``WarrantBounds::contains``
 4. ``budget``: a higher ceiling expands, and **dropping a declared ceiling also expands** --
    an absent budget is never exhausted, so it trades a start-gated budget for an ungated one.
 
+5. ``horizon`` (L3-04): every declared ceiling may only shrink, and **dropping a declared
+   horizon -- or one declared dimension of it -- also expands**, for the same reason as the
+   budget. This is the one field in ``WarrantBounds`` where an absent value does NOT mean "not
+   permitted": a warrant with no horizon is bounded by its deadline, which is why a parent with
+   no horizon may hand a child one. ``escalate_at_percent`` is deliberately not compared -- it
+   decides when a notification is queued, not what the agent may do.
+
 Plus ``delegation_depth``, which must strictly decrease.
 """
 
@@ -45,8 +52,10 @@ from dataclasses import dataclass
 from typing import Any
 
 __all__ = [
+    "HORIZON_DIMENSIONS",
     "SIDE_EFFECT_CLASSES",
     "BoundProposal",
+    "HorizonProposal",
     "OverGrantReport",
     "ProposalIncomplete",
     "ReferenceBounds",
@@ -61,8 +70,19 @@ __all__ = [
 #: is what keeps the two honest.
 SIDE_EFFECT_CLASSES = ("read", "write", "financial", "destructive", "physical")
 
+#: The three ceilings a ``horizon`` may declare, mirroring ``horizon::HorizonDimension``.
+#: ``escalate_at_percent`` is not here: it is not a ceiling and is not authority.
+HORIZON_DIMENSIONS = ("max_wall_seconds", "max_effects", "max_unattended_seconds")
+
 #: Every field a proposal must state. Named as data so the incompleteness message can list what
 #: is missing in one pass instead of failing on the first one.
+#:
+#: ``horizon`` is **not** here, and that is the one deliberate asymmetry with ``WarrantBounds``.
+#: Every other absent field is a permissive default waiting to happen, so a proposal must state it;
+#: an absent horizon is a *true* statement -- the deadline is the only ceiling -- and demanding one
+#: would make every model output for a pre-L3-04 warrant incomplete. What it must never become is a
+#: silent pass: :func:`authority_expansions` compares it, and a proposal that drops a reference
+#: horizon is scored as an over-grant.
 REQUIRED_PROPOSAL_FIELDS = (
     "tools",
     "write_paths",
@@ -85,6 +105,51 @@ class ProposalIncomplete(ValueError):
 
 
 @dataclass(frozen=True)
+class HorizonProposal:
+    """One warrant's horizon (L3-04). Mirrors ``warrantor_warrant::Horizon`` field for field.
+
+    Every ceiling is optional here, unlike :class:`BoundProposal`'s fields, because in the
+    substrate every dimension genuinely is: a horizon may bound wall-clock time and nothing else.
+    The asymmetry that matters is in :func:`authority_expansions` -- an absent dimension bounds
+    nothing, so dropping one the reference declared is an EXPANSION, not a narrowing.
+    """
+
+    max_wall_seconds: int | None = None
+    max_effects: int | None = None
+    max_unattended_seconds: int | None = None
+    #: When a human is asked. NOT compared by :func:`authority_expansions`: it changes when a
+    #: notification is queued, not what the agent may do.
+    escalate_at_percent: int | None = None
+
+    @classmethod
+    def from_payload(cls, payload: Mapping[str, Any] | None) -> HorizonProposal | None:
+        """Rebuild a serialised Rust ``Horizon``, or ``None`` when the field was absent.
+
+        Rust writes the field with ``skip_serializing_if = "Option::is_none"`` at both levels, so an
+        absent horizon has no key at all and an absent dimension has no key inside it. ``.get`` is
+        therefore correct and ``[...]`` would raise on a valid document.
+        """
+
+        if payload is None:
+            return None
+        def whole(key: str) -> int | None:
+            value = payload.get(key)
+            return None if value is None else int(value)
+
+        return cls(
+            max_wall_seconds=whole("max_wall_seconds"),
+            max_effects=whole("max_effects"),
+            max_unattended_seconds=whole("max_unattended_seconds"),
+            escalate_at_percent=whole("escalate_at_percent"),
+        )
+
+    def ceiling(self, dimension: str) -> int | None:
+        """This horizon's ceiling for one dimension, or ``None`` when it declares none."""
+
+        return getattr(self, dimension)
+
+
+@dataclass(frozen=True)
 class ReferenceBounds:
     """The human-granted bounds a proposal is measured against.
 
@@ -101,6 +166,9 @@ class ReferenceBounds:
     expires_at: int
     budget_cents_observed: int | None
     delegation_depth: int
+    #: ``None`` means no horizon was declared, which is bounded only by ``expires_at``. This is the
+    #: one field here where absent does not read as a ceiling of zero.
+    horizon: HorizonProposal | None = None
 
     @property
     def budget_ceiling_cents(self) -> int:
@@ -126,6 +194,10 @@ class BoundProposal:
     expires_at: int
     budget_cents_observed: int
     delegation_depth: int
+    #: Optional, and the only optional field on this class. See ``REQUIRED_PROPOSAL_FIELDS`` for
+    #: why: an absent horizon is a true statement rather than a permissive default, and a proposal
+    #: that drops a reference horizon is still scored as an over-grant.
+    horizon: HorizonProposal | None = None
 
     def as_reference(self) -> ReferenceBounds:
         """View this proposal in the reference shape, for symmetric comparisons."""
@@ -138,6 +210,7 @@ class BoundProposal:
             expires_at=self.expires_at,
             budget_cents_observed=self.budget_cents_observed,
             delegation_depth=self.delegation_depth,
+            horizon=self.horizon,
         )
 
 
@@ -175,6 +248,7 @@ def parse_proposal(payload: Mapping[str, Any]) -> BoundProposal:
             expires_at=int(payload["expires_at"]),
             budget_cents_observed=int(payload["budget_cents_observed"]),
             delegation_depth=int(payload["delegation_depth"]),
+            horizon=HorizonProposal.from_payload(payload.get("horizon")),
         )
     except (TypeError, ValueError) as error:
         raise ProposalIncomplete(f"proposal has a malformed field: {error}") from error
@@ -242,6 +316,35 @@ def authority_expansions(child: ReferenceBounds, parent: ReferenceBounds) -> tup
             f"delegation_depth: proposal {child.delegation_depth} must be strictly below the "
             f"reference {parent.delegation_depth}"
         )
+
+    # The horizon (L3-04), whose absent-means-nothing reading runs the OPPOSITE way to every rule
+    # above. A reference with no horizon may be narrowed by a proposal that declares one -- that is
+    # a tightening. A reference WITH one may not have it dropped, nor any dimension of it dropped
+    # while the rest tighten, because an absent dimension bounds nothing and so is not inherited.
+    if parent.horizon is not None:
+        if child.horizon is None:
+            expansions.append(
+                "horizon: the reference is bounded but the proposal declares no horizon. An "
+                "absent horizon is bounded only by the deadline, so it is not inherited -- state "
+                "the horizon explicitly"
+            )
+        else:
+            for dimension in HORIZON_DIMENSIONS:
+                reference_ceiling = parent.horizon.ceiling(dimension)
+                proposed_ceiling = child.horizon.ceiling(dimension)
+                if reference_ceiling is None:
+                    continue
+                if proposed_ceiling is None:
+                    expansions.append(
+                        f"horizon: the reference bounds {dimension} at {reference_ceiling} but the "
+                        "proposal declares no ceiling for it. An absent dimension bounds nothing, "
+                        "so it is not inherited -- state the ceiling explicitly"
+                    )
+                elif proposed_ceiling > reference_ceiling:
+                    expansions.append(
+                        f"horizon: proposal {dimension} {proposed_ceiling} exceeds reference "
+                        f"{reference_ceiling}"
+                    )
     return tuple(expansions)
 
 

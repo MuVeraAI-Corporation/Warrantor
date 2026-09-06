@@ -179,6 +179,7 @@ fn stored_warrant(id: &str) -> StoredWarrant {
         expires_at: NOW + 3600,
         budget_cents_observed: None,
         delegation_depth: 1,
+        horizon: None,
     };
     let warrant = Warrant::grant(
         id,

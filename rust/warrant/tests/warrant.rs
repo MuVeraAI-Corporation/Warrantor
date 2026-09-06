@@ -32,6 +32,7 @@ fn bounds() -> WarrantBounds {
         expires_at: NOW + 8 * HOUR,
         budget_cents_observed: Some(500),
         delegation_depth: 3,
+        horizon: None,
     }
 }
 
@@ -544,6 +545,13 @@ fn every_bound_declares_the_tier_that_actually_holds_it() {
         // Nothing refuses an out-of-bounds write; nothing measures the agent's real spend.
         ("write_paths", BoundStrength::Observed),
         ("budget_cents_observed", BoundStrength::Observed),
+        // The horizon (L3-04) is ONE bound with three mechanisms, so it takes the weakest word.
+        // Two of its dimensions terminate through the OS process link and would earn Enforced on
+        // their own -- `horizon::HorizonDimension::strength` says so per dimension -- but the
+        // effect ceiling is refused at the MCP proxy, and a reader takes the first word and moves
+        // on. Naming the whole bound Enforced here would be the mislabelling this suite exists to
+        // catch.
+        ("horizon", BoundStrength::Mediated),
     ];
     for (name, tier) in expected {
         assert_eq!(

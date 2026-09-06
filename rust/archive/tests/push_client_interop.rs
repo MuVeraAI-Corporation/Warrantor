@@ -80,6 +80,7 @@ fn evidence_at(dir: &std::path::Path, at: u64) -> Vec<u8> {
             expires_at: NOW + 3600,
             budget_cents_observed: Some(500),
             delegation_depth: 3,
+            horizon: None,
         },
         at,
         &settle_key().verifying_key(),

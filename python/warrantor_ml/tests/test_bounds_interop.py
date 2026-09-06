@@ -18,7 +18,11 @@ from pathlib import Path
 
 import pytest
 
-from warrantor_ml.tasks.bounds import ReferenceBounds, authority_expansions
+from warrantor_ml.tasks.bounds import (
+    HorizonProposal,
+    ReferenceBounds,
+    authority_expansions,
+)
 
 FIXTURE = Path(__file__).resolve().parents[3] / ".bounds_interop.json"
 
@@ -54,6 +58,10 @@ def _bounds(payload: dict[str, object]) -> ReferenceBounds:
             else int(payload["budget_cents_observed"])  # type: ignore[arg-type]
         ),
         delegation_depth=int(payload["delegation_depth"]),  # type: ignore[arg-type]
+        # `.get`, not `[...]`: Rust writes `horizon` with `skip_serializing_if`, so an absent
+        # horizon has no key at all -- which is the whole point of the skip, since a re-serialised
+        # `"horizon": null` would break every warrant signed before the field existed.
+        horizon=HorizonProposal.from_payload(payload.get("horizon")),  # type: ignore[arg-type]
     )
 
 
@@ -67,6 +75,9 @@ def test_the_fixture_covers_every_rule_the_mirror_has_to_reproduce() -> None:
         "absent_parent_budget_is_a_ceiling_of_zero",
         "child_drops_a_declared_ceiling",
         "delegation_depth_not_strictly_below",
+        "horizon_dropped_is_an_expansion",
+        "horizon_dimension_dropped_is_an_expansion",
+        "absent_parent_horizon_lets_a_child_declare_one",
     ):
         assert required in names, f"the interop fixture no longer covers {required!r}"
 

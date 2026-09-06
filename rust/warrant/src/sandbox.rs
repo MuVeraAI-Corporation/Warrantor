@@ -379,6 +379,15 @@ pub fn profile(bounds: &WarrantBounds, worktree: &str, confinement: Confinement)
               Stays Enforced."
             .to_string(),
     });
+    divergences.push(Divergence::Gap {
+        bound: "horizon".to_string(),
+        why: "three dimensions, and a sandbox adds nothing to any of them. The wall-clock and \
+              unattended ceilings reach the same OS process link `expires_at` does; the effect \
+              ceiling counts admitted MCP calls, which no confinement can distinguish from any \
+              other syscall traffic -- the same reason `tools` is a gap. Stays Mediated as a whole \
+              bound."
+            .to_string(),
+    });
 
     Profile {
         confinement,
@@ -464,6 +473,7 @@ mod tests {
             expires_at: 1_786_000_000,
             budget_cents_observed: Some(500),
             delegation_depth: 1,
+            horizon: None,
         }
     }
 

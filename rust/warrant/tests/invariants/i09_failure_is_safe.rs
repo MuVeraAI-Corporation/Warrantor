@@ -24,6 +24,7 @@ fn bounds_with_budget(budget_cents_observed: Option<u64>) -> WarrantBounds {
         expires_at: scenario::NOW + 3_600,
         budget_cents_observed,
         delegation_depth: 0,
+        horizon: None,
     }
 }
 

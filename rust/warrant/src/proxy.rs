@@ -150,6 +150,13 @@ pub struct Proxy {
     /// A second map in the same process is not a second telemetry path — see
     /// [`crate::egress::SecondaryRefusal`].
     secondary_refusals: BTreeMap<(String, String), crate::egress::SecondaryRefusal>,
+    /// Effects admitted under this warrant's horizon, seeded from the persisted staging queue.
+    ///
+    /// Counts only calls this proxy ADMITTED. A refused call produced no effect and must not consume
+    /// the ceiling, or an agent could exhaust its own horizon with calls it was never allowed to make
+    /// and the ceiling would become a rate limit on attempts — Task 8.3's business, not this bound's.
+    /// See [`crate::horizon`] for what the number does and does not include, and why it is a floor.
+    horizon_effects: u64,
 }
 
 /// Classes that are refused even in observe mode.
@@ -179,6 +186,7 @@ impl Proxy {
             pending: Vec::new(),
             resolved_names: BTreeMap::new(),
             secondary_refusals: BTreeMap::new(),
+            horizon_effects: 0,
         }
     }
 
@@ -209,6 +217,25 @@ impl Proxy {
     #[must_use]
     pub fn egress_independence(&self) -> crate::egress::Independence {
         crate::egress::independence(&self.bounds, self.secondary.as_ref())
+    }
+
+    /// Seed the horizon's effect counter with effects this warrant produced in earlier sessions.
+    ///
+    /// Called once, at session start, from the length of the persisted staging queue — see
+    /// [`crate::mcp_endpoints::agent_endpoint_for`], the one production construction site. Without
+    /// it a restart would hand every warrant a fresh allowance, and an effect ceiling a restart
+    /// resets bounds nothing over the horizon it is named after.
+    pub const fn seed_horizon_effects(&mut self, already: u64) {
+        self.horizon_effects = already;
+    }
+
+    /// Effects this proxy has admitted, seed included.
+    ///
+    /// A floor, never a total: it counts what traversed this proxy. See
+    /// [`crate::horizon::EFFECT_COUNT_LIMITATION`].
+    #[must_use]
+    pub const fn horizon_effects(&self) -> u64 {
+        self.horizon_effects
     }
 
     /// The mode this proxy is enforcing.
@@ -440,6 +467,42 @@ impl Proxy {
                 }
             }
         }
+
+        // The horizon's effect ceiling (L3-04). LAST of the checks, and deliberately so: this is
+        // the only one whose refusal consumes nothing and whose admission does, so it must see only
+        // calls every other bound has already allowed. A call refused above produced no effect and
+        // must leave the ceiling where it was.
+        //
+        // The boundary is `admitted < limit`: a ceiling of two admits exactly two effects and
+        // refuses the third. Reaching the ceiling is separately a `horizon::HorizonVerdict::Breached`
+        // for the supervision loop; this refusal is what stops a third effect arriving before the
+        // loop's next slice notices.
+        if let Some(limit) = self
+            .bounds
+            .horizon
+            .as_ref()
+            .and_then(|horizon| horizon.max_effects)
+        {
+            if self.horizon_effects >= limit {
+                let observed = self.horizon_effects;
+                return self.deny(
+                    &call.tool,
+                    "horizon_effects",
+                    format!(
+                        "this warrant's horizon allows {limit} effect(s) and {observed} have been \
+                         admitted. Nothing further will be performed under it. Ask for the horizon \
+                         to be extended -- the request is recorded for review -- or settle what is \
+                         staged and start a new warrant."
+                    ),
+                );
+            }
+        }
+        // Admitted, so it counts — whether or not a ceiling was declared, because the report and
+        // `warrantor horizon` render the observed figure either way and a counter that only runs
+        // when a limit exists would report zero effects for every ungoverned warrant. Incremented
+        // here rather than by the caller: a counter the caller has to remember to advance is a
+        // ceiling that silently stops refusing the first time somebody forgets.
+        self.horizon_effects = self.horizon_effects.saturating_add(1);
 
         if self.bounds.staged_classes.contains(&call.side_effect)
             && self.registry.get(&call.tool).is_some()

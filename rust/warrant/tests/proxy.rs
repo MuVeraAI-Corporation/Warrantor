@@ -20,6 +20,7 @@ fn bounds() -> WarrantBounds {
         expires_at: NOW + 3600,
         budget_cents_observed: None,
         delegation_depth: 2,
+        horizon: None,
     }
 }
 
