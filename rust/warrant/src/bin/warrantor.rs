@@ -7227,7 +7227,7 @@ mod serve_cli {
     }
 }
 
-/// The parser's own behaviour, and the one class of defect it had.
+/// The parser's own behavior, and the one class of defect it had.
 #[cfg(test)]
 mod argument_parsing {
     use super::{parse_tokens, VALUELESS_FLAGS};
