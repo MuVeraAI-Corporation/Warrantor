@@ -366,8 +366,8 @@ def test_the_descriptor_never_defaults_the_quantization_it_could_not_read() -> N
             "quantisation is absent from the recorded configuration (this build serves "
             f"{serving.QUANTIZATION!r}); an absent field is a mismatch, never a match",
         ), model
-    labelled = ev.OllamaGuardBackend(model="hf.co/some/repo:Q4_K_M").descriptor()
-    assert labelled["quantisation"] == serving.QUANTIZATION, (
+    labeled = ev.OllamaGuardBackend(model="hf.co/some/repo:Q4_K_M").descriptor()
+    assert labeled["quantisation"] == serving.QUANTIZATION, (
         "the allowed control: a tag that DOES name the deployed quantization is recorded, so the "
         "assertions above are about the absent case and not about a reader that reads nothing"
     )
