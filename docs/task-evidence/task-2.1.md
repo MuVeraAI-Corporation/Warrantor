@@ -1,3 +1,126 @@
+# Task 2.1 — Effect decomposition registry with strict-mode refusal (L4-01; Phase 2 keystone)
+
+Branch `feat/effect-decomposition-registry`, twelve commits, merged to `main` at `371037d` on
+2026-09-06. Worktree `M:/wt-w5-2.1` (the plan's Step 1 names `M:/wt-2.1`; wave numbering was added
+to keep concurrent lanes apart). Unblocks Tasks 2.2–2.6, all of Phase 3, and Task 7.1 steps 6–9.
+
+| commit | what | plan step |
+|---|---|---|
+| `39eb548` | the nine effect syscalls as the declaration vocabulary; `tests/effects.rs` | 2–3 |
+| `ddff555` | `Decomposition` parsing and the lossy projection to `SideEffectClass` | 4–5 |
+| `94869ab` | `DecompositionRegistry`: builtin, insert, merge, versioned document that refuses foreign formats and conflicts | 6–7 |
+| `180b817` | the strict-mode refusal sentence pinned; the permissive guess pinned beside it | 8 |
+| `bd25984` | the unseen-schema corpus (`fixtures/tool-schemas.jsonl`): the strict gate defaults nothing | 9 |
+| `de035b2` | the guess is reproduced at the endpoint before anything is refused | 10 |
+| `104dec4` | forwarded tools classified by decomposition; `--upstream-strict` refuses the undeclared | endpoint wiring |
+| `84c25c2` | the `mcp` verb's decomposition flags tested at the parser | endpoint wiring |
+| `248764a` | the declaration is checked with nothing attached; the five-class `--upstream-class` map retired | endpoint wiring |
+| `66ef022` | merge of `main` (the US-English gate fix) | — |
+| `04ee509` | three sentences that claimed more than the code does, corrected (claim-honesty lens) | review |
+| `6eea354` | the no-upstream check tested through the binary; the disclosure constant repaired (test-rigor lens) | review |
+
+Files: `rust/warrant/src/effects.rs` (new, 476 lines), `src/bin/warrantor.rs` (+332), `src/mcp_endpoints.rs`,
+`tests/effects.rs`, `tests/effects_endpoint.rs`, `tests/upstream_no_server.rs` (all new), two fixtures,
+`docs/W1-delivery-gaps.md`. 1,496 insertions, 102 deletions.
+
+## The exit gate, quoted verbatim from the plan
+
+> **Acceptance (the Phase 2 exit gate's first clause):** a live `warrantor mcp --agent <id> --upstream
+> 'files=npx -y @modelcontextprotocol/server-filesystem .' --upstream-strict` session, with no
+> `--upstream-effects`, answers the agent's first `files.read_file` with the strict refusal sentence and
+> names `files.read_file` on stderr at session end; the same session started with `--upstream-effects
+> 'files.read_file=net'` forwards it. That transcript, not the fixture, is what the ledger entry may
+> cite as built.
+
+## Status of that acceptance: NOT YET RUN
+
+The transcript the plan requires does not exist. Every test on the branch drives the endpoint
+in-process (`tests/effects_endpoint.rs`) or drives the binary with **no upstream attached**
+(`tests/upstream_no_server.rs`). The one thing the acceptance asks for — a real MCP server on the
+far side, one call refused, the same call forwarded once declared — has not been exercised, because
+`@modelcontextprotocol/server-filesystem` is not present on this machine and fetching it is a
+download the operator decides on. Until the transcript is appended below, **the ledger may not cite
+L4-01 as built.** What it may cite is what the gates below establish: the registry, the projection,
+the strict refusal at the endpoint, and the disclosure, each tested.
+
+## What the tests establish
+
+- **Nine verbs and only nine.** `Syscall` parses `net`, `cred`, `exec`, `mutate`, `msg`, `spend`,
+  `delegate`, `actuate`, `attest`; a tenth spelling is an error that names itself
+  (`tests/effects.rs`; `upstream_no_server.rs` proves the same refusal through the binary, with a
+  paired control so the assertion cannot pass by refusing every value).
+- **Declaration only.** Nothing infers a decomposition from `inputSchema`. The corpus of twenty-six
+  unseen tool schemas is refused wholesale under `UnclassifiedPolicy::Refuse` — the strict gate
+  defaults nothing (`bd25984`).
+- **The projection never weakens the block.** A multi-syscall decomposition projects to its
+  highest-ranked `SideEffectClass`; `Physical` is not reachable from any syscall, so the observe-mode
+  hard block that reads `Physical` is unchanged by this task.
+- **The registry refuses foreign formats and conflicts.** A document with the wrong
+  `EFFECT_REGISTRY_FORMAT`, or two declarations for one tool that disagree, is an error rather than a
+  last-writer-wins.
+- **The guess is reproduced before it is refused.** The shipped permissive policy still guesses and
+  still names its guess (`de035b2`), so the refusal is measured against a demonstrated wrong answer,
+  not an asserted one.
+- **With no upstream the flag says so.** `NO_UPSTREAM_DECLARATION_DISCLOSURE` is a single clean
+  sentence, tested for both its retraction (the declarations decide nothing here) and its positive
+  half (a permitted staged effect is still staged and performed at settle).
+
+## The honest tier of every bound this task introduces
+
+| what this task adds | tier, in the vocabulary Task 0.4 fixed | why that word and not a stronger one |
+|---|---|---|
+| `--upstream-strict` refusal of an undeclared forwarded tool | **mediated** | it is a decision at the proxy chokepoint, real and before the adapter. What escapes it: an agent holding its own route to the same server, and any session with no `--upstream` attached, where the flag is inert and says so. No netns, no seccomp, no firewall stands behind it. |
+| classification by declaration, projection to `SideEffectClass` | not a bound; an input to two existing ones | the observe-mode block and `staged_classes` keep their existing tier. This task changes *what they read*, not how far they reach. |
+| refusal of a misspelled syscall at argument parse | not a bound on the agent | it bounds the operator's typo the day it is typed. It is fail-closed, and it is tested, but it constrains nothing the agent does. |
+
+Nothing in this task is **Enforced**. No line here is a kernel, an OS boundary, or a signature check.
+
+## What this task does NOT establish
+
+- The kernel does not authorize, check or receipt a syscall. Authorization is still a tool-NAME
+  allowlist (`proxy.rs`, `bounds.tools.contains(&call.tool)`). `receipts.rs`, `bundle.rs`, `report.rs`,
+  `settle.rs`, `staging.rs` and `proxy.rs` contain zero occurrences of `Syscall`; `warrantor report`
+  still prints a staged effect as `github.create_pr`. Task 2.3 moves staging onto syscalls.
+- Declarations are unsigned. A registry document is trusted because the operator passed it. Task 2.2
+  is the signed manifest.
+- The live acceptance above.
+
+## Corrections after adversarial review
+
+**Claim-honesty (`04ee509`), three findings, all in prose, none in a mechanism.** The module header
+said "The kernel authorizes, checks and receipts syscalls" in the present tense; its own
+`deploy_to_prod` example disproves it (see the first bullet above). The no-upstream disclosure
+justified itself with a false clause — "every permitted call is already answered with the
+no-upstream refusal" — when `Decision::Stage` is reached before the no-upstream arm, so a permitted
+`github.create_pr` is staged and performed at settle. The end-of-session line said undeclared tools
+"were forwarded with a guessed decomposition" when, with nothing attached, they meet the refusal and
+are counted as `permitted_no_route`. Each sentence now states what the code does.
+
+**Test-rigor (`6eea354`), twelve mutations, two survivors, both in recovered work.** Deleting the
+whole no-upstream block left the full gate byte-identical at 152 suites / 1546 passing: the check was
+real and untested. It is now driven through the binary with a paired control. The unit test on the
+disclosure stayed green while the sentence was mangled, and when hardened it found the shipped
+constant already carried twenty runs of six spaces, certified by a substring test. The detector now
+splits on single spaces and refuses any empty piece rather than searching for a two-space literal,
+because a tool that squeezes whitespace squeezes exactly that literal and silently inverts the test.
+Both mutations now go red.
+
+**Evidence-truth held.** No rendered number on the branch disagreed with the artifact it described.
+
+## Deviations from the plan's literal text
+
+- Worktree `M:/wt-w5-2.1`, not `M:/wt-2.1`; branch name as the plan's Step 1 names it.
+- `main` was merged into the branch once (`66ef022`) rather than rebased, to pick up the US-English
+  gate fix; the merge is empty of conflicts.
+- The acceptance transcript is deferred, as recorded above, not skipped.
+
+## Branch gate at `6eea354`
+
+fmt 0, clippy 0, cargo 0 at 153 suites / 1548 passing / 0 failed / 20 ignored (`cargo test
+--workspace`, doctests included). Census 13 of 41 over 22 edges; ratchet 82 at floor 82, 15 at
+ceiling 15; ledger 12 invariants; `check_us_english.py` ok; `check_docs.py` PASS. Mutation control:
+one injected double space in the disclosure turned the hardened test red, and the file was restored
+byte-identical afterwards.
 
 ## Post-merge gate on main `371037d` (2026-09-06)
 
