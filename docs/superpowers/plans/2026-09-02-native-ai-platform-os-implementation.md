@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Repository: `M:/Project AumOS - Open Secure AI Alliance/aumos` is its own git repo (nested; the parent ignores it). Branch from `origin/main`, never from the dirty `docs/content-program-p9-fold` checkout. One git worktree per task (`git -C aumos worktree add M:/wt-<task> -b feat/<task> origin/main`). Merge one branch at a time after rebasing on main (PR CI tests against old main).
+- Repository: `M:/Project AumOS - Open Secure AI Alliance/aumos` is its own git repo (nested; the parent ignores it). Branch from `origin/main`, never from the dirty `docs/content-program-p9-fold` checkout. One git worktree per task (`git -C aumos worktree add M:/wt-<task> -b feat/<task> main`). Merge one branch at a time after rebasing on main (PR CI tests against old main).
 - Every commit: `git commit -s` (DCO trailer required by CI). Conventional commit prefixes.
 - Rust gate before any commit: `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace --all-targets`, `cargo build --workspace --all-targets`, all with `-j 2`, never piped through `head`; `protoc` must be installed; `cargo metadata --locked` must pass (never hand-edit `Cargo.lock` conflicts).
 - Windows hazards: fork exhaustion corrupts the cache (full `cargo clean` only); use a separate `CARGO_TARGET_DIR` per worktree to avoid the registry lock race.
@@ -81,7 +81,7 @@ Anchor (plan-brief.md, Part 11 blocker table and Rule 1): *"Progress was measure
 - [ ] **Step 1 — Worktree from `origin/main`, and confirm the crate is really absent there.**
   ```bash
   git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" fetch origin
-  git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-task-0.1 -b feat/task-0.1-reputation-workspace origin/main
+  git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-task-0.1 -b feat/task-0.1-reputation-workspace main
   cd M:/wt-task-0.1
   git ls-tree --name-only origin/main rust/ | grep -c '^rust/reputation$' || true   # expected: 0
   grep -c '"reputation"' rust/Cargo.toml || true                                    # expected: 0
@@ -342,7 +342,7 @@ Verified on the Windows box while writing this section — **two filtered subset
 - [ ] **Step 1: Worktree and branch.**
   ```bash
   git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" fetch origin
-  git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-0.2 -b chore/windows-ci-runner origin/main
+  git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-0.2 -b chore/windows-ci-runner main
   export CARGO_TARGET_DIR=M:/wt-0.2-target   # own target dir: registry-lock race and rlib/metadata clash
   ```
 
@@ -847,7 +847,7 @@ CLI: `python tools/ci/wiring_census.py [--workspace P] [--binary-crate NAME] [--
 Every command below runs from the worktree root `M:/wt-0.3` unless stated. Local `python` on this box is 3.13 and `python3` is 3.11; both carry `tomllib`. CI uses 3.11.
 
 - [ ] **Step 1 — Worktree and the first failing test (import error).**
-  `git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-0.3 -b feat/wiring-census origin/main` then `cd M:/wt-0.3`. Create `tools/ci/test_wiring_census.py` with the header and the synthetic-workspace fixture plus the first test only:
+  `git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-0.3 -b feat/wiring-census main` then `cd M:/wt-0.3`. Create `tools/ci/test_wiring_census.py` with the header and the synthetic-workspace fixture plus the first test only:
   ```python
   """The wiring census, tested against a synthetic workspace and then against the real one."""
 
@@ -2046,7 +2046,7 @@ Produces (new):
 
 - [ ] **Step 1: Worktree and the failing parser test**
 
-`git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-0.5-invariants -b feat/invariant-ledger origin/main`. Create `tools/ci/test_check_invariants.py`:
+`git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-0.5-invariants -b feat/invariant-ledger main`. Create `tools/ci/test_check_invariants.py`:
 
 ```python
 """Tests for tools/ci/check_invariants.py — the invariant ledger checker."""
@@ -2715,7 +2715,7 @@ The export format stays `warrantor.report-export/1` and the bundle format stays 
 - [ ] **Step 1 — Worktree and the receipt log, test first**
 
 ```
-git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-t11 -b feat/t11-effect-receipts origin/main
+git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-t11 -b feat/t11-effect-receipts main
 set CARGO_TARGET_DIR=M:/wt-t11-target
 ```
 
@@ -4074,7 +4074,7 @@ Anchor (plan-brief.md, L4-23): "The agent never sees a URL parameter. It selects
 - `report::EgressSection { pub receipts: Vec<warrantor_egress::EgressReceipt>, pub unreadable_lines: usize, pub note: String }`; `ReportBundle.egress: Option<EgressSection>` (`#[serde(default, skip_serializing_if = "Option::is_none")]`); `Report::with_egress(self, section: EgressSection) -> Self`; `pub fn egress_section(root: &Path, warrant_id: &str, issuer: &SigningKey, key_id: &str) -> Option<EgressSection>`.
 - CLI: `grant [--egress H,H] [--egress-capability NAME,NAME]`; `mcp --agent <id>` loads and verifies `<root>/catalogs/<id>.json`; `verify <catalog.json>` dispatches on `warrantor.destination-catalog/1`.
 
-Worktree for every step: `git -C aumos worktree add M:/wt-1.2 -b feat/egress-capability-catalog origin/main`, `CARGO_TARGET_DIR=M:/wt-1.2/target`, all cargo commands from `M:/wt-1.2/rust` with `-j 2`.
+Worktree for every step: `git -C aumos worktree add M:/wt-1.2 -b feat/egress-capability-catalog main`, `CARGO_TARGET_DIR=M:/wt-1.2/target`, all cargo commands from `M:/wt-1.2/rust` with `-j 2`.
 
 - [ ] **Step 1 — Failing test: the catalog format and the `--egress` sugar.** Create `rust/warrant/tests/egress_broker_wiring.rs`:
 
@@ -6080,7 +6080,7 @@ Anchor (plan-brief.md, L3-03): "Budget as an enforced bound refused at the point
 - `warrantor_warrant::mcp_endpoints::AgentEndpoint`: `pub fn metered_by(mut self, meter: CallMeter) -> Self`; `pub fn call_ledger(&self) -> Option<&CallLedger>`.
 - CLI: `grant … [--max-calls N]` (default `DEFAULT_MAX_TOOL_CALLS`, unparseable = refusal via `whole_number`); `warrantor spend <id>` bare view prints the call ledger under the cents ledger.
 
-Worktree for this task: `git -C aumos worktree add M:/wt-1.4 -b feat/spend-call-ceiling origin/main`, `CARGO_TARGET_DIR=M:/wt-1.4-target`. Run every `cargo` command from `M:/wt-1.4/rust` with `-j 2`. Task 1.1 (evidence into the report path) is a prerequisite only for the bundle-level wording; nothing below references a Task 1.1 symbol.
+Worktree for this task: `git -C aumos worktree add M:/wt-1.4 -b feat/spend-call-ceiling main`, `CARGO_TARGET_DIR=M:/wt-1.4-target`. Run every `cargo` command from `M:/wt-1.4/rust` with `-j 2`. Task 1.1 (evidence into the report path) is a prerequisite only for the bundle-level wording; nothing below references a Task 1.1 symbol.
 
 - [ ] **Step 1 — the plane crate learns to reserve before the act.** Append to the `tests` module of `rust/spend/src/lib.rs`:
 
@@ -7009,7 +7009,7 @@ Produces (new signatures):
 
 ```powershell
 git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" fetch origin
-git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-t15 -b feat/task-1.5-one-delegation-algebra origin/main
+git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-t15 -b feat/task-1.5-one-delegation-algebra main
 $env:CARGO_TARGET_DIR = "M:/wt-t15-target"
 cd M:/wt-t15/rust
 cargo metadata --format-version 1 --locked > $null   # must pass before anything is touched
@@ -7981,7 +7981,7 @@ Produces (new):
 
 Run every cargo command from `M:/wt-1.6/rust` with its own target dir (Windows registry-lock hazard): bash `CARGO_TARGET_DIR=M:/wt-1.6-target cargo ...`, PowerShell `$env:CARGO_TARGET_DIR="M:/wt-1.6-target"; cargo ...`.
 
-- [ ] **Step 1 — Worktree.** `git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-1.6 -b feat/trust-bundle-second-machine origin/main`. Confirm `bundle.rs` is present: `test -f M:/wt-1.6/rust/warrant/src/bundle.rs`. Confirm the defect this task starts from: `grep -c "pinned at                      " M:/wt-1.6/rust/warrant/src/bin/warrantor.rs` prints `1`.
+- [ ] **Step 1 — Worktree.** `git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-1.6 -b feat/trust-bundle-second-machine main`. Confirm `bundle.rs` is present: `test -f M:/wt-1.6/rust/warrant/src/bundle.rs`. Confirm the defect this task starts from: `grep -c "pinned at                      " M:/wt-1.6/rust/warrant/src/bin/warrantor.rs` prints `1`.
 
 - [ ] **Step 2 — Structured provenance on a pin (trust.rs), test first.** Append to `rust/warrant/tests/trust.rs`:
 
@@ -8660,7 +8660,7 @@ fn upstream_decompositions(args: &Args) -> Result<DecompositionRegistry, String>
 // CLI: warrantor mcp [--upstream-effects '<tool>=<verb>+<verb>' ...] [--upstream-effects-file <path> ...] [--upstream-strict]
 ```
 
-- [ ] **Step 1 — Worktree.** `git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" fetch origin && git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-2.1 -b feat/effect-decomposition-registry origin/main`. Every `cargo` command below runs from `M:/wt-2.1/rust` with `CARGO_TARGET_DIR=M:/wt-2.1-target` and `-j 2`. Confirm `cargo metadata --locked -q >/dev/null` passes before touching anything.
+- [ ] **Step 1 — Worktree.** `git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" fetch origin && git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-2.1 -b feat/effect-decomposition-registry main`. Every `cargo` command below runs from `M:/wt-2.1/rust` with `CARGO_TARGET_DIR=M:/wt-2.1-target` and `-j 2`. Confirm `cargo metadata --locked -q >/dev/null` passes before touching anything.
 
 - [ ] **Step 2 — The nine verbs, and only nine (failing test).** Create `rust/warrant/tests/effects.rs`:
 ```rust
@@ -9950,7 +9950,7 @@ fn verify_admission_export(path: &str, body: &[u8], anchor: Option<&Anchor>) -> 
 
 ---
 
-- [ ] **Step 1 — Worktree.** `git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" fetch origin && git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-2.2 -b feat/tool-admission-manifests origin/main`. Confirm Task 2.1 is present: `grep -n "pub fn with_decompositions" M:/wt-2.2/rust/warrant/src/mcp_endpoints.rs` prints one line, or stop and wait for 2.1 to merge. Every `cargo` command below runs from `M:/wt-2.2/rust` with `CARGO_TARGET_DIR=M:/wt-2.2-target` and `-j 2`; `cargo metadata --locked -q >/dev/null` must pass first.
+- [ ] **Step 1 — Worktree.** `git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" fetch origin && git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-2.2 -b feat/tool-admission-manifests main`. Confirm Task 2.1 is present: `grep -n "pub fn with_decompositions" M:/wt-2.2/rust/warrant/src/mcp_endpoints.rs` prints one line, or stop and wait for 2.1 to merge. Every `cargo` command below runs from `M:/wt-2.2/rust` with `CARGO_TARGET_DIR=M:/wt-2.2-target` and `-j 2`; `cargo metadata --locked -q >/dev/null` must pass first.
 
 - [ ] **Step 2 — Manifest claims, signing and verification (failing unit test).** Create `rust/warrant/src/admission.rs` containing only the module doc, the imports, the types and the test module below, so the run fails on the two missing functions:
 
@@ -11839,7 +11839,7 @@ The `syscall` string on `EffectKind` is the lowercase name of the Part 06 syscal
 **Setup (once):**
 ```
 git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" fetch origin
-git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-2.3 -b feat/two-phase-staged-effects origin/main
+git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-2.3 -b feat/two-phase-staged-effects main
 cd M:/wt-2.3/rust
 set CARGO_TARGET_DIR=M:/wt-2.3-target
 ```
@@ -13030,7 +13030,7 @@ pub struct SuperviseRequest { …, pub exec: Option<BTreeSet<ExecAdmission>> }
 
 - [ ] **Step 1 — worktree and branch.**
   ```bash
-  git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-2.4 -b feat/exec-digest-admission origin/main
+  git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-2.4 -b feat/exec-digest-admission main
   export CARGO_TARGET_DIR=M:/wt-2.4/target
   cd M:/wt-2.4/rust && cargo metadata --locked >/dev/null && echo ok
   ```
@@ -16789,7 +16789,7 @@ touch delegation *intersection* semantics; that is L6-01 and landed in Task 1.5.
 - [ ] **Step 1 — Worktree from `origin/main`; capture the baseline the later steps assert against.**
   ```bash
   git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" fetch origin
-  git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-task-3.1 -b feat/task-3.1-agent-principals origin/main
+  git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-task-3.1 -b feat/task-3.1-agent-principals main
   cd M:/wt-task-3.1
   export CARGO_TARGET_DIR=M:/wt-task-3.1-target
   git grep -n "DEFAULT_CLI_SUBJECT\|DEFAULT_MCP_SUBJECT" -- '*.rs' | tee /tmp/task31-baseline.txt | wc -l   # expected: 17
@@ -18410,7 +18410,7 @@ The single Tier A case is narrow and is not created here: `--unshare-net`, which
   ```bash
   export PATH="$PATH:/c/Users/MuVeraAICorporation/.cargo/bin"
   git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" fetch origin
-  git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-task-5.4 -b feat/task-5.4-network-common-mode origin/main
+  git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-task-5.4 -b feat/task-5.4-network-common-mode main
   cd M:/wt-task-5.4
   export CARGO_TARGET_DIR=M:/wt-task-5.4-target
   ```
@@ -20101,7 +20101,7 @@ nobody enumerated. The exit gate is therefore about the enumeration, not the gua
 **Exit gate.** Every deserialization point found in Step 0 has a guard and a test; a point added later
 without one fails a CI check that counts them, in the shape of `tools/ci/invariant-ratchet.json`.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-7.2 -b feat/deserialization-guard origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-7.2 -b feat/deserialization-guard main`
 - [ ] **Step 2 — Enumerate deserialization points; commit the list as a ratcheting record.**
 - [ ] **Step 3 — Failing test: a payload that deserializes into a side-effecting type is refused.** Paired with an inert control that is accepted.
 - [ ] **Step 4 — Failing test: template injection cannot reach a render path.**
@@ -20136,7 +20136,7 @@ bypasses the email adapter entirely; say so rather than implying MSG is covered.
 **Exit gate.** All three pass the 7.1 conformance harness; an email to a recipient outside the
 declared organization boundary is **refused**, with an internal control recipient accepted.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-7.3 -b feat/adapters-messaging origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-7.3 -b feat/adapters-messaging main`
 - [ ] **Step 2 — Transcribe the 7.1 contract.** If it is ambiguous, stop and report.
 - [ ] **Step 3 — Failing test: email outside the organization boundary is refused.** Paired control.
 - [ ] **Step 4 — Failing test: each adapter decomposes to MSG** per Task 2.1's registry.
@@ -20179,7 +20179,7 @@ all three, and the product text must say that in those words.
 policy, workflow or entitlements is refused, **and** a control effect of the same class against an
 unrelated resource is allowed — a refusal that refuses everything proves nothing.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-7.4 -b feat/adapters-substrate-mutating origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-7.4 -b feat/adapters-substrate-mutating main`
 - [ ] **Step 2 — Failing test: an adapter cannot edit the policy that authorized it.** Paired with a control.
 - [ ] **Step 3 — Failing test: an adapter cannot edit the CI workflow that runs the gates.** Paired.
 - [ ] **Step 4 — Failing test: an adapter cannot grant the entitlement it used.** Paired.
@@ -20218,7 +20218,7 @@ pre-authorization only: once the rail accepts the instruction, nothing in this s
 reversible control effect proceeding unattended; and the reversibility descriptor is never a boolean
 anywhere in the code, asserted by a test.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-7.5 -b feat/adapters-spend-and-data origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-7.5 -b feat/adapters-spend-and-data main`
 - [ ] **Step 2 — Transcribe the 7.1 contract; record the 1.4 boundary.**
 - [ ] **Step 3 — Failing test: reversibility is a three-state descriptor, not a boolean.**
 - [ ] **Step 4 — Failing test: an irreversible effect without an approval receipt is refused.** Paired reversible control.
@@ -20261,7 +20261,7 @@ remainder explicitly listed as ungoverned, **or** a documented statement that co
 unmediated, carried into `docs/W1-delivery-gaps.md` and every surface that renders coverage. A
 partial mediation reported as full is the worst outcome available here.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-7.6 -b feat/computer-use-adapter origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-7.6 -b feat/computer-use-adapter main`
 - [ ] **Step 2 — Capture what exists.** `rust/computer-use/` line count, orphan status, current claims.
 - [ ] **Step 3 — Failing test: a pixel click that opens a credential dialog is visible to the effect model.** Expect this to fail; that failure is the finding.
 - [ ] **Step 4 — Enumerate the decomposable subset** and prove each member decomposes.
@@ -20306,7 +20306,7 @@ mismatch refusable. It does not verify that the declared purpose is the real one
 passing, with `passing_floor` in `tools/ci/invariant-ratchet.json` raised in the same commit; and an
 egress whose data class does not match its declared purpose is refused at the broker.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-7.7 -b feat/egress-purpose-binding origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-7.7 -b feat/egress-purpose-binding main`
 - [ ] **Step 2 — Quote the four corpus `#[ignore]` reasons** into the task record. They are the spec.
 - [ ] **Step 3 — Resolve who defines `purpose`:** this task or 9.3. Record it; stop if unclear.
 - [ ] **Step 4 — Failing test: the request carries a purpose.** The corpus test already fails here.
@@ -20344,7 +20344,7 @@ anything else, because an operator with filesystem access restores without askin
 supersedes, and a restore that would orphan escrowed evidence is **refused**; a restore that would
 not is allowed.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-7.8 -b feat/recovery-orchestration origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-7.8 -b feat/recovery-orchestration main`
 - [ ] **Step 2 — Record the interaction with Task 10.6's escrow.** Stop if unresolved.
 - [ ] **Step 3 — Failing test: an unreceipted restore is refused.**
 - [ ] **Step 4 — Failing test: the receipt names the superseded range.**
@@ -20857,7 +20857,7 @@ three failing fails the task.
 export PATH="$PATH:/c/Users/MuVeraAICorporation/.cargo/bin"
 cd "M:/Project AumOS - Open Secure AI Alliance/aumos"
 git fetch origin
-git worktree add M:/wt-8.1 -b feat/horizon-governor origin/main
+git worktree add M:/wt-8.1 -b feat/horizon-governor main
 cd M:/wt-8.1
 export CARGO_TARGET_DIR=M:/wt-8.1-target
 export RUST_MIN_STACK=16777216
@@ -21598,7 +21598,7 @@ edges` unchanged.
 ```bash
 export PATH="$PATH:/c/Users/MuVeraAICorporation/.cargo/bin"
 cd "M:/Project AumOS - Open Secure AI Alliance/aumos"
-git worktree add M:/wt-8.2 -b feat/risk-dial origin/main
+git worktree add M:/wt-8.2 -b feat/risk-dial main
 cd M:/wt-8.2 && export CARGO_TARGET_DIR=M:/wt-8.2-target
 python tools/ci/wiring_census.py            | tee -a docs/task-evidence/task-8.2.md
 python tools/ci/check_invariant_ratchet.py  | tail -1
@@ -22115,7 +22115,7 @@ partial cover; claim no closure.
 throttled silently, with a control fan-out under the bound completing; a duplicate effect is detected
 and refused, and the receipt names the original.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-8.3 -b feat/parallelism-governor origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-8.3 -b feat/parallelism-governor main`
 - [ ] **Step 2 — Record the 8.1 and 8.4 boundaries.**
 - [ ] **Step 3 — Failing test: fan-out beyond the bound is refused.** Paired control under the bound.
 - [ ] **Step 4 — Failing test: backpressure queues; it never drops silently.**
@@ -22152,7 +22152,7 @@ belongs in the product text.
 refused, with a within-bound transfer allowed; and every transfer produces a receipt naming both
 parties and the amount.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-8.4 -b feat/population-budget-ledger origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-8.4 -b feat/population-budget-ledger main`
 - [ ] **Step 2 — Record how budgets are held today and whether transfer exists.**
 - [ ] **Step 3 — Failing test: ten agents cannot fund one beyond the population bound.** The whole task.
 - [ ] **Step 4 — Failing test: every transfer is receipted with both parties.**
@@ -22191,7 +22191,7 @@ pressure to game the score. Validity at grant can be **Tier B** because it has a
 past threshold produces a receipt and an escalation, and the test asserts the escalation reached a
 human path rather than a log line.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-8.5 -b feat/task-validity-and-drift origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-8.5 -b feat/task-validity-and-drift main`
 - [ ] **Step 2 — Record whether the objective is structured or free text.** This decides the whole design.
 - [ ] **Step 3 — Resolve the distance-metric overlap with 8.1.** One owner.
 - [ ] **Step 4 — Failing test: an invalid grant is refused at grant time.** Paired with a valid control.
@@ -22230,7 +22230,7 @@ probes once and stops is invisible to it.
 that boundary named; **and** an operator legitimately running the Task 5.1 corpus does not trip it —
 a detector that fires on its own test suite is unusable.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-8.6 -b feat/self-risking-detection origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-8.6 -b feat/self-risking-detection main`
 - [ ] **Step 2 — Enumerate probeable boundaries from the corpus,** not from imagination.
 - [ ] **Step 3 — Failing test: a systematic probe sequence is detected.**
 - [ ] **Step 4 — Failing test: running the corpus itself does NOT trip the detector.** The false-positive case is the one that decides whether this ships.
@@ -22268,7 +22268,7 @@ contained one.
 as non-conforming with the reason, and a reset that would destroy unescrowed evidence is refused; the
 three README disclosures are re-verified and updated if stale.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-8.7 -b feat/supporting-service-hardening origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-8.7 -b feat/supporting-service-hardening main`
 - [ ] **Step 2 — Enumerate all seventeen services; re-verify the three README disclosures.**
 - [ ] **Step 3 — Failing test: a service not asserted against the standard fails CI.**
 - [ ] **Step 4 — Failing test: reset produces a receipt naming what it destroyed.**
@@ -22307,7 +22307,7 @@ profile's whole job is to make that split legible, so a single "conformant" verd
 boundary before being contained; and the conformance report names, per property, whether the
 enforcement is ours or the host's. A report with one aggregate verdict fails this gate.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-8.8 -b feat/isolation-conformance origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-8.8 -b feat/isolation-conformance main`
 - [ ] **Step 2 — Capture what conformance asserts today** and confirm no netns/seccomp/firewall code exists.
 - [ ] **Step 3 — Failing test: every rehearsed escape reached the boundary.** Reuse `harness.rs`; a typo'd escape is a false pass.
 - [ ] **Step 4 — Failing test: the escape set varies across runs** and the variation is recorded in the receipt.
@@ -22345,7 +22345,7 @@ precision, not coverage: it says nothing about an agent that never touches a can
 test proving a legitimate workload touches none; and the canary set is committed so a reviewer can
 confirm no canary is reachable by normal operation.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-8.9 -b feat/deception-tripwires origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-8.9 -b feat/deception-tripwires main`
 - [ ] **Step 2 — Record the existing canary support; extend rather than replace.**
 - [ ] **Step 3 — Failing test: touching a canary credential escalates, naming actor and canary.**
 - [ ] **Step 4 — Failing test: a legitimate workload touches no canary.** The false-positive case decides whether this ships.
@@ -22775,7 +22775,7 @@ that refuses and the in-budget case is the one that passes.
 ```bash
 export PATH="$PATH:/c/Users/MuVeraAICorporation/.cargo/bin"
 git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" \
-  worktree add M:/wt-9.1-revocation -b feat/bounded-revocation origin/main
+  worktree add M:/wt-9.1-revocation -b feat/bounded-revocation main
 cd M:/wt-9.1-revocation
 export CARGO_TARGET_DIR=M:/wt-9.1-revocation-target
 ```
@@ -23455,7 +23455,7 @@ out-of-band process separates them. Say that rather than claiming two-person con
 commit; a consequential effect approved twice by one identity is **refused**, with the same effect
 approved by two distinct identities allowed.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-9.2 -b feat/quorum-authority origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-9.2 -b feat/quorum-authority main`
 - [ ] **Step 2 — Quote both corpus `#[ignore]` reasons.** They are the spec.
 - [ ] **Step 3 — Failing test: a non-empty approvals list is not sufficient.**
 - [ ] **Step 4 — Failing test: two approvals from one identity are refused.** Paired with two distinct approvers.
@@ -23887,7 +23887,7 @@ control.
 
 ```bash
 git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" fetch origin
-git worktree add M:/wt-9.3 -b feat/purpose-bound-authority origin/main
+git worktree add M:/wt-9.3 -b feat/purpose-bound-authority main
 export CARGO_TARGET_DIR=M:/wt-9.3-target
 cd M:/wt-9.3/rust
 cargo metadata --format-version 1 --locked > /dev/null   # must pass before anything is touched
@@ -25454,7 +25454,7 @@ accept what it cannot verify. The honest claim is "we refuse what we cannot veri
 pinned out of band, and a claim signed by an unpinned key is **refused**; and the design document
 states in one paragraph what this does not establish, in the same words as Task 1.6's.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-9.5 -b feat/cross-org-authority origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-9.5 -b feat/cross-org-authority main`
 - [ ] **Step 2 — Read Task 1.6 and extend its shape.** Record what is reused rather than rebuilt.
 - [ ] **Step 3 — Failing test: an unpinned issuer's claim is refused,** paired with a pinned control.
 - [ ] **Step 4 — Failing test: acceptance requires an out-of-band pin,** never a claim in the message itself.
@@ -25534,7 +25534,7 @@ egress decision and a channel decision — demonstrated by a test that compiles 
 asserts on both outputs.
 
 - [ ] **Step 1 — Worktree; capture Step 0, including the zero-hit grep.**
-      `git worktree add M:/wt-9.6 -b feat/channel-attestation origin/main`
+      `git worktree add M:/wt-9.6 -b feat/channel-attestation main`
 - [ ] **Step 2 — Failing test: delivery refuses a message whose sender does not match its
       signature.** Assert the refusal happens in the delivery path and that the message is not
       observable to the recipient. Detection after delivery is the failure mode L5-06 names.
@@ -25588,7 +25588,7 @@ the partial cover and this task claims no closure.
 an intra-tenant control message is delivered; every coordination primitive produces a receipt, proven
 by a test that asserts none is receipt-free.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-9.7 -b feat/cross-tenant-firewall origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-9.7 -b feat/cross-tenant-firewall main`
 - [ ] **Step 2 — Confirm 9.6 landed.** Stop if not; there is nothing to filter.
 - [ ] **Step 3 — Failing test: cross-tenant delivery is denied by default.** Paired intra-tenant control.
 - [ ] **Step 4 — Failing test: an explicit grant is required and receipted.**
@@ -25626,7 +25626,7 @@ is implemented it is Tier B — state which you built.
 use-rate metric exists and is non-optional; an agent that escalates cannot proceed on the escalated
 effect while the escalation is open.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-9.8 -b feat/human-escalation-channel origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-9.8 -b feat/human-escalation-channel main`
 - [ ] **Step 2 — Reuse Task 4.2's transports.** A second delivery path is a defect.
 - [ ] **Step 3 — Failing test: an open escalation blocks the escalated effect.** Paired with an unescalated control.
 - [ ] **Step 4 — Failing test: latency to first human response is recorded.**
@@ -25662,7 +25662,7 @@ at all for the peer's.
 conforming control accepted; and the profile contains an explicit "does not constrain" section that a
 test asserts is non-empty.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-9.9 -b feat/transport-interop-profile origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-9.9 -b feat/transport-interop-profile main`
 - [ ] **Step 2 — Record what MCP actually supports,** including the forwarding gap the README discloses.
 - [ ] **Step 3 — Failing test: a non-conforming message is refused at our endpoint.** Paired control.
 - [ ] **Step 4 — Failing test: the "does not constrain" section is non-empty.**
@@ -26415,7 +26415,7 @@ stream interrupted mid-read resumes from its cursor with no gap and no duplicate
 that kills the reader mid-stream rather than by a comment saying it is resumable.
 
 - [ ] **Step 1 — Worktree; capture Step 0 and record the 10.1 ordering decision.**
-      `git worktree add M:/wt-10.2 -b feat/receipt-query origin/main`
+      `git worktree add M:/wt-10.2 -b feat/receipt-query main`
 - [ ] **Step 2 — Failing test: the grammar carries its version.** Whatever the 10.1 decision, the
       query result names the receipt schema version it read. A result that does not is
       unreproducible once the body changes.
@@ -26460,7 +26460,7 @@ real source rather than crediting the monitor with the crypto.
 **Exit gate.** A tampered chain is detected **and** the alert is delivered over a path that does not
 traverse the archive, proven by a test that disables the archive and still receives the alert.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-10.3 -b feat/evidence-integrity-monitors origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-10.3 -b feat/evidence-integrity-monitors main`
 - [ ] **Step 2 — Confirm Task 10.1 landed; record what integrity the store already gives.**
 - [ ] **Step 3 — Failing test: a tampered chain is detected.**
 - [ ] **Step 4 — Failing test: the alert arrives with the archive disabled.** The whole point.
@@ -26498,7 +26498,7 @@ system.
 a retention deletion that would remove escrowed evidence is refused; the jurisdiction dimension selects
 policy with no network call.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-10.4 -b feat/retention-and-credential-flow origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-10.4 -b feat/retention-and-credential-flow main`
 - [ ] **Step 2 — Record what `default_subjects` counts. Resolve the escrow conflict with 10.6.**
 - [ ] **Step 3 — Failing test: a cross-run credential use is traced.** The incident's hop.
 - [ ] **Step 4 — Failing test: deleting escrowed evidence is refused.** Paired allowed control.
@@ -26533,7 +26533,7 @@ a real refusal point. Effectiveness sampling is **Tier C, observed**.
 with a complete one accepted; an expired exception stops taking effect without anybody acting; and
 sampling produces a record for each active exception.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-10.5 -b feat/exception-lifecycle origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-10.5 -b feat/exception-lifecycle main`
 - [ ] **Step 2 — Record how exceptions are achieved today.** If it is policy editing, say so.
 - [ ] **Step 3 — Failing test: an exception without an expiry is refused.** Paired complete control.
 - [ ] **Step 4 — Failing test: an exception without a compensating control is refused.**
@@ -27527,7 +27527,7 @@ and quantization changes verdicts at the deployed Q4_K_M.
 second-model disagreement rate attached, enforced by a test that rejects a verdict missing either;
 and the product text states that a monitored trace is not a faithful trace.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-10.7 -b feat/trace-monitoring origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-10.7 -b feat/trace-monitoring main`
 - [ ] **Step 2 — Carry in the four measured ML results** with their configurations. Do not re-run them.
 - [ ] **Step 3 — Failing test: a verdict without its verification rate is rejected.** Structural, not advisory.
 - [ ] **Step 4 — Failing test: a verdict without a disagreement rate is rejected.**
@@ -27564,7 +27564,7 @@ a human follows. Do not let the runbook's existence imply enforcement.
 receipts signed under the previous key still verify afterward, proven with a frozen pre-rotation
 fixture; and the runbook's steps are exercised by a test rather than described.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-10.8 -b feat/key-rotation-runbook origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-10.8 -b feat/key-rotation-runbook main`
 - [ ] **Step 2 — Record how `key_id` resolves today.**
 - [ ] **Step 3 — Failing test: a pre-rotation receipt verifies after rotation.** Freeze the fixture first.
 - [ ] **Step 4 — Failing test: rotation produces a receipt naming both key ids.**
@@ -27603,7 +27603,7 @@ mechanism.
 valid and one invalid signature is **refused**, not accepted on the good one; `warrantor-post-quantum`
 is wired in and the census reachable count rises.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-10.9 -b feat/post-quantum-dual-signature origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-10.9 -b feat/post-quantum-dual-signature main`
 - [ ] **Step 2 — Record the ordering against Task 10.1.** Both change the signed body. Stop if unresolved.
 - [ ] **Step 3 — Failing test: a single-signature receipt still verifies.** v1 compatibility first.
 - [ ] **Step 4 — Failing test: one valid and one invalid signature is refused.** The subtle case.
@@ -27644,7 +27644,7 @@ its production; and an explicit statement in `docs/W1-delivery-gaps.md` that sov
 **not implemented**, with this task named as the design and Task 3.2 as the mechanism.
 
 - [ ] **Step 1 — Read Task 3.2 and Task 10.8 first.** This is design work, not implementation.
-      `git worktree add M:/wt-10.10 -b docs/task-10.10-sovereign-key-topologies origin/main`
+      `git worktree add M:/wt-10.10 -b docs/task-10.10-sovereign-key-topologies main`
 - [ ] **Step 2 — Enumerate topologies per market with their compulsion assumptions.**
 - [ ] **Step 3 — Record what breaks in each if key material cannot leave.**
 - [ ] **Step 4 — State plainly in the gaps ledger that sovereign custody is not implemented.**
@@ -28098,7 +28098,7 @@ the tenant partition, which is Tier B if it refuses at extraction time.
 **Exit gate.** A row without a receipt identifier is refused at extraction; and an extraction spanning
 two tenants without a grant is refused, with a single-tenant control extraction succeeding.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-12.1 -b feat/corpus-extraction origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-12.1 -b feat/corpus-extraction main`
 - [ ] **Step 2 — Confirm Task 10.2 landed.** Stop if not; do not build a second reader.
 - [ ] **Step 3 — Failing test: a row without a receipt identifier is refused.**
 - [ ] **Step 4 — Failing test: cross-tenant extraction without a grant is refused.** Paired control.
@@ -28139,7 +28139,7 @@ by an ordering of point estimates — a monotonicity check on point estimates al
 noise as a reversal in this project. Every corpus row carries its provenance and a test asserts none
 is missing it.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-12.2 -b feat/refusal-corpus origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-12.2 -b feat/refusal-corpus main`
 - [ ] **Step 2 — Carry in the four measured results with configurations.** Cite them; do not re-derive.
 - [ ] **Step 3 — Confirm Task 12.1 has landed.** If not, record that this corpus is hand-built and therefore not a flywheel.
 - [ ] **Step 4 — Failing test: a corpus row without provenance is rejected at build time.**
@@ -29365,7 +29365,7 @@ must report every test passing, including `test_a_class_halved_is_refused_and_a_
   ```bash
   export PATH="$PATH:/c/Users/MuVeraAICorporation/.cargo/bin"
   git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" fetch origin
-  git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-12.4 -b feat/severity-stability-gate origin/main
+  git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" worktree add M:/wt-12.4 -b feat/severity-stability-gate main
   cd M:/wt-12.4 && export CARGO_TARGET_DIR=M:/wt-12.4-target
   export PYTHONPATH=M:/wt-12.4/python/warrantor_ml/src
   git ls-tree --name-only origin/main python/warrantor_ml/src/warrantor_ml/ | grep -c paired_analysis || true   # 0
@@ -30133,7 +30133,7 @@ configuration."
 without one is refused; and a poisoned corpus contribution is detected and its provenance traced to
 the receipt that produced it.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-12.5 -b feat/guard-exposure-hardening origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-12.5 -b feat/guard-exposure-hardening main`
 - [ ] **Step 2 — Confirm Task 5.5 landed.** Without tenant isolation this task cannot bound exposure.
 - [ ] **Step 3 — Failing test: promotion without a membership-inference result is refused.**
 - [ ] **Step 4 — Failing test: a poisoned contribution is detected and traced to its receipt.**
@@ -30172,7 +30172,7 @@ refusal point. Its limit is that it gates what the two gates measure.
 recipes are recorded at that rung with their reasons; and a checkpoint whose training data overlaps an
 evaluation set is refused for that evaluation.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-12.6 -b feat/guard-graduation-ladder origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-12.6 -b feat/guard-graduation-ladder main`
 - [ ] **Step 2 — Carry in the five measured findings with configurations.** Do not re-derive.
 - [ ] **Step 3 — Failing test: `not-promotable` is reachable and terminal.**
 - [ ] **Step 4 — Record the five historical recipes at that rung with reasons.** A ladder with no failures recorded is not credible.
@@ -30212,7 +30212,7 @@ rate are part of the honest claim.
 corpus member is refused; the corpus is extracted from real receipts, with a test asserting no member
 is synthetic-only.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-12.7 -b feat/policy-simulation-corpus origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-12.7 -b feat/policy-simulation-corpus main`
 - [ ] **Step 2 — Confirm Task 6.1 landed.** Stop if not.
 - [ ] **Step 3 — Failing test: compiled and interpreted policy agree on every corpus member.**
 - [ ] **Step 4 — Failing test: no corpus member is synthetic-only.** Real receipts or it is a test suite.
@@ -30251,7 +30251,7 @@ argument as Task 11.4's offline pack.
 missing provenance on any row is refused; and the existing 27,818-verdict dataset either conforms or its
 non-conformance is documented with what would change.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-12.8 -b feat/open-governance-dataset-format origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-12.8 -b feat/open-governance-dataset-format main`
 - [ ] **Step 2 — Record the published dataset's exact current shape.**
 - [ ] **Step 3 — Failing test: a row without provenance is refused.**
 - [ ] **Step 4 — Failing test: validation succeeds offline, in a clean directory.**
@@ -30291,7 +30291,7 @@ that is a smaller set than it appears.
 a registered control agent not counted as shadow; and the count of instrumented surfaces is published
 beside the shadow count, so the number carries its own coverage.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-13.1 -b feat/shadow-agent-discovery origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-13.1 -b feat/shadow-agent-discovery main`
 - [ ] **Step 2 — Enumerate discovery signals; record which are observable today.**
 - [ ] **Step 3 — Failing test: an unregistered agent on an instrumented surface is discovered.** Paired registered control.
 - [ ] **Step 4 — Failing test: the shadow count publishes its instrumented-surface coverage.**
@@ -30329,7 +30329,7 @@ labeled so — that is the honest half most likely to be softened.
 its tier; a secret delivered by environment variable is labeled Tier C, asserted by a test that
 attempts to label one Tier B and is refused.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-13.2 -b feat/configuration-governance origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-13.2 -b feat/configuration-governance main`
 - [ ] **Step 2 — Enumerate every secret delivery path.** Commit the inventory.
 - [ ] **Step 3 — Failing test: an environment-variable secret cannot be labeled Tier B.**
 - [ ] **Step 4 — Failing test: an undeclared secret in the environment is detected.**
@@ -30367,7 +30367,7 @@ growth is the ratchet.
 carries an explicit, receipted justification; a strengthening change passes unremarked; and the flag
 inventory can only grow, gated in the shape of `tools/ci/invariant-ratchet.json`.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-13.3 -b feat/change-governance-gate origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-13.3 -b feat/change-governance-gate main`
 - [ ] **Step 2 — Enumerate weakening flags, starting with `deny_private_egress`.** Commit as a ratcheting record.
 - [ ] **Step 3 — Failing test: flipping a flag toward weaker fails the build.**
 - [ ] **Step 4 — Failing test: a strengthening change passes unremarked.** Asymmetry is the point.
@@ -30407,7 +30407,7 @@ equivalence on first run has almost certainly not covered enough cases.
 committed record that can only shrink; a case where two points disagree is reported as a defect
 against the weaker point, not resolved by choosing the more convenient answer.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-13.4 -b feat/equivalence-laboratory origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-13.4 -b feat/equivalence-laboratory main`
 - [ ] **Step 2 — Enumerate enforcement points and their refusal sets.** Confirm no in-repo kernel enforcement exists.
 - [ ] **Step 3 — Failing test: a policy produces the same refusal at every point.** Expect this to fail; the failures are the deliverable.
 - [ ] **Step 4 — Publish the delta as a ratcheting record,** in the shape of `tools/ci/invariant-ratchet.json`.
@@ -30443,7 +30443,7 @@ conclusions, which are arguments and not measurements.
 `num_ctx`, seed and dependency version; and a second party can re-derive the case's numbers from the
 BOM alone, tested by re-running one claim from the BOM.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-13.5 -b feat/safety-case-builder origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-13.5 -b feat/safety-case-builder main`
 - [ ] **Step 2 — Reuse the foundry's manifest and Model BOM.** Do not invent a second format.
 - [ ] **Step 3 — Failing test: emission without a complete BOM is refused.**
 - [ ] **Step 4 — Failing test: one claim is re-derivable from the BOM alone.**
@@ -31954,7 +31954,7 @@ names no provenance can no longer be handed a signature.
   ```bash
   export PATH="$PATH:/c/Users/MuVeraAICorporation/.cargo/bin"
   git -C "M:/Project AumOS - Open Secure AI Alliance/aumos" fetch origin
-  git worktree add M:/wt-13.7 -b feat/scorer-isolation origin/main
+  git worktree add M:/wt-13.7 -b feat/scorer-isolation main
   cd M:/wt-13.7
   export CARGO_TARGET_DIR=M:/wt-13.7-target
   git ls-tree --name-only origin/main rust/ | grep -E 'eval-guard|sandbox-runtime'
@@ -32260,7 +32260,7 @@ boundary.
 review date is flagged rather than silently trusted; and the register is seeded with the orphaned
 controls the census already names, including `egress-filter`.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-13.8 -b feat/control-ownership-register origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-13.8 -b feat/control-ownership-register main`
 - [ ] **Step 2 — Seed from the census and the gaps ledger,** not from a blank template.
 - [ ] **Step 3 — Failing test: registering without an owner or review date is refused.**
 - [ ] **Step 4 — Failing test: a control past review is flagged.**
@@ -32302,7 +32302,7 @@ a finding with no disposition should fail the build, and if you implement that, 
 `no-policy-possible` disposition, and a finding with neither **fails the build**; the count of
 undisposed findings can only fall.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.1 -b feat/finding-to-policy-loop origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.1 -b feat/finding-to-policy-loop main`
 - [ ] **Step 2 — Enumerate the four existing finding sources and their formats.**
 - [ ] **Step 3 — Failing test: an undisposed finding fails the build.**
 - [ ] **Step 4 — Failing test: `no-policy-possible` requires a reason, never a bare flag.**
@@ -32338,7 +32338,7 @@ than reported with a caveat. That distinction is the task.
 every admitted result carries its BOM including quantization, `num_ctx` and seed; and the floor
 conditions are a committed record, not a convention.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.2 -b feat/benchmark-harness-floor origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.2 -b feat/benchmark-harness-floor main`
 - [ ] **Step 2 — Record what the two existing benchmarks cover and omit.**
 - [ ] **Step 3 — Failing test: a below-floor result is refused, not caveated.**
 - [ ] **Step 4 — Failing test: an admitted result without a BOM is refused.**
@@ -32375,7 +32375,7 @@ declared-omissions block.
 disabled and no external asset requests, asserted by a test that runs it from a file URL with the
 network off.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.3 -b feat/offline-verify-page origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.3 -b feat/offline-verify-page main`
 - [ ] **Step 2 — Failing test: the page loads and verifies from a file URL, networking disabled.**
 - [ ] **Step 3 — Failing test: no external asset request is made.** Assert zero network requests.
 - [ ] **Step 4 — Failing test: a tampered pack is refused with the reason named.**
@@ -32420,7 +32420,7 @@ which is the point: a crosswalk nobody can check is a marketing asset.
 row missing any of the three; and a second reader can falsify any row from the citation alone. No row
 asserts what a standard requires without quoting the requirement.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.4 -b feat/standards-crosswalk origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.4 -b feat/standards-crosswalk main`
 - [ ] **Step 2 — Read the standards-landscape memory; treat its two corrections as binding.**
 - [ ] **Step 3 — Failing test: a row without a verbatim quote, a date and a status is rejected.**
 - [ ] **Step 4 — Failing test: `unmapped` is a rendered state,** never a blank cell.
@@ -32459,7 +32459,7 @@ dependency nobody enumerated is a dependency nobody removed. Say both.
 **Exit gate.** The full test suite passes in a CI job with **networking disabled**, not merely with
 network calls mocked; and every removed dependency is listed with what was lost by removing it.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.5 -b feat/air-gapped-profile origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.5 -b feat/air-gapped-profile main`
 - [ ] **Step 2 — Enumerate outbound dependencies; split build-time from run-time.**
 - [ ] **Step 3 — Failing test: the suite runs with networking disabled.** Expect failures; they are the inventory.
 - [ ] **Step 4 — Record what each removal costs.** A capability silently dropped is worse than one declared absent.
@@ -32500,7 +32500,7 @@ defect this task exists to prevent.**
 exist or does not pass **fails CI**; the checker also refuses a guarantee whose stated tier exceeds the
 cited test's tier.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.6 -b feat/tenancy-guarantee origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.6 -b feat/tenancy-guarantee main`
 - [ ] **Step 2 — Record Task 5.5's tested properties and tiers exactly.**
 - [ ] **Step 3 — Failing test: a guarantee sentence with no cited test fails CI.**
 - [ ] **Step 4 — Failing test: a guarantee tier exceeding its cited test's tier is refused.** The core assertion.
@@ -32539,7 +32539,7 @@ succeeds from the bundle with no network and no access to us is a demonstrated f
 no reference to this repository's remote; anything the bundle documents but does not exercise is listed
 as untested rather than implied.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.7 -b feat/exit-continuity-bundle origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.7 -b feat/exit-continuity-bundle main`
 - [ ] **Step 2 — Reuse Task 14.5's dependency inventory.** Do not repeat the enumeration.
 - [ ] **Step 3 — Failing test: build and verify from the bundle, networking disabled.**
 - [ ] **Step 4 — Failing test: the bundle lists what it documents but does not exercise.**
@@ -32578,7 +32578,7 @@ cannot compel a peer to act.
 a log entry, asserted by a test; an indicator from an unpinned sender is refused, with a pinned control
 accepted; and every cited regulatory clock carries a verbatim quote and a source date.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.8 -b feat/incident-exchange-profile origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.8 -b feat/incident-exchange-profile main`
 - [ ] **Step 2 — Verify every cited clock at source.** A date from a summary is not admissible.
 - [ ] **Step 3 — Failing test: an elapsed clock escalates rather than logging.**
 - [ ] **Step 4 — Failing test: an indicator from an unpinned sender is refused.** Paired control.
@@ -33417,7 +33417,7 @@ evaluation".
 the run's start is refused; and the product text states that the receipt records an assertion, not a
 verification.
 
-- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.10 -b feat/evaluator-isolation-receipt origin/main`
+- [ ] **Step 1 — Worktree.** `git worktree add M:/wt-14.10 -b feat/evaluator-isolation-receipt main`
 - [ ] **Step 2 — Record the boundary against 13.7 and 10.6.** Three statements of one idea; separate them.
 - [ ] **Step 3 — Failing test: results with no pre-run receipt are refused.**
 - [ ] **Step 4 — Failing test: a receipt signed after the run starts is refused.** Ordering is the whole mechanism.
@@ -33468,7 +33468,7 @@ in `docs/W1-delivery-gaps.md` records that no certification has been issued and 
 specification only — **so nothing in this task can be read as a certification that exists.**
 
 - [ ] **Step 1 — Owner decision first: what is warranted, to whom, and with what liability.** Do not proceed without it.
-      `git worktree add M:/wt-14.11 -b docs/task-14.11-insurance-and-certification origin/main`
+      `git worktree add M:/wt-14.11 -b docs/task-14.11-insurance-and-certification main`
 - [ ] **Step 2 — Inventory every claim an underwriter would rely on; check each against the census and the ratchet.**
 - [ ] **Step 3 — Certification format with expiry as a required field.**
 - [ ] **Step 4 — Reuse Task 14.10's receipt; do not define a second.**
