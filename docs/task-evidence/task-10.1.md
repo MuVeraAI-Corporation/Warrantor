@@ -1096,32 +1096,46 @@ defect class the section exists to close. A subject line survives a rebase; a ha
 
 ### The full gate on the final tip, exit codes captured before any pipe
 
-**`main` moved five times while this lane ran, and every number below is from after the fifth move.**
-`ce5d02d` at the start, then `2463504`, `94119fc`, `78b27d6` and `ebe1d62` — a task board fix, then
-Task 12.3, then the computer-use coverage surface. The branch was rebased onto each one, its twenty
-commits replaying with no conflict every time, and the gate was measured again after each of the last
-three because the third and fifth moves changed Rust code. Rebasing also rewrote this branch's own
-hashes twice, which is why the corrections section above names its commits by hash *and* says a
-subject line is the stable handle. Everything in this subsection was measured on the tip rebased onto
-`ebe1d62`, in `M:/wt-w6-10.1`, with `CARGO_TARGET_DIR=M:/wt-rv-10.1-target` — a directory owned by
-this lane alone — and `CARGO_BUILD_JOBS=2`. Both disk guards ran before every cargo invocation. The
-two commits after the last code commit touch only this file, and the one test that reads a Markdown
+**`main` moved six times while this lane ran, and every number below is from after the sixth move.**
+`ce5d02d` at the start, then `2463504` (the task board), `94119fc` (Task 12.3), `78b27d6`,
+`ebe1d62` (the computer-use coverage surface) and `8c0fbc3` (Task 7.4's substrate-mutating adapters).
+The branch was rebased onto each one, its commits replaying with no conflict every time, and the gate
+was re-measured after every move that changed Rust code rather than carried forward. Rebasing also
+rewrote every hash on this branch twice over, which is why the corrections section above cites its own
+fixes by subject line. Everything in this subsection was measured on the tip rebased onto `8c0fbc3`,
+in `M:/wt-w6-10.1`, with `CARGO_TARGET_DIR=M:/wt-rv-10.1-target` — a directory owned by this lane
+alone — and `CARGO_BUILD_JOBS=2`. Both disk guards ran before every cargo invocation. The commit that
+adds this text is the only one after the last code commit, and the one test that reads a Markdown
 file — the tier-cell test — was re-run against this section's own text and passed.
 
-**The gate does not pass on the merged tree, and the failure is not this branch's.** One test fails:
-`rust/warrant/tests/instructions.rs::every_harness_the_registry_lists_can_be_shown`, with
-`` `agents list` names `Computer` and `agents show Computer` refuses it ``. The cause is in `main`,
-not here. `main`'s commit *"computer use is unmediated, and the product now says so on the coverage
-surface"* added a `COMPUTER USE:` block to `cmd_agents_list`, whose first line is indented by two
-spaces and begins with the word `Computer`; the test scrapes indented first words as harness ids, so
-it asks the binary to `agents show Computer`, and `harness::find("Computer")` correctly finds nothing.
-Neither file is in `git diff main..HEAD` — this branch touches no harness, no `warrantor.rs`, no
-`computer_use.rs` and no `instructions.rs` — and the same workspace run was green on this branch's
-code at `ce5d02d` and at `2463504`. It went red the moment `main` brought the new listing in. It is a
-scraper colliding with prose, not a broken bound, and it belongs to whoever owns Task 7.6; this lane
-records it rather than fixing another task's file inside this branch. **Consequence, stated plainly:
-this branch is not mergeable while `main`'s own suite is red, and the counts below say `1 failed` for
-that reason.**
+**Whoever merges this has to regate.** `main` took six merges in the few hours this lane ran, three
+of them touching Rust. A gate measured on a branch is a statement about one tip against one `main`,
+and this one names both. It is not a prediction about the `main` that exists at merge time.
+
+**The gate does not pass on the merged tree, and neither failure is this branch's.** Two tests fail,
+both in files this branch does not touch and both arriving with a `main` merge:
+
+1. `rust/warrant/tests/instructions.rs::every_harness_the_registry_lists_can_be_shown`, with
+   `` `agents list` names `Computer` and `agents show Computer` refuses it ``. `main`'s commit
+   *"computer use is unmediated, and the product now says so on the coverage surface"* added a
+   `COMPUTER USE:` block to `cmd_agents_list` whose first line is indented by two spaces and begins
+   with the word `Computer`; the test scrapes indented first words as harness ids, so it asks the
+   binary to `agents show Computer` and `harness::find("Computer")` correctly finds nothing. A
+   scraper colliding with prose, not a broken bound. It belongs to the task that added the listing.
+2. `rust/warrant/tests/conformance_receipt.rs::a_drill_on_this_kernel_produces_a_receipt_that_verifies_offline`,
+   which `main` itself already documents: see `docs/task-evidence/finding-kill-drill-confirmation-under-load.md`,
+   added by *"the kernel kill drill goes red on a busy machine, and why that is the product being
+   honest"*. The drill cannot confirm a process-tree kill inside `STOP_BUDGET * 2` on a machine this
+   loaded, and `conformance::mode_for` would derive `Advisory` from that observation, which is the
+   honest word. This lane's machine is exactly that busy: the commit-charge guard spent most of the
+   lane refusing.
+
+Neither file appears in `git diff main..HEAD` — this branch touches no harness, no `warrantor.rs`, no
+`computer_use.rs`, no `instructions.rs` and no `conformance_receipt.rs` — and the same workspace run
+was green on this branch's code at `ce5d02d` and again at `2463504`. Both failures arrived with
+`main`. This lane records the diagnosis and does not edit another task's files inside this branch.
+**Consequence, stated plainly: the merged tree is red, so this branch is not mergeable as it stands,
+and the counts below say `2 failed` for that reason.**
 
 **The wait, recorded because it shaped the run.** `python tools/ci/disk_guard.py --require-commit 5`
 refused for roughly fifty minutes at the start of this lane, and repeatedly afterward, hovering
@@ -1135,23 +1149,23 @@ call, never below 231 GB free.
 
 ```
 $ git rev-parse --short main
-ebe1d62
+8c0fbc3
 $ git merge-base --is-ancestor main HEAD ; echo $?
 0
 
 $ cd rust && cargo fmt --all -- --check                                   exit 0
 $ cargo clippy --workspace --all-targets -- -D warnings                   exit 0   (0 error/warning lines)
-$ cargo test --workspace --all-targets                                    exit 101
-  (stops at the first failing target, so it reported only 97 suites; re-run with
-   --no-fail-fast for the whole picture)
 $ cargo test --workspace --all-targets --no-fail-fast                     exit 101
-  126 "test result:" lines: 1630 passed, 1 failed, 20 ignored
-  the one failure: instructions.rs every_harness_the_registry_lists_can_be_shown  (main's, above)
+  127 "test result:" lines: 1639 passed, 2 failed, 20 ignored
+  the two failures: instructions.rs every_harness_the_registry_lists_can_be_shown and
+  conformance_receipt.rs a_drill_on_this_kernel_produces_a_receipt_that_verifies_offline
+  (both main's, diagnosed above). `--no-fail-fast` is what makes the count complete: without it
+  cargo stops at the first failing target and reports a fraction of the suites.
 $ cargo test --workspace --doc                                            exit 0
    40 "test result:" lines:    1 passed, 0 failed,  0 ignored
-  (166 suites in total, 1631 passed, 1 failed, 20 ignored. On `ce5d02d` and again on `2463504`
-   the same branch code gave 165 / 1625 / 0 / 20 with nothing failing; the rise and the failure
-   both arrived with `main`.)
+  (167 suites in total, 1640 passed, 2 failed, 20 ignored. On `ce5d02d` and again on `2463504`
+   the same branch code gave 165 / 1625 / 0 / 20 with nothing failing; every part of the rise,
+   and both failures, arrived with `main`.)
 
   This task's suites, from the workspace run:
      append_only.rs                               7 passed; 0 failed; 2 ignored
@@ -1173,9 +1187,9 @@ invariant ratchet: ok (85 passing at floor 85, 15 recorded findings at ceiling 1
 $ python tools/ci/check_invariants.py                                     exit 0
 invariant ledger: 12 invariants; enforced=2, orphaned=1, partial=8, unimplemented=1  UNCHANGED
 $ python tools/ci/check_docs.py                                           exit 0
-RESULT: PASS - 304 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
+RESULT: PASS - 306 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
 $ python tools/ci/check_us_english.py main                                exit 0
-us-english: 3706 added line(s) across 18 file(s), since main; matcher = vendored verify-us-english.mjs
+us-english: 3727 added line(s) across 18 file(s), since main; matcher = vendored verify-us-english.mjs
 us-english: ok
   (Measured on the commit before the one that adds this note; the count rises with every further
    Markdown line committed into this section, so what this line asserts is `ok`, not a total.
