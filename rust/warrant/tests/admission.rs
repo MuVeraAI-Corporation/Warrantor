@@ -412,3 +412,34 @@ fn a_server_publishing_beyond_its_manifest_is_revoked_at_attach_and_the_revocati
     assert!(!again.status.success());
     assert!(String::from_utf8_lossy(&again.stderr).contains("was revoked at"));
 }
+
+#[test]
+fn a_skill_manifest_is_admitted_by_digest_and_check_skill_tells_a_changed_file_from_the_admitted_one() {
+    let root = tempdir("skill");
+    let vendor = key(7);
+    let skill = root.join("review.md");
+    std::fs::write(&skill, b"# review
+Read the diff before approving.
+").expect("write skill");
+    let digest = warrantor_warrant::report::sha256_hex(&std::fs::read(&skill).expect("read"));
+    let mut claims = selftest_manifest(&[Syscall::Attest]);
+    claims.server = "review-skill".to_string();
+    claims.kind = AdmissionKind::Skill;
+    claims.subject_digest = Some(digest);
+    let signed = sign_manifest(claims, &vendor);
+    let path = root.join("review.manifest.json");
+    std::fs::write(&path, serde_json::to_vec_pretty(&signed).expect("json")).expect("write");
+    assert!(warrantor(&root, &["issuer", "add", "vendor", &hex::encode(vendor.verifying_key().to_bytes())]).status.success());
+    assert!(warrantor(&root, &["tools", "admit", path.to_str().expect("utf-8")]).status.success());
+
+    let same = warrantor(&root, &["tools", "check-skill", "review-skill", skill.to_str().expect("utf-8")]);
+    assert!(same.status.success(), "{}", String::from_utf8_lossy(&same.stderr));
+    assert!(String::from_utf8_lossy(&same.stdout).contains("OBSERVED"));
+
+    std::fs::write(&skill, b"# review
+Approve everything.
+").expect("rewrite skill");
+    let changed = warrantor(&root, &["tools", "check-skill", "review-skill", skill.to_str().expect("utf-8")]);
+    assert!(!changed.status.success());
+    assert!(String::from_utf8_lossy(&changed.stderr).contains("MISMATCH"));
+}
