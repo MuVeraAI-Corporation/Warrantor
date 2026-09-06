@@ -490,22 +490,26 @@ impl SettleReport {
     }
 }
 
-/// Settle a warrant: release its staged effects in order, then merge its worktree.
+/// Settle a warrant: evidence, release and record each staged effect in order, then merge.
 ///
-/// Effects are released *before* the merge deliberately. If an external effect fails, the local
-/// work stays unmerged and reviewable, rather than landing in the base branch alongside a
-/// half-applied set of external changes.
+/// For every effect, in release order: if the recorder already holds a performance under the
+/// effect's idempotency key, reuse its real id and perform nothing; if it holds a pre-commit
+/// with no post-commit, stop — the effect may have happened and nobody can say; otherwise sign
+/// a pre-commit receipt, wait for the recorder's acknowledgment, perform, and sign the
+/// post-commit. An effect is never attempted before its pre-commit is acknowledged (I-07).
 ///
 /// # Errors
 /// [`WarrantError::NotSettleAuthority`] if `presented` is not the warrant's settle authority,
-/// [`WarrantError::WrongState`] if it is not open or held, or [`WarrantError::Invalid`] if the
-/// release order cannot be computed.
+/// [`WarrantError::WrongState`] if it is not open or held, [`WarrantError::Invalid`] if the
+/// release order cannot be computed or a staged tool is absent from the queue's registry, or
+/// [`WarrantError::Encode`] if a receipt cannot be built.
 pub fn settle(
     warrant: &mut Warrant,
     queue: &StagingQueue,
     worktree: Option<&Worktree>,
     presented: &ed25519_dalek::VerifyingKey,
     performer: &mut dyn EffectPerformer,
+    gate: &mut CommitGate<'_>,
 ) -> Result<SettleReport, WarrantError> {
     // Authority first: nothing is released, and no state changes, until this passes.
     warrant.verify_settle(presented)?;
@@ -529,15 +533,90 @@ pub fn settle(
             });
             continue;
         }
+        let key = idempotency_key(&warrant.claims.id, effect);
+
+        // A retried settle re-walks the whole order. Anything already performed is reused,
+        // never repeated: this is what makes a retry storm safe against an irreversible effect.
+        if let Some(real_id) = gate.recorder.performed(&key) {
+            resolved.insert(effect.handle.clone(), real_id.clone());
+            outcomes.push(EffectOutcome::Released {
+                handle: effect.handle.clone(),
+                real_id,
+            });
+            continue;
+        }
+        if gate.recorder.unresolved(&key) {
+            let reason = format!(
+                "the recorder holds a pre-commit for {} with no post-commit: it may have been \
+                 performed. It is not re-performed automatically; check the target and settle \
+                 again once the record is resolved.",
+                effect.handle
+            );
+            boundary = Some(format!("stopped at {} ({}): {reason}", effect.handle, effect.tool));
+            outcomes.push(EffectOutcome::Failed {
+                handle: effect.handle.clone(),
+                reason,
+            });
+            stopped = true;
+            continue;
+        }
+
+        let syscall = queue
+            .kind_of(&effect.tool)
+            .map(|kind| kind.syscall.clone())
+            .ok_or_else(|| {
+                WarrantError::Invalid(format!(
+                    "{} was staged by a registry this settle does not know",
+                    effect.tool
+                ))
+            })?;
+        let predicate = staged_predicate(warrant, effect, &syscall, &key, gate.now)?;
+        let pre = evidence::issue_pre_commit(predicate, gate.signer, gate.key_id);
+
+        // Phase one. Nothing below runs until this returns Ok.
+        if let Err(reason) = gate.recorder.record(&key, &pre) {
+            let reason = format!("recorder did not acknowledge the pre-commit: {reason}");
+            boundary = Some(format!(
+                "stopped at {} ({}): {reason}. It was not attempted; effects before it are \
+                 real; effects after it were not attempted.",
+                effect.handle, effect.tool
+            ));
+            outcomes.push(EffectOutcome::Failed {
+                handle: effect.handle.clone(),
+                reason,
+            });
+            stopped = true;
+            continue;
+        }
+
+        // Phase two.
         match performer.perform(effect, &resolved) {
             Ok(real_id) => {
+                let post =
+                    evidence::issue_post_commit(&pre, performed_outcome(&real_id), gate.signer, gate.key_id);
                 resolved.insert(effect.handle.clone(), real_id.clone());
                 outcomes.push(EffectOutcome::Released {
                     handle: effect.handle.clone(),
                     real_id,
                 });
+                if let Err(reason) = gate.recorder.record(&key, &post) {
+                    // The effect is real and its outcome is not on record. Say exactly that and
+                    // stop: the next settle sees the open pre-commit and refuses to repeat it.
+                    boundary = Some(format!(
+                        "stopped after {} ({}): it was performed, but the recorder did not \
+                         acknowledge the post-commit ({reason}). Effects after it were not \
+                         attempted.",
+                        effect.handle, effect.tool
+                    ));
+                    stopped = true;
+                }
             }
             Err(reason) => {
+                let post =
+                    evidence::issue_post_commit(&pre, failed_outcome(&reason), gate.signer, gate.key_id);
+                // Best effort: the failure is already the boundary, and a recorder error here
+                // leaves an open pre-commit, which the next settle reports rather than repeats.
+                let _ = gate.recorder.record(&key, &post);
                 boundary = Some(format!(
                     "stopped at {} ({}): {reason}. Effects before it are real; effects after it \
                      were not attempted.",
@@ -565,8 +644,13 @@ pub fn settle(
         warrant.transition(WarrantState::Settled)?;
     } else {
         // A partial settle does not reach a terminal state: there is still a decision to make
-        // about the effects that were not attempted, and about the unmerged local work.
-        warrant.transition(WarrantState::Held)?;
+        // about the effects that were not attempted, and about the unmerged local work. A
+        // warrant that was already Held before this settle is still Held — staying put is not a
+        // transition, and `transition` correctly refuses Held -> Held, so a retried settle that
+        // stops again returns its report instead of an error about the state it did not change.
+        if !matches!(warrant.state, WarrantState::Held) {
+            warrant.transition(WarrantState::Held)?;
+        }
     }
 
     Ok(SettleReport {

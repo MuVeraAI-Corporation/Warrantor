@@ -54,10 +54,13 @@ use warrantor_warrant::runs;
 use warrantor_warrant::sandbox;
 use warrantor_warrant::serve as http;
 use warrantor_warrant::settle::{
-    settle, void, EffectOutcome, EffectPerformer, EffectWitness, EvidencedPerformer, SettleReport,
+    settle, void, CommitGate, EffectOutcome, EffectPerformer, EffectWitness, EvidencedPerformer,
+    SettleReport,
 };
 use warrantor_warrant::spend::{self, SpendStore, SpendVerdict};
-use warrantor_warrant::staging::{EffectRegistry, StagedChainMark, StagedEffect, StagingQueue};
+use warrantor_warrant::staging::{
+    EffectRegistry, FileRecorder, StagedChainMark, StagedEffect, StagingQueue,
+};
 use warrantor_warrant::stop::{self, HaltContext, HaltScope, OsProcessControl, StopStore};
 use warrantor_warrant::store::{StoredWarrant, WarrantStore};
 use warrantor_warrant::supervise::{describe_linkage, spawn_detached};
@@ -3219,12 +3222,20 @@ fn cmd_settle(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     );
     let mut inner = build_performer();
     let mut performer = EvidencedPerformer::new(inner.as_mut(), witness, &mut receipt_log);
+    let mut recorder = match FileRecorder::open(store.staged_receipts_path(id)) {
+        Ok(r) => r,
+        Err(e) => return fail(&format!(
+            "the receipt log for {id} cannot be opened, so nothing is settled: {e}"
+        )),
+    };
+    let mut gate = CommitGate { recorder: &mut recorder, signer: &settle_key, key_id: "settle", now: now() };
     let outcome = settle(
         &mut stored.warrant,
         &queue,
         tree.as_ref(),
         &settle_key.verifying_key(),
         &mut performer,
+        &mut gate,
     );
     for line in performer.unrecorded() {
         eprintln!("warrantor: {line}");

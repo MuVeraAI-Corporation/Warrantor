@@ -134,9 +134,9 @@ use crate::egress::EgressRefusal;
 use crate::proxy::AuthorityRequest;
 use crate::receipts::ReceiptLog;
 use crate::report::{self, SignedReport};
-use crate::settle::{settle, void, EffectPerformer, EffectWitness, EvidencedPerformer};
+use crate::settle::{settle, void, CommitGate, EffectPerformer, EffectWitness, EvidencedPerformer};
 use crate::spend::{self, SpendError, SpendStore};
-use crate::staging::{EffectRegistry, StagedEffect, StagingQueue};
+use crate::staging::{EffectRegistry, FileRecorder, StagedEffect, StagingQueue};
 use crate::stop::{self, OsProcessControl, StopError, StopStore};
 use crate::store::{StoredWarrant, WarrantStore};
 use crate::{bound_strengths, WarrantError, WarrantState};
@@ -3642,12 +3642,18 @@ impl Api for StoreApi {
         );
         let mut inner = (self.performer)();
         let mut performer = EvidencedPerformer::new(inner.as_mut(), witness, &mut receipt_log);
+        let mut recorder = match FileRecorder::open(self.store.staged_receipts_path(id)) {
+            Ok(r) => r,
+            Err(e) => return self.internal("open the receipt log", &e),
+        };
+        let mut gate = CommitGate { recorder: &mut recorder, signer: &settle_key, key_id: "settle", now };
         let report = match settle(
             &mut stored.warrant,
             &queue,
             tree.as_ref(),
             &settle_key.verifying_key(),
             &mut performer,
+            &mut gate,
         ) {
             Ok(r) => r,
             Err(e) => {

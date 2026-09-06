@@ -121,7 +121,7 @@ impl WarrantStore {
     /// [`WarrantError::Encode`] if the directories cannot be created.
     pub fn open(root: impl AsRef<Path>) -> Result<Self, WarrantError> {
         let root = root.as_ref().to_path_buf();
-        for sub in ["warrants", "staged", "witness"] {
+        for sub in ["warrants", "staged", "witness", "receipts"] {
             fs::create_dir_all(root.join(sub))
                 .map_err(|e| WarrantError::Encode(format!("create {sub}: {e}")))?;
         }
@@ -176,6 +176,17 @@ impl WarrantStore {
     #[must_use]
     pub fn receipts_path(&self, id: &str) -> PathBuf {
         self.root.join("receipts").join(format!("{id}.jsonl"))
+    }
+
+    /// Path to a warrant's two-phase staged receipt log — one pre-commit and one post-commit per
+    /// performed effect (`warrantor.staged-receipt/1`, `staging::FileRecorder`). Not the notary
+    /// receipt log above: the two formats strictly refuse each other's lines, so a second log
+    /// that was nearly merged into the same file sits beside it instead.
+    #[must_use]
+    pub fn staged_receipts_path(&self, id: &str) -> PathBuf {
+        self.root
+            .join("receipts")
+            .join(format!("{id}.staged.jsonl"))
     }
 
     /// Persist a warrant, replacing any existing record for the same id.
