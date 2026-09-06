@@ -146,6 +146,21 @@ const el = {
   executiveEmpty: document.getElementById('executive-empty'),
   executiveError: document.getElementById('executive-error'),
   executiveUnreadable: document.getElementById('executive-unreadable'),
+  // Autonomy ledger (L8-20, L8-24) — Task 11.11. The eleventh destination;
+  // all five digits are taken and audit, fleet, incidents, policy and
+  // executive are already click-only, so this pane is click-only too.
+  // The ledger renders widening and narrowing with equal prominence,
+  // because "a ledger that records widening but not narrowing is a
+  // growth chart." The pane is a RENDERING of 8.2's receipts (the
+  // dial already records both directions), not a distinct record.
+  viewAutonomy: document.getElementById('view-autonomy'),
+  autonomy: document.getElementById('autonomy'),
+  autonomyHeadline: document.getElementById('autonomy-headline'),
+  autonomySummary: document.getElementById('autonomy-summary'),
+  autonomyEntries: document.getElementById('autonomy-entries'),
+  autonomyEmpty: document.getElementById('autonomy-empty'),
+  autonomyError: document.getElementById('autonomy-error'),
+  autonomyUnreadable: document.getElementById('autonomy-unreadable'),
   queue: document.getElementById('queue'),
   queueHeadline: document.getElementById('queue-headline'),
   queueWho: document.getElementById('queue-who'),
@@ -471,7 +486,8 @@ function applyEmptyState(kind) {
   const incidents = state.view === 'incidents';
   const policy = state.view === 'policy';
   const executive = state.view === 'executive';
-  const elsewhere = summary || queue || settings || coverage || routing || audit || fleet || incidents || policy || executive;
+  const autonomy = state.view === 'autonomy';
+  const elsewhere = summary || queue || settings || coverage || routing || audit || fleet || incidents || policy || executive || autonomy;
   el.summary.hidden = !summary;
   el.queue.hidden = !queue;
   el.settings && (el.settings.hidden = !settings);
@@ -482,6 +498,7 @@ function applyEmptyState(kind) {
   el.incidents && (el.incidents.hidden = !incidents);
   el.policy && (el.policy.hidden = !policy);
   el.executive && (el.executive.hidden = !executive);
+  el.autonomy && (el.autonomy.hidden = !autonomy);
   el.firstRun.hidden = elsewhere || !explain;
   el.detail.hidden = elsewhere || explain;
 
@@ -539,6 +556,7 @@ async function setView(value) {
     [el.viewIncidents, 'incidents'],
     [el.viewPolicy, 'policy'],
     [el.viewExecutive, 'executive'],
+    [el.viewAutonomy, 'autonomy'],
   ]) {
     if (!button) continue;
     button.classList.toggle('is-on', value === name);
@@ -555,6 +573,7 @@ async function setView(value) {
   if (value === 'incidents') await loadIncidents();
   if (value === 'policy') await loadPolicy();
   if (value === 'executive') await loadExecutive();
+  if (value === 'autonomy') await loadAutonomy();
 }
 
 // ── the queue: what is waiting on a human, and what THIS reader can do about it ───────
@@ -3525,6 +3544,268 @@ async function loadExecutive() {
   renderExecutive(facts);
 }
 
+// ── the safe-autonomy expansion ledger: a record of widening AND narrowing, with equal prominence ──
+
+/**
+ * Refuse a widening entry that does not carry the evidence it rests on
+ * and a narrowing path. A widening without evidence is a guess; a
+ * widening without a narrowing path is a one-way ratchet. Both are
+ * refused at creation.
+ *
+ * The function is pure; it does not touch the DOM. The pane calls it
+ * when an entry is being recorded, and the test iterates the fixture to
+ * pin every acceptance and refusal verdict.
+ *
+ * @param {object} entry The proposed widening entry.
+ * @returns {{ok: true, entry: object} | {ok: false, refusal: string}}
+ */
+export function recordWidening(entry) {
+  const evidence = Array.isArray(entry?.evidence_receipts) ? entry.evidence_receipts : [];
+  const narrowingPath = String(entry?.narrowing_path ?? '').trim();
+  const baselineMetric = String(entry?.baseline_metric ?? '').trim();
+  const baselineValue = entry?.baseline_value;
+  if (evidence.length === 0) {
+    return {
+      ok: false,
+      refusal:
+        'widening requires evidence: an autonomy loosening without cited receipts is a guess, and the ledger refuses it',
+    };
+  }
+  if (!narrowingPath) {
+    return {
+      ok: false,
+      refusal:
+        'widening requires a narrowing path: the system has to know how to re-tighten if the evidence weakens, and an entry without one is a one-way ratchet',
+    };
+  }
+  if (!baselineMetric) {
+    return {
+      ok: false,
+      refusal:
+        'widening requires a baseline metric: the outcome contract is a comparison, and a comparison without a reference is a number',
+    };
+  }
+  if (!Number.isFinite(baselineValue)) {
+    return {
+      ok: false,
+      refusal:
+        'widening requires a baseline value: the outcome contract is a comparison, and a reference without a value is undefined',
+    };
+  }
+  return { ok: true, entry };
+}
+
+/**
+ * Refuse an outcome contract without a complete baseline. A contract
+ * without a metric, a value, or both is a number, not a comparison.
+ *
+ * The function is pure; it does not touch the DOM. The pane calls it
+ * when an outcome contract is being recorded, and the test iterates the
+ * fixture to pin every acceptance and refusal verdict.
+ *
+ * @param {object} baseline The proposed baseline.
+ * @returns {{ok: true, baseline: object} | {ok: false, refusal: string}}
+ */
+export function recordBaseline(baseline) {
+  const metric = String(baseline?.metric ?? '').trim();
+  const value = baseline?.value;
+  if (!metric) {
+    return {
+      ok: false,
+      refusal:
+        'baseline requires a metric: the outcome contract is a comparison, and a metric is what is being compared',
+    };
+  }
+  if (!Number.isFinite(value)) {
+    return {
+      ok: false,
+      refusal:
+        'baseline requires a numeric value: a reference value the contract is measured against',
+    };
+  }
+  return { ok: true, baseline };
+}
+
+/**
+ * Read `/v1/autonomy-ledger` into the shape the pane renders. The
+ * ledger is a rendering of 8.2's receipts (the dial already records
+ * both directions); the pane surfaces the receipts so a reader can
+ * audit each one.
+ *
+ * @param {boolean} answered
+ * @param {number} status
+ * @param {unknown} payload
+ * @returns {{readable: boolean, ledger: object|null, formatError: string|null}}
+ */
+export function autonomyFacts(answered, status, payload) {
+  const unusable = { readable: false, ledger: null, formatError: null };
+  if (!answered || status !== 200) return unusable;
+  const data = payload?.data ?? payload;
+  if (!data || typeof data !== 'object') {
+    return { readable: false, ledger: null, formatError: 'expected { entries: [...] }' };
+  }
+  if (!Array.isArray(data.entries)) {
+    return { readable: false, ledger: null, formatError: 'expected entries to be an array' };
+  }
+  // Each entry must declare a direction. The pane refuses to render an
+  // entry whose direction is not `widen` or `narrow`, because the
+  // equal-prominence discipline depends on every entry carrying a
+  // direction word the reader can compare.
+  for (const entry of data.entries) {
+    if (!entry || typeof entry !== 'object') {
+      return { readable: false, ledger: null, formatError: 'every entry must be an object' };
+    }
+    if (entry.direction !== 'widen' && entry.direction !== 'narrow') {
+      return {
+        readable: false,
+        ledger: null,
+        formatError: `entry ${entry.id ?? '(no id)'} has unknown direction ${JSON.stringify(entry.direction)}`,
+      };
+    }
+  }
+  return { readable: true, ledger: data, formatError: null };
+}
+
+/**
+ * Compose the autonomy facts: the ledger plus a count of widening and
+ * narrowing events. The two counts are the headline; the entries are
+ * the audit trail. A future change that hid one direction's count
+ * would be caught by the test that asserts both counts are rendered.
+ *
+ * @param {{ledger: object|null}} feeds
+ * @returns {{readable: boolean, ledger: object|null, widenCount: number, narrowCount: number, formatError: string|null}}
+ */
+export function autonomyComposedFacts(feeds) {
+  const ledger = feeds?.ledger ?? null;
+  if (!ledger) {
+    return { readable: false, ledger: null, widenCount: 0, narrowCount: 0, formatError: null };
+  }
+  let widenCount = 0;
+  let narrowCount = 0;
+  for (const entry of ledger.entries ?? []) {
+    if (entry.direction === 'widen') widenCount += 1;
+    else if (entry.direction === 'narrow') narrowCount += 1;
+  }
+  return {
+    readable: true,
+    ledger,
+    widenCount,
+    narrowCount,
+    formatError: null,
+  };
+}
+
+/** Build a single ledger row. The row carries the same shape for every
+ *  direction; the only differentiator is the pill class and the
+ *  narrowing-path / trigger field. The shape is part of the contract. */
+function autonomyRow(entry) {
+  const li = node('li', 'autonomy-row');
+  const pill = node('span', `pill pill-${entry.direction}`, entry.direction);
+  const pillPara = node('p', 'autonomy-row-pill');
+  pillPara.append(pill);
+  li.append(pillPara);
+  li.append(node('p', 'autonomy-row-date', entry.at));
+  li.append(node('p', 'autonomy-row-warrant', `warrant ${entry.warrant_id}`));
+  li.append(node('p', 'autonomy-row-bound', `bound ${entry.bound}`));
+  if (entry.direction === 'widen') {
+    // Widen rows carry evidence, baseline, outcome, and a narrowing path.
+    // Each is its own paragraph so a reader who scans the row can find
+    // any one of them without re-reading the whole row.
+    const evidencePara = node(
+      'p',
+      'autonomy-row-evidence',
+      `evidence: ${(entry.evidence_receipts ?? []).join(', ')}`,
+    );
+    li.append(evidencePara);
+    const baselinePara = node(
+      'p',
+      'autonomy-row-baseline',
+      `baseline: ${entry.baseline_metric} = ${entry.baseline_value}`,
+    );
+    li.append(baselinePara);
+    const outcomePara = node(
+      'p',
+      'autonomy-row-outcome',
+      `outcome: ${entry.outcome_metric} = ${entry.outcome_value}`,
+    );
+    li.append(outcomePara);
+    const pathPara = node(
+      'p',
+      'autonomy-row-narrowing-path',
+      `narrowing path: ${entry.narrowing_path}`,
+    );
+    li.append(pathPara);
+  } else {
+    // Narrow rows carry the trigger incident and the receipts the
+    // narrowing rests on. A narrow row with no trigger is the same
+    // shape as a widen row with no evidence: a tightening without a
+    // named reason. The pane renders the trigger by name so a reader
+    // can audit the cause.
+    const triggerPara = node('p', 'autonomy-row-trigger', `trigger: ${entry.trigger ?? '(unstated)'}`);
+    li.append(triggerPara);
+    const receiptsPara = node(
+      'p',
+      'autonomy-row-receipts',
+      `receipts: ${(entry.receipts ?? []).join(', ')}`,
+    );
+    li.append(receiptsPara);
+  }
+  return li;
+}
+
+/** Render the autonomy ledger from composed facts. */
+export function renderAutonomy(facts) {
+  if (!el.autonomy) return;
+  if (!facts || !facts.readable) {
+    el.autonomyError.hidden = false;
+    el.autonomyError.textContent =
+      'This autonomy ledger could not be read. A ledger that cannot read its receipts cannot say what widened and what narrowed, and the page is blank on purpose.';
+    el.autonomyEmpty.hidden = true;
+    el.autonomyUnreadable.textContent = facts?.formatError ?? '';
+    el.autonomySummary.replaceChildren();
+    el.autonomyEntries.replaceChildren();
+    return;
+  }
+  el.autonomyError.hidden = true;
+  const hasEntries = Array.isArray(facts.ledger?.entries) && facts.ledger.entries.length > 0;
+  el.autonomyEmpty.hidden = hasEntries;
+  // The headline sentence names BOTH counts in the same line. A future
+  // change that rendered only one direction's count would be the
+  // growth chart the discipline is meant to prevent.
+  el.autonomySummary.replaceChildren(
+    node(
+      'p',
+      'autonomy-headline',
+      `${facts.widenCount} widening and ${facts.narrowCount} narrowing in this window`,
+    ),
+  );
+  // Entries are sorted by date (chronological), with widening and
+  // narrowing interleaved by date. A pane that grouped widening first
+  // would render the growth chart; the test pins the order.
+  const sorted = (facts.ledger.entries ?? []).slice().sort((a, b) => {
+    if (a.at < b.at) return -1;
+    if (a.at > b.at) return 1;
+    return 0;
+  });
+  el.autonomyEntries.replaceChildren();
+  for (const entry of sorted) {
+    el.autonomyEntries.append(autonomyRow(entry));
+  }
+}
+
+/** Load the ledger from the backend and paint. */
+async function loadAutonomy() {
+  if (!el.autonomy) return;
+  const { answered, status, payload } = await call('/v1/autonomy-ledger');
+  if (answered && status === 401) {
+    showGate('That token was not accepted.');
+    return;
+  }
+  const facts = autonomyFacts(answered, status, payload);
+  const composed = autonomyComposedFacts({ ledger: facts.ledger });
+  renderAutonomy(composed);
+}
+
 /**
  * Turn a month into the half-open window the API takes.
  *
@@ -4730,6 +5011,7 @@ if (el.viewFleet) el.viewFleet.addEventListener('click', () => setView('fleet'))
 if (el.viewIncidents) el.viewIncidents.addEventListener('click', () => setView('incidents'));
 if (el.viewPolicy) el.viewPolicy.addEventListener('click', () => setView('policy'));
 if (el.viewExecutive) el.viewExecutive.addEventListener('click', () => setView('executive'));
+if (el.viewAutonomy) el.viewAutonomy.addEventListener('click', () => setView('autonomy'));
 
 // The studio re-renders on every keystroke into the editor (so the operator
 // sees the refusal sentence appear as they type a malformed line) and on

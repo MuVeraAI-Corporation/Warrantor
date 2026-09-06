@@ -921,3 +921,24 @@ kbd {
 .exec-rollup-tier { margin: 0 0 var(--space-1); }
 .exec-rollup-sentence { color: var(--ink-soft); margin: 0; }
 .exec-exposure { font-size: var(--text-md); margin: 0; }
+
+/* ── the autonomy ledger (L8-20, L8-24) ─────────────────────────────────── */
+
+/* The headline and the per-row layout. The widening and narrowing pills
+   carry the same color weight in CSS — neither is green-by-default,
+   neither is hidden-by-default. A future stylesheet author who made
+   the widen pill brighter than the narrow pill would re-introduce
+   the growth chart the discipline is meant to prevent. */
+.autonomy-summary { margin-bottom: var(--space-3); }
+.autonomy-headline { font-size: var(--text-md); margin: 0; }
+.autonomy-entries { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.autonomy-row { padding: var(--space-2); border: 1px solid var(--line); border-radius: 5px; }
+.autonomy-row p { margin: 0 0 var(--space-1); }
+.autonomy-row p:last-child { margin-bottom: 0; }
+.autonomy-row-pill { margin-bottom: var(--space-1); }
+.autonomy-row-date { color: var(--ink-soft); font-size: var(--text-sm); }
+.autonomy-row-warrant, .autonomy-row-bound { font-size: var(--text-sm); }
+.autonomy-row-evidence, .autonomy-row-baseline, .autonomy-row-outcome,
+.autonomy-row-narrowing-path, .autonomy-row-trigger, .autonomy-row-receipts {
+  color: var(--ink); font-size: var(--text-sm);
+}

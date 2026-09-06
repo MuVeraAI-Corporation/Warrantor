@@ -208,6 +208,20 @@ const ELEMENT_IDS = [
   'executive-empty',
   'executive-error',
   'executive-unreadable',
+  // Autonomy ledger (L8-20, L8-24) — added by Task 11.11. The eleventh
+  // destination; all five digits are taken and audit, fleet, incidents,
+  // policy and executive are already click-only, so this pane is
+  // click-only too. The ledger renders widening and narrowing with
+  // equal prominence, because "a ledger that records widening but not
+  // narrowing is a growth chart."
+  'view-autonomy',
+  'autonomy',
+  'autonomy-headline',
+  'autonomy-summary',
+  'autonomy-entries',
+  'autonomy-empty',
+  'autonomy-error',
+  'autonomy-unreadable',
 ];
 
 function element(tag = 'div', id = '') {
@@ -4451,6 +4465,247 @@ test('every executive element id is declared in index.html and stubbed in ELEMEN
   );
   for (const id of executiveIds) {
     assert.ok(html.includes(`id="${id}"`), `executive id ${id} must be in index.html`);
+  }
+});
+
+// ── the safe-autonomy expansion ledger (L8-20, L8-24) — Task 11.11 ───────
+
+import {
+  autonomyFixtures,
+} from './autonomy.fixtures.js';
+
+const {
+  recordWidening,
+  recordBaseline,
+  autonomyFacts,
+  autonomyComposedFacts,
+} = await (async () => {
+  const app = await openStudio();
+  return app.module;
+})();
+
+async function openAutonomy({ ledger = null } = {}) {
+  const app = await boot((p) => {
+    if (p === '/v1/health') return HEALTH_OK;
+    if (p === '/v1/autonomy-ledger' && ledger !== null) return ledger;
+    return listOf(ONE_WARRANT);
+  });
+  app.el('view-autonomy').fire('click');
+  await settle();
+  return app;
+}
+
+test('every widening case in the fixture matches its acceptance verdict and refusal substring', () => {
+  // Step 3 of the plan: widening without cited evidence is rejected.
+  // The test iterates the widening-cases fixture and asserts each
+  // entry's verdict and refusal substring. A future fixture change
+  // that flipped a `accepted: true` to `accepted: false` would be
+  // caught here before it shipped.
+  for (const widenCase of autonomyFixtures.wideningCases) {
+    const result = recordWidening(widenCase.entry);
+    assert.equal(
+      result.ok,
+      widenCase.accepted,
+      `widening case ${widenCase.label} must match its acceptance verdict`,
+    );
+    if (!widenCase.accepted) {
+      assert.ok(
+        result.refusal.includes(widenCase.refusal_substring),
+        `widening refusal must contain ${JSON.stringify(widenCase.refusal_substring)} for: ${widenCase.label}`,
+      );
+    }
+  }
+});
+
+test('every baseline case in the fixture matches its acceptance verdict and refusal substring', () => {
+  // Step 5 of the plan: the baseline an outcome contract is measured
+  // against is rendered (and refused when absent). The test iterates
+  // the baseline-cases fixture and asserts each verdict and refusal
+  // substring.
+  for (const baseCase of autonomyFixtures.baselineCases) {
+    const result = recordBaseline(baseCase.baseline);
+    assert.equal(
+      result.ok,
+      baseCase.accepted,
+      `baseline case ${baseCase.label} must match its acceptance verdict`,
+    );
+    if (!baseCase.accepted) {
+      assert.ok(
+        result.refusal.includes(baseCase.refusal_substring),
+        `baseline refusal must contain ${JSON.stringify(baseCase.refusal_substring)} for: ${baseCase.label}`,
+      );
+    }
+  }
+});
+
+test('every ledger fixture reports the expected widening and narrowing counts', () => {
+  // Step 4 of the plan: a test asserts the ledger renders narrowing
+  // events with the same prominence as widening. The first half is
+  // the count: a future regression that hid one direction's count
+  // would be caught here. The test iterates the ledgers fixture and
+  // pins the count for each.
+  for (const fixture of autonomyFixtures.ledgers) {
+    const facts = autonomyFacts(true, 200, { data: fixture.ledger });
+    assert.equal(facts.readable, true, `ledger must be readable: ${fixture.label}`);
+    const composed = autonomyComposedFacts({ ledger: facts.ledger });
+    assert.equal(composed.widenCount, fixture.expected_widen_count,
+      `widen count for ${fixture.label} must be ${fixture.expected_widen_count}`);
+    assert.equal(composed.narrowCount, fixture.expected_narrow_count,
+      `narrow count for ${fixture.label} must be ${fixture.expected_narrow_count}`);
+  }
+});
+
+test('autonomyFacts refuses an entry with an unknown direction', () => {
+  // The pane refuses to render an entry whose direction is not
+  // `widen` or `narrow`, because the equal-prominence discipline
+  // depends on every entry carrying a direction word the reader can
+  // compare. A future change that accepted an unknown direction
+  // would render a row whose pill carries no class and whose
+  // colour defaults to the surrounding text — the row would
+  // disappear into the page.
+  const result = autonomyFacts(true, 200, {
+    data: {
+      entries: [
+        { id: 'au_x', direction: 'sideways', at: '2026-08-04T12:00:00Z', warrant_id: 'wrt_x', bound: 'tool:read' },
+      ],
+    },
+  });
+  assert.equal(result.readable, false);
+  assert.match(result.formatError, /unknown direction/);
+});
+
+test('autonomyFacts refuses an entry whose body is not an object', () => {
+  const result = autonomyFacts(true, 200, {
+    data: { entries: [null, { id: 'au_x', direction: 'widen', at: '2026-08-04T12:00:00Z', warrant_id: 'wrt_x', bound: 'tool:read' }] },
+  });
+  assert.equal(result.readable, false);
+});
+
+test('the autonomy pane is hidden by default and visible only when the operator clicks it', async () => {
+  const app = await openAutonomy({
+    ledger: { status: 200, body: { data: autonomyFixtures.ledgers[0].ledger } },
+  });
+  assert.equal(app.el('autonomy').hidden, false);
+  assert.equal(app.el('queue').hidden, true);
+  assert.equal(app.el('summary').hidden, true);
+  assert.equal(app.el('audit').hidden, true);
+  assert.equal(app.el('fleet').hidden, true);
+  assert.equal(app.el('incidents').hidden, true);
+  assert.equal(app.el('policy').hidden, true);
+  assert.equal(app.el('executive').hidden, true);
+});
+
+test('the autonomy pane renders BOTH widening and narrowing counts in the headline', async () => {
+  // The headline sentence names both counts in the same line. A
+  // future regression that rendered only one direction's count
+  // would be the growth chart the discipline is meant to prevent.
+  // The balanced ledger has 2 widening and 2 narrowing; the test
+  // pins the exact sentence.
+  const app = await openAutonomy({
+    ledger: { status: 200, body: { data: autonomyFixtures.ledgers[0].ledger } },
+  });
+  const summary = textOf(app.el('autonomy-summary'));
+  assert.match(summary, /2 widening and 2 narrowing/);
+});
+
+test('the autonomy pane renders narrowing with the same shape and prominence as widening', async () => {
+  // Step 4 of the plan: narrowing renders with equal prominence.
+  // The test pins that narrowing rows have a `pill-narrow` class
+  // and that the row carries the trigger and receipts paragraphs.
+  // A future stylesheet change that hid the narrow pill or that
+  // collapsed the row into a different shape would be caught here
+  // by the class check.
+  const app = await openAutonomy({
+    ledger: { status: 200, body: { data: autonomyFixtures.ledgers[0].ledger } },
+  });
+  const entries = app.el('autonomy-entries').children;
+  assert.equal(entries.length, 4, 'four entries expected in the balanced ledger');
+  // Sort the entries by their date so the test is order-independent.
+  const sorted = entries.slice().sort((a, b) => {
+    const aDate = a.children.find((c) => c.className === 'autonomy-row-date')?.textContent ?? '';
+    const bDate = b.children.find((c) => c.className === 'autonomy-row-date')?.textContent ?? '';
+    if (aDate < bDate) return -1;
+    if (aDate > bDate) return 1;
+    return 0;
+  });
+  // First and third rows by date are widening; second and fourth are narrowing.
+  for (const row of sorted) {
+    const pill = row.children.find((c) => c.className === 'autonomy-row-pill')?.children?.[0];
+    assert.ok(pill, 'every row must carry a direction pill');
+    assert.ok(pill.className.includes('pill-widen') || pill.className.includes('pill-narrow'),
+      `pill class must be pill-widen or pill-narrow (got ${pill.className})`);
+  }
+  // Confirm the narrowing rows carry the trigger paragraph and the
+  // widening rows carry the narrowing-path paragraph.
+  for (const row of sorted) {
+    const isWiden = row.children.find((c) => c.className === 'autonomy-row-pill')
+      ?.children?.[0]?.className.includes('pill-widen');
+    const hasNarrowingPath = row.children.some((c) => c.className === 'autonomy-row-narrowing-path');
+    const hasTrigger = row.children.some((c) => c.className === 'autonomy-row-trigger');
+    if (isWiden) {
+      assert.ok(hasNarrowingPath, 'a widening row must carry its narrowing path');
+    } else {
+      assert.ok(hasTrigger, 'a narrowing row must carry its trigger incident');
+    }
+  }
+});
+
+test('the autonomy pane sorts entries chronologically and never groups widening first', async () => {
+  // The pane sorts by date and interleaves widening and narrowing.
+  // A future change that grouped widening first would render the
+  // growth chart. The balanced ledger has dates 08-04, 08-09, 08-15,
+  // 08-22 in chronological order, with widening on 08-04 and 08-15
+  // and narrowing on 08-09 and 08-22. The test pins the order.
+  const app = await openAutonomy({
+    ledger: { status: 200, body: { data: autonomyFixtures.ledgers[0].ledger } },
+  });
+  const entries = app.el('autonomy-entries').children;
+  const directions = entries.map((row) => {
+    const pill = row.children.find((c) => c.className === 'autonomy-row-pill')?.children?.[0];
+    return pill?.className.includes('pill-widen') ? 'widen' : 'narrow';
+  });
+  assert.deepEqual(directions, ['widen', 'narrow', 'widen', 'narrow'],
+    'entries must be chronological, interleaved, never grouped by direction');
+});
+
+test('the autonomy pane shows the unreadable sentence when the feed is unreadable', async () => {
+  const app = await openAutonomy({
+    ledger: { status: 500, body: { data: null } },
+  });
+  assert.equal(app.el('autonomy-error').hidden, false);
+  assert.match(textOf(app.el('autonomy-error')), /could not be read/);
+});
+
+test('the autonomy tab has no digit-key binding in the keyboard switcher', async () => {
+  const app = await openAutonomy();
+  const { SHORTCUTS } = app.module;
+  for (const entry of SHORTCUTS) {
+    if (typeof entry?.keys === 'string' && /^[6-9]$/.test(entry.keys)) {
+      assert.notEqual(
+        entry.action,
+        'autonomy',
+        `digit ${entry.keys} must not be bound to the autonomy view (SHORTCUTS regression)`,
+      );
+    }
+  }
+});
+
+test('every autonomy element id is declared in index.html and stubbed in ELEMENT_IDS', async () => {
+  const autonomyIds = [
+    'view-autonomy', 'autonomy', 'autonomy-headline',
+    'autonomy-summary', 'autonomy-entries',
+    'autonomy-empty', 'autonomy-error', 'autonomy-unreadable',
+  ];
+  for (const id of autonomyIds) {
+    assert.ok(ELEMENT_IDS.includes(id), `autonomy id ${id} must be in ELEMENT_IDS`);
+  }
+  const { readFileSync } = await import('node:fs');
+  const html = readFileSync(
+    path.join(path.dirname(fileURLToPath(import.meta.url)), 'index.html'),
+    'utf8',
+  );
+  for (const id of autonomyIds) {
+    assert.ok(html.includes(`id="${id}"`), `autonomy id ${id} must be in index.html`);
   }
 });
 

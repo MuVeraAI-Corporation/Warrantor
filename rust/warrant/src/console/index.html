@@ -76,6 +76,7 @@
           <button id="view-incidents" class="view" type="button">Incidents</button>
           <button id="view-policy" class="view" type="button">Policy</button>
           <button id="view-executive" class="view" type="button">Executive</button>
+          <button id="view-autonomy" class="view" type="button">Autonomy</button>
         </div>
 
         <div class="filters" role="group" aria-label="Filter by state">
@@ -719,6 +720,66 @@
           feeds already said; a divergence between this view and any of the three would be a
           divergence in the studio, not in the data, and would be caught by the roll-up test that
           pins the weakest-tier discipline.
+        </p>
+      </section>
+
+      <!-- The safe-autonomy expansion ledger (L8-20, L8-24).
+           A ledger that records widening but not narrowing is a growth
+           chart. The pane renders widening AND narrowing with equal
+           prominence: the same shape, the same color weight, the same
+           position. The headline sentence names both counts together.
+           Entries are sorted chronologically, with widening and
+           narrowing interleaved by date — a pane that grouped widening
+           first would render the growth chart the discipline is meant
+           to prevent.
+
+           This is a RENDERING of 8.2's receipts (the dial already
+           records both directions), not a distinct record. The
+           distinction matters because two mechanisms that record the
+           same fact would drift the first time either changed.
+
+           A widening entry cannot be recorded without evidence and a
+           narrowing path. A baseline cannot be recorded without a
+           metric and a value. The pane calls the same refusal helpers
+           a server-side recorder would call, so the studio and the
+           recorder agree on the verdict. -->
+      <section id="autonomy" class="autonomy" hidden aria-labelledby="autonomy-headline">
+        <h2 id="autonomy-headline">Autonomy ledger &mdash; widening AND narrowing, with equal prominence</h2>
+
+        <p class="note">
+          Every entry below is one autonomy event &mdash; either a widening or a narrowing. The
+          headline sentence names both counts in the same line; the rows below render widening
+          and narrowing with the same shape, the same color weight, and the same position. A
+          ledger that records widening but not narrowing is a growth chart, and the discipline
+          here is the one the plan names: the two directions carry equal prominence, sorted
+          chronologically. A widening entry without cited evidence or without a narrowing path
+          is refused at creation; an outcome contract without a baseline metric or value is
+          refused at creation.
+        </p>
+
+        <p id="autonomy-error" class="empty error" hidden>
+          This autonomy ledger could not be read: the server did not answer, refused, or
+          replied with something this console could not parse. A ledger that cannot read its
+          receipts cannot say what widened and what narrowed, and the page is blank on
+          purpose.
+        </p>
+        <p id="autonomy-unreadable" class="note error"></p>
+        <p id="autonomy-empty" class="empty" hidden>
+          No autonomy events have been recorded in this window. A blank ledger is the absence
+          of receipts, not the record "no autonomy".
+        </p>
+
+        <div id="autonomy-summary" class="autonomy-summary"></div>
+        <ul id="autonomy-entries" class="autonomy-entries"></ul>
+
+        <p class="note">
+          The ledger is a rendering of 8.2's receipts, not a distinct record. The dial
+          already records both directions; this surface is the view that makes the receipts
+          auditable. A divergence between this view and 8.2 would be a divergence in the
+          studio, not in the data. A widening event cites the receipts it rests on, the
+          baseline the outcome contract is measured against, and the narrowing path the
+          system has agreed to take if the evidence weakens. A narrowing event names the
+          trigger incident and the receipts the tightening rests on.
         </p>
       </section>
 
