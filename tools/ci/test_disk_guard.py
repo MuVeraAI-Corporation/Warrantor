@@ -33,6 +33,21 @@ def test_require_refuses_a_floor_no_disk_can_meet() -> None:
     assert "::error::" in out.stderr
 
 
+def test_require_commit_passes_for_a_floor_below_what_is_available() -> None:
+    out = run("--require-commit", "0.001")
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert "OK" in out.stdout or "SKIPPED" in out.stdout
+
+
+@pytest.mark.skipif(os.name != "nt", reason="commit charge is read from the Windows kernel")
+def test_require_commit_refuses_a_floor_no_machine_can_meet() -> None:
+    """The refusal half, with the 0xc000012d hint so the operator knows what would have died."""
+    out = run("--require-commit", "999999999")
+    assert out.returncode == 1, out.stdout + out.stderr
+    assert "REFUSE" in out.stdout
+    assert "0xc000012d" in out.stderr
+
+
 def test_list_reports_a_count_and_never_crashes() -> None:
     out = run("--list")
     assert out.returncode == 0, out.stdout + out.stderr

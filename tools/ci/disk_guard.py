@@ -8,12 +8,18 @@ a workflow runs `--require` before fanning out and does not fan out when it fail
 produces the one deletion script that has actually worked here, so nobody hand-writes another.
 
     python tools/ci/disk_guard.py --require 200        # exit 1 unless >= 200 GB free on the repo drive
+    python tools/ci/disk_guard.py --require-commit 24  # exit 1 unless >= 24 GB of commit charge is free
     python tools/ci/disk_guard.py --list [--sizes]      # every *-target dir and worktree; sizes are slow
     python tools/ci/disk_guard.py --sweep-plan 6 --out M:/sweep.ps1   # delete target dirs idle > 6 h
 
 A build tree here is 11-17 GB measured. With N concurrent lanes the floor is N*20 GB plus a margin;
 for six lanes that is about 220 GB. A per-lane check of "40 GB free at my start" is worth nothing
 when five other lanes are building at the same moment, which is the mistake this replaces.
+
+The second ceiling is memory. On 2026-09-06 a gate on a tree with 300 GB of disk free died with
+`os error 1455` and rustc exit 0xc000012d, the Windows commit limit: 94 of 111 GB of commit charge
+was held by other processes. An unthrottled rustc wants 20 GB or more; `--require-commit` refuses
+the wave before that, and every lane sets CARGO_BUILD_JOBS=2 so it fits in what is left.
 """
 from __future__ import annotations
 
@@ -34,6 +40,28 @@ GB = 1024 ** 3
 
 def free_gb() -> float:
     return shutil.disk_usage(DRIVE_ROOT).free / GB
+
+
+def available_commit_gb() -> float | None:
+    """Commit charge still available (page file + RAM), the figure rustc exhausts. None off Windows."""
+    if os.name != "nt":
+        return None
+    import ctypes
+
+    class MemoryStatusEx(ctypes.Structure):
+        _fields_ = [
+            ("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
+            ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
+            ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
+            ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
+            ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+        ]
+
+    status = MemoryStatusEx()
+    status.dwLength = ctypes.sizeof(status)
+    if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+        return None
+    return status.ullAvailPageFile / GB
 
 
 def newest_mtime(path: Path, depth: int = 2) -> float:
@@ -90,6 +118,24 @@ def cmd_require(need_gb: float) -> int:
         print(
             f"::error::disk guard: {have:.1f} GB free is below the {need_gb:.0f} GB floor; "
             "do not start a build wave. Run --list to see what is holding it.",
+            file=sys.stderr,
+        )
+        return 1
+    return 0
+
+
+def cmd_require_commit(need_gb: float) -> int:
+    have = available_commit_gb()
+    if have is None:
+        print(f"disk guard: commit charge is not measurable here; require {need_gb:.0f} GB -> SKIPPED")
+        return 0
+    ok = have >= need_gb
+    verdict = "OK" if ok else "REFUSE"
+    print(f"disk guard: {have:.1f} GB of commit charge available, require {need_gb:.0f} GB -> {verdict}")
+    if not ok:
+        print(
+            f"::error::disk guard: {have:.1f} GB of commit charge is below the {need_gb:.0f} GB floor; "
+            "rustc will die with 0xc000012d. Close sessions or plugins, or lower the lane count.",
             file=sys.stderr,
         )
         return 1
@@ -172,6 +218,7 @@ def cmd_sweep_plan(idle_hours: float, out: Path | None) -> int:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--require", type=float, metavar="GB")
+    ap.add_argument("--require-commit", type=float, metavar="GB")
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--sizes", action="store_true")
     ap.add_argument("--sweep-plan", type=float, metavar="IDLE_HOURS")
@@ -179,6 +226,8 @@ def main() -> int:
     a = ap.parse_args()
     if a.require is not None:
         return cmd_require(a.require)
+    if a.require_commit is not None:
+        return cmd_require_commit(a.require_commit)
     if a.list:
         return cmd_list(a.sizes)
     if a.sweep_plan is not None:
