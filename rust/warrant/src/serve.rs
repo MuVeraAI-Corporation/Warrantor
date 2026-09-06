@@ -139,7 +139,7 @@ use crate::spend::{self, SpendError, SpendStore};
 use crate::staging::{EffectRegistry, StagedEffect, StagingQueue};
 use crate::stop::{self, OsProcessControl, StopError, StopStore};
 use crate::store::{StoredWarrant, WarrantStore};
-use crate::{bound_strengths, WarrantError, WarrantState};
+use crate::{bound_strengths, WarrantBounds, WarrantError, WarrantState};
 
 // ── status codes ──────────────────────────────────────────────────────────────────────
 
@@ -2710,9 +2710,11 @@ impl EffectPerformer for NoAdapter {
     }
 }
 
-/// The performer a server uses when its caller configured none.
+/// The performer a server uses when its caller configured none. Takes the bounds for signature
+/// compatibility with a configured performer factory; it performs nothing either way.
 #[must_use]
-pub fn no_adapter() -> Box<dyn EffectPerformer> {
+pub fn no_adapter(bounds: &WarrantBounds) -> Box<dyn EffectPerformer> {
+    let _ = bounds;
     Box::new(NoAdapter)
 }
 
@@ -2734,7 +2736,7 @@ pub struct StoreApi {
     root: PathBuf,
     issuer: SigningKey,
     settle_key: Option<SigningKey>,
-    performer: fn() -> Box<dyn EffectPerformer>,
+    performer: fn(&WarrantBounds) -> Box<dyn EffectPerformer>,
     notifier: Notifier,
     now: fn() -> u64,
 }
@@ -2771,7 +2773,7 @@ impl StoreApi {
         root: PathBuf,
         issuer: SigningKey,
         settle_key: Option<SigningKey>,
-        performer: fn() -> Box<dyn EffectPerformer>,
+        performer: fn(&WarrantBounds) -> Box<dyn EffectPerformer>,
         now: fn() -> u64,
     ) -> Self {
         Self {
@@ -3694,7 +3696,9 @@ impl Api for StoreApi {
             stops.contained_scopes(id),
             now,
         );
-        let mut inner = (self.performer)();
+        // The performer is built per request with the warrant's own bounds, so any routed
+        // performer inside it sees the catalog this warrant grants and no other.
+        let mut inner = (self.performer)(&stored.warrant.claims.bounds);
         let mut performer = EvidencedPerformer::new(inner.as_mut(), witness, &mut receipt_log);
         let report = match settle(
             &mut stored.warrant,

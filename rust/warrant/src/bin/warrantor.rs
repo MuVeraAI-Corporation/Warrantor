@@ -2491,6 +2491,75 @@ impl warrantor_warrant::adapters::github::GitHubTransport for HttpsGitHub {
     }
 }
 
+/// A real HTTPS transport for the governed HTTP call. Built exactly like [`HttpsGitHub`]: both
+/// timeouts set, redirects refused (a redirect would carry the bearer somewhere the catalog did
+/// not name), status reported and body digested by the adapter rather than echoed.
+struct HttpsTransport {
+    agent: ureq::Agent,
+}
+
+impl warrantor_warrant::adapters::http::HttpTransport for HttpsTransport {
+    fn send(
+        &mut self,
+        request: &warrantor_warrant::adapters::http::HttpRequest,
+    ) -> Result<warrantor_warrant::adapters::http::HttpResponse, String> {
+        use std::io::Read;
+        let mut req = self
+            .agent
+            .request(&request.method, &request.url)
+            .set("user-agent", "warrantor");
+        if let Some(bearer) = &request.bearer {
+            req = req.set("authorization", &format!("Bearer {bearer}"));
+        }
+        let sent = match &request.body {
+            Some(body) => req
+                .set("content-type", "application/json")
+                .send_string(body),
+            None => req.call(),
+        };
+        match sent {
+            Ok(response) | Err(ureq::Error::Status(_, response)) => {
+                let status = response.status();
+                let mut body = Vec::new();
+                response
+                    .into_reader()
+                    .take(8 * 1024 * 1024)
+                    .read_to_end(&mut body)
+                    .map_err(|e| format!("read response: {e}"))?;
+                Ok(warrantor_warrant::adapters::http::HttpResponse { status, body })
+            }
+            Err(other) => Err(format!("the request failed before a response: {other}")),
+        }
+    }
+}
+
+/// Routes each staged effect to the adapter that performs it.
+struct RoutedPerformer {
+    http: warrantor_warrant::adapters::http::HttpAdapter<HttpsTransport>,
+    other: Box<dyn EffectPerformer>,
+}
+
+impl EffectPerformer for RoutedPerformer {
+    fn perform(
+        &mut self,
+        effect: &StagedEffect,
+        resolved: &BTreeMap<String, String>,
+    ) -> Result<String, String> {
+        if effect.tool == warrantor_warrant::adapters::http::TOOL {
+            self.http.perform(effect, resolved)
+        } else {
+            self.other.perform(effect, resolved)
+        }
+    }
+}
+
+fn millis_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
 // ── the guard's transport ─────────────────────────────────────────────────────────────
 
 /// A real HTTP transport for a loopback ollama-compatible daemon.
@@ -3065,8 +3134,9 @@ fn build_guard(args: &Args, warrant_id: &str, root: &Path) -> Option<Box<dyn gua
     Some(Box::new(adapter))
 }
 
-/// Build the performer for a settle: the real adapter when configured, an honest refusal otherwise.
-fn build_performer() -> Box<dyn EffectPerformer> {
+/// The GitHub half of the settle performer, unchanged from when it was the whole performer:
+/// the real adapter when configured, an honest refusal otherwise.
+fn build_github_performer() -> Box<dyn EffectPerformer> {
     let Ok(slug) = std::env::var("WARRANTOR_GITHUB_REPO") else {
         return Box::new(NoAdapter {
             reason: "set WARRANTOR_GITHUB_REPO=owner/repo to enable the GitHub adapter".to_string(),
@@ -3093,6 +3163,42 @@ fn build_performer() -> Box<dyn EffectPerformer> {
         owner,
         repo,
     ))
+}
+
+/// Build the performer for a settle: HTTP over the warrant's own catalog, GitHub when
+/// configured, an honest refusal otherwise.
+fn build_performer(bounds: &WarrantBounds) -> RoutedPerformer {
+    let broker = warrantor_warrant::egress::EgressBroker::for_bounds(bounds);
+    let catalog = broker
+        .catalog()
+        .cloned()
+        .unwrap_or(warrantor_egress::DestinationCatalog {
+            version: warrantor_warrant::egress::CATALOG_VERSION.to_string(),
+            entries: Vec::new(),
+            digest: String::new(),
+            signature: None,
+        });
+    let agent = ureq::AgentBuilder::new()
+        .timeout_connect(std::time::Duration::from_secs(5))
+        .timeout(std::time::Duration::from_secs(30))
+        .redirects(0)
+        .build();
+    let mut http = warrantor_warrant::adapters::http::HttpAdapter::new(
+        HttpsTransport { agent },
+        catalog,
+        Box::new(millis_now),
+    );
+    // Bearer tokens per logical endpoint: WARRANTOR_HTTP_BEARER_<ENDPOINT> with '.', '-'
+    // and ':' written as '_'. Read here, in the settling process; the agent never ran in it.
+    for (key, value) in std::env::vars() {
+        if let Some(endpoint) = key.strip_prefix("WARRANTOR_HTTP_BEARER_") {
+            http = http.with_bearer(&endpoint.to_ascii_lowercase(), &value);
+        }
+    }
+    RoutedPerformer {
+        http,
+        other: build_github_performer(),
+    }
 }
 
 fn print_settle_report(report: &SettleReport) {
@@ -3217,8 +3323,8 @@ fn cmd_settle(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         contained,
         now(),
     );
-    let mut inner = build_performer();
-    let mut performer = EvidencedPerformer::new(inner.as_mut(), witness, &mut receipt_log);
+    let mut inner = build_performer(&stored.warrant.claims.bounds);
+    let mut performer = EvidencedPerformer::new(&mut inner, witness, &mut receipt_log);
     let outcome = settle(
         &mut stored.warrant,
         &queue,
@@ -3234,6 +3340,40 @@ fn cmd_settle(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     match outcome {
         Ok(report) => {
             print_settle_report(&report);
+            // The HTTP timing records, one line each, next to the staged log. Written after the
+            // report is printed and before the save, so a failed write is visible and the warrant
+            // state is not saved over an unrecorded call.
+            if !inner.http.records().is_empty() {
+                let dir = store.root().join("http-calls");
+                if let Err(e) = std::fs::create_dir_all(&dir) {
+                    return fail(&format!("create {}: {e}", dir.display()));
+                }
+                let path = dir.join(format!("{id}.jsonl"));
+                let mut lines = String::new();
+                for record in inner.http.records() {
+                    match serde_json::to_string(record) {
+                        Ok(line) => {
+                            lines.push_str(&line);
+                            lines.push('\n');
+                        }
+                        Err(e) => return fail(&format!("encode http-call record: {e}")),
+                    }
+                }
+                if let Err(e) = std::fs::write(&path, lines) {
+                    return fail(&format!("write {}: {e}", path.display()));
+                }
+                for record in inner.http.records() {
+                    println!(
+                        "  http        {} {} {} -> {} in {} ms ({})",
+                        record.method,
+                        record.logical_endpoint,
+                        record.path,
+                        record.status,
+                        record.finished_at_ms.saturating_sub(record.started_at_ms),
+                        record.response_digest
+                    );
+                }
+            }
             // Only when there is something to point at. A settle with nothing staged, or one whose
             // every effect was refused at the notary gate before a receipt could be written, has
             // an empty log and no path worth printing -- and print_settle_report has already said
@@ -5871,7 +6011,8 @@ fn cmd_serve(args: &Args, store: WarrantStore, root: &Path, open_browser: bool) 
         root.to_path_buf(),
         issuer,
         settle_key,
-        build_performer,
+        |bounds: &WarrantBounds| Box::new(build_performer(bounds))
+            as Box<dyn EffectPerformer>,
         now,
     )
     .with_notifier(notify_event);
