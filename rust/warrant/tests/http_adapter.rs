@@ -57,3 +57,91 @@ fn a_warrant_with_no_egress_publishes_an_empty_capability_enum() {
     let schema = tool_spec(&broker).input_schema;
     assert_eq!(schema["properties"][ARG_CAPABILITY]["enum"], Value::Array(vec![]));
 }
+
+use std::collections::BTreeMap;
+use warrantor_warrant::adapters::http::capability_refusal;
+use warrantor_warrant::egress::DenyReason;
+use warrantor_warrant::proxy::{Decision, Proxy, ProxyMode, ToolCall};
+use warrantor_warrant::staging::EffectRegistry;
+
+fn args(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
+    pairs.iter().map(|(k, v)| ((*k).to_string(), (*v).to_string())).collect()
+}
+
+fn call(pairs: &[(&str, &str)]) -> ToolCall {
+    ToolCall { tool: TOOL.to_string(), arguments: args(pairs), side_effect: SideEffectClass::Write }
+}
+
+fn proxy(hosts: &[&str]) -> Proxy {
+    Proxy::new(bounds(hosts), ProxyMode::Enforce, EffectRegistry::builtin())
+}
+
+/// A capability the catalog does not hold is refused under the egress bound, and the refusal
+/// names the argument and the reason, so the report can count it.
+#[test]
+fn an_uncataloged_capability_is_refused_and_recorded() {
+    let mut proxy = proxy(&["api.github.com"]);
+    let decision = proxy.decide(&call(&[
+        (ARG_CAPABILITY, &capability_for("evil.example.com")),
+        (ARG_METHOD, "GET"),
+        (ARG_PATH, "/"),
+        (ARG_DATA_CLASS, "public"),
+    ]));
+    assert!(matches!(decision, Decision::Deny { bound: "egress_hosts", .. }), "{decision:?}");
+    let refusal = proxy.egress_refusals();
+    assert_eq!(refusal.len(), 1);
+    assert_eq!(refusal[0].argument, ARG_CAPABILITY);
+    assert_eq!(refusal[0].reason, DenyReason::NotInCatalog);
+}
+
+/// A raw address in the capability field -- a URL, a host, an IP -- is not a capability.
+#[test]
+fn a_raw_address_in_the_capability_field_is_refused_as_not_a_capability() {
+    for raw in ["https://api.github.com/zen", "api.github.com", "203.0.113.9"] {
+        let mut proxy = proxy(&["api.github.com"]);
+        let decision = proxy.decide(&call(&[
+            (ARG_CAPABILITY, raw),
+            (ARG_METHOD, "GET"),
+            (ARG_PATH, "/"),
+            (ARG_DATA_CLASS, "public"),
+        ]));
+        assert!(matches!(decision, Decision::Deny { .. }), "{raw}: {decision:?}");
+        assert_eq!(proxy.egress_refusals()[0].reason, DenyReason::NotACapability, "{raw}");
+    }
+}
+
+/// The schema has no `url`; if a client sends one anyway, the existing destination scan still
+/// decides it -- and the cataloged capability does not launder the extra host.
+#[test]
+fn a_smuggled_url_argument_is_still_decided_by_the_destination_scan() {
+    let mut proxy = proxy(&["api.github.com"]);
+    let decision = proxy.decide(&call(&[
+        (ARG_CAPABILITY, &capability_for("api.github.com")),
+        (ARG_METHOD, "GET"),
+        (ARG_PATH, "/"),
+        (ARG_DATA_CLASS, "public"),
+        ("url", "https://evil.example.com/x"),
+    ]));
+    assert!(matches!(decision, Decision::Deny { bound: "egress_hosts", .. }), "{decision:?}");
+}
+
+/// A permitted capability stages: the agent gets a handle and nothing goes over the wire.
+#[test]
+fn a_cataloged_capability_stages_the_call() {
+    let mut proxy = proxy(&["api.github.com"]);
+    let decision = proxy.decide(&call(&[
+        (ARG_CAPABILITY, &capability_for("api.github.com")),
+        (ARG_METHOD, "GET"),
+        (ARG_PATH, "/zen"),
+        (ARG_DATA_CLASS, "public"),
+    ]));
+    assert!(matches!(decision, Decision::Stage { .. }), "{decision:?}");
+    assert!(proxy.egress_refusals().is_empty());
+}
+
+#[test]
+fn capability_refusal_ignores_other_tools() {
+    let broker = EgressBroker::for_bounds(&bounds(&[]));
+    let other = ToolCall { tool: "git".to_string(), arguments: args(&[]), side_effect: SideEffectClass::Read };
+    assert!(capability_refusal(&other, &broker).is_none());
+}

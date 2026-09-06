@@ -20,8 +20,43 @@ use serde_json::json;
 use sha2::{Digest, Sha256};
 use warrantor_egress as broker;
 
-use crate::egress::EgressBroker;
+use crate::egress::{EgressBroker, EGRESS_CAPABILITY_PREFIX};
 use crate::mcp::ToolSpec;
+
+/// The proxy's check for this tool: decide the named capability through the broker.
+///
+/// Returns the refusal to record, or `None` for any other tool and for a permitted capability.
+/// A missing `capability` argument is a raw (empty) destination and is refused, never skipped —
+/// the same fail-closed reading [`crate::egress::destinations_of`] gives an unresolvable
+/// destination argument.
+#[must_use]
+pub fn capability_refusal(
+    call: &crate::proxy::ToolCall,
+    broker: &EgressBroker,
+) -> Option<crate::egress::EgressRefusal> {
+    if call.tool != TOOL {
+        return None;
+    }
+    let named = call
+        .arguments
+        .get(ARG_CAPABILITY)
+        .cloned()
+        .unwrap_or_default();
+    match broker.decide_capability(&named) {
+        broker::EgressVerdict::Allow { .. } => None,
+        broker::EgressVerdict::Deny { reason } => Some(crate::egress::EgressRefusal {
+            tool: TOOL.to_string(),
+            argument: ARG_CAPABILITY.to_string(),
+            destination: named
+                .strip_prefix(EGRESS_CAPABILITY_PREFIX)
+                .unwrap_or(&named)
+                .to_string(),
+            capability: named,
+            reason,
+            count: 1,
+        }),
+    }
+}
 
 /// The tool name the agent calls.
 pub const TOOL: &str = "http.call";

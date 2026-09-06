@@ -405,6 +405,12 @@ impl Proxy {
         //
         // This changes WHICH decision is made and how it is explained. It does not change WHERE it
         // is made: a call that never reaches this proxy is not decided here or anywhere.
+        //
+        // The governed HTTP call names a capability, not a host, so the destination scan below
+        // cannot see it. Decide the capability first, through the same broker.
+        if let Some(refusal) = crate::adapters::http::capability_refusal(call, &self.egress) {
+            return self.deny_egress(&call.tool, refusal);
+        }
         for destination in crate::egress::destinations_of(call) {
             let verdict = self.egress.decide(&destination.host);
             self.pending.push(PendingDecision {
