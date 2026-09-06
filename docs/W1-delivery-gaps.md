@@ -926,6 +926,21 @@ already minted live up to `CAPABILITY_TTL_SECONDS`; `stop --family` reaches warr
 store only — "across every cluster" in L4-08's gate is Phase 3's federation, not this task. The
 Linux drill numbers come from CI's ubuntu runner, where the same drill runs in the workspace suite.
 
+### 3.1d The call ceiling is refused at the proxy — **built from a live run; cents stay observed**
+
+What is metered: tool calls that traverse the Warrantor MCP proxy. The ceiling lives in the signed
+claims (`max_tool_calls`, absent = zero, delegable only downward), the proxy refuses the call that
+would exceed it before forwarding or staging, the count persists in `<root>/spend/<id>.calls.json`
+across sessions, and each refusal leaves a notary receipt at `Verdict::Deny { gate: Budget }`,
+`EnforcementMode::Mediated`. Live run: a warrant at `--max-calls 100` took 100 forwarded
+`selftest.echo` calls and refused the 101st with `refused by the warrant's budget_calls_mediated
+bound: this warrant's tool-call ceiling of 100 is reached`; the ledger read `100 used, 1 refused`,
+and the refusal surfaced at `/v1/summary/refusals` under bound `budget_calls_mediated`. The tier
+is Mediated — the proxy is a chokepoint, not a sandbox, and the sandbox profile reports the bound
+as a gap because a sandbox cannot tell one tool call from another. The residual, verbatim from
+L3-03: "spend on resources the broker does not meter remains observed" — `budget_cents_observed`
+stays Observed and was not touched by this task.
+
 ### 3.2 Notifications — **closed 2026-08-17**
 
 **What exists:** `notify.json` in the store root names webhook destinations (optionally with an

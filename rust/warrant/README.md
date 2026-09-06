@@ -43,10 +43,12 @@ field — there is no message it can send that widens its own authority. Over MC
 are not merely denied on the agent endpoint; they are absent from `tools/list`, so there is no name
 to call.
 
-**Every limit reports whether it is *enforced* or only *observed*.** Tools, write paths, egress and
-deadline are enforced — the system refuses. Budget is observed, because model API calls do not pass
-through this crate, so a spend ceiling is a measurement rather than a wall. `bound_strengths()`
-returns which is which. A limit you believe in that does not hold is worse than no limit.
+**Every limit reports how it is held.** Write paths and the cents budget are observed — nothing
+refuses an out-of-bounds write at the moment it happens, and model API calls never pass through
+this crate, so a spend ceiling is a measurement rather than a wall. The tool-call ceiling
+(`budget_calls_mediated`) is mediated: the proxy refuses the call that would exceed it before
+forwarding it. `bound_strengths()` returns which is which, and the generated table below is
+tested against it. A limit you believe in that does not hold is worse than no limit.
 
 <!-- bound-tiers:begin -->
 | Bound | Tier | What the tier does not cover |
