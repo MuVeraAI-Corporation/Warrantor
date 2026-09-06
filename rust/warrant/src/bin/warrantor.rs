@@ -4736,7 +4736,7 @@ fn cmd_scorer(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     println!();
 
     // The monitor. Only with a threshold registered beforehand: there is no default rate, because a
-    // number chosen at read time is a rationalisation rather than a registration.
+    // number chosen at read time is a rationalization rather than a registration.
     match scorer::read_threshold(root) {
         Err(e) => return fail(&e.to_string()),
         Ok(None) => {

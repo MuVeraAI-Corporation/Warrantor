@@ -195,7 +195,7 @@ pub fn isolation(
     store_root: &Path,
     worktree: &Path,
 ) -> Vec<Property> {
-    let store_inside_worktree = normalise(store_root).starts_with(&normalise(worktree));
+    let store_inside_worktree = normalize(store_root).starts_with(&normalize(worktree));
 
     let inputs = match (confinement, store_inside_worktree) {
         (Some(kind), false) => Property {
@@ -301,7 +301,7 @@ pub fn isolation(
 }
 
 /// Compare two paths without caring about separators or case on Windows.
-fn normalise(path: &Path) -> String {
+fn normalize(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/").to_lowercase()
 }
 
@@ -453,7 +453,7 @@ pub enum ScorerError {
         "run {run_at} started before the threshold was registered at {registered_at}, so this \
          threshold cannot be applied to it. L11-12's whole point is that the threshold is \
          registered BEFORE the run and never tuned after; a threshold chosen once the traces are in \
-         is a rationalisation with a number on it."
+         is a rationalization with a number on it."
     )]
     ThresholdRegisteredAfterTheRun {
         /// The offending run's start.
@@ -522,7 +522,7 @@ pub fn register_threshold(
             .map_err(|e| ScorerError::Io(format!("cannot create {}: {e}", parent.display())))?;
     }
     let body = serde_json::to_vec_pretty(&threshold)
-        .map_err(|e| ScorerError::Io(format!("cannot serialise the threshold: {e}")))?;
+        .map_err(|e| ScorerError::Io(format!("cannot serialize the threshold: {e}")))?;
     std::fs::write(&path, &body)
         .map_err(|e| ScorerError::Io(format!("cannot write {}: {e}", path.display())))?;
     Ok(threshold)
@@ -639,7 +639,7 @@ pub fn trend_checked(
 ///
 /// [`crate::corpus`] turns a settle or a void into a training label. So the party holding
 /// `Scope::Settle` is the party whose decision *becomes* the label — and an escalation that fell
-/// back to them would be telling the labeller that its own label is the suspect one. There is no
+/// back to them would be telling the labeler that its own label is the suspect one. There is no
 /// silent fallback: with no such operator registered this refuses.
 ///
 /// # Errors
@@ -683,7 +683,7 @@ pub fn escalate(
             .map_err(|e| ScorerError::Io(format!("cannot create {}: {e}", parent.display())))?;
     }
     let mut line = serde_json::to_string(&escalation)
-        .map_err(|e| ScorerError::Io(format!("cannot serialise the escalation: {e}")))?;
+        .map_err(|e| ScorerError::Io(format!("cannot serialize the escalation: {e}")))?;
     line.push('\n');
     use std::io::Write;
     let mut file = std::fs::OpenOptions::new()

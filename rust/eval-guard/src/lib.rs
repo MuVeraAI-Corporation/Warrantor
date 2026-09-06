@@ -212,7 +212,7 @@ pub struct SandboxAttestation {
     /// When the attestation was produced (epoch seconds). Binds the signature to a point in time
     /// so a captured attestation cannot be replayed indefinitely (C3).
     pub timestamp: u64,
-    /// Where the four booleans came from. Participates in the signed bytes, so relabelling a
+    /// Where the four booleans came from. Participates in the signed bytes, so relabeling a
     /// measured attestation as an asserted one -- or the reverse -- invalidates the signature.
     pub provenance: Provenance,
     /// The 64-byte Ed25519 signature over the canonical encoding of
@@ -480,7 +480,7 @@ mod tests {
                 verify_attestation(&relabelled),
                 Err(EvalGuardError::SignatureInvalid)
             ),
-            "relabelling a measured attestation as asserted must invalidate it; otherwise the \
+            "relabeling a measured attestation as asserted must invalidate it; otherwise the \
              provenance field is a comment beside the signature rather than part of it",
         );
     }

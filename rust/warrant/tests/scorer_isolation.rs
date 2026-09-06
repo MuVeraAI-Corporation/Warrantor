@@ -13,7 +13,7 @@
 //! test named `the_agent_cannot_write_the_scorer` would be a claim this repository cannot make.
 //! Every name below says which of the two it is.
 //!
-//! # Boundary against the two neighbouring tasks
+//! # Boundary against the two neighboring tasks
 //!
 //! Task 5.3 owns the evidence-integrity adversary: forging, suppressing, replaying and racing the
 //! receipt chain. Nothing here attacks the receipt graph, and if the isolation record built here can
@@ -355,7 +355,7 @@ fn a_principal_without_settle_scope_cannot_produce_the_state_that_becomes_a_labe
     // The gameable surface is not the grader's code — it is the state transition. `corpus.rs:194`
     // derives a training label from `WarrantState`: Void -> Some(true), Settled -> Some(false). So
     // the party who can flip a label is the party who holds `Scope::Settle`, and separating that
-    // from `Scope::Approve` is what keeps a reviewer from labelling its own run.
+    // from `Scope::Approve` is what keeps a reviewer from labeling its own run.
     let registry = registry_with(&[
         ("reviewer", &[Scope::Approve]),
         ("releaser", &[Scope::Settle]),
@@ -373,7 +373,7 @@ fn a_principal_without_settle_scope_cannot_produce_the_state_that_becomes_a_labe
     let reviewer = registry.by_name("reviewer").expect("reviewer");
     assert!(
         !reviewer.allows(Scope::Settle),
-        "a reviewer holding Approve must not be able to settle, or approving and labelling are the \
+        "a reviewer holding Approve must not be able to settle, or approving and labeling are the \
          same authority"
     );
     // And the scope it does hold is real, so this is a separation rather than an empty entry.
@@ -499,7 +499,7 @@ fn threshold(rate: f64, registered_at: u64) -> RegisteredThreshold {
 fn an_escalation_is_addressed_to_an_operator_who_cannot_settle_the_warrant_being_graded() {
     // The whole mechanism is in the control. `corpus.rs` turns a settle or a void into a training
     // label, so the party holding Settle is the party whose decision BECOMES the label. An
-    // escalation that silently fell back to them would be telling the labeller that its own label
+    // escalation that silently fell back to them would be telling the labeler that its own label
     // is the suspect one, which is worse than telling nobody.
     let root = tempdir("escalate");
     record_runs(&root, "wrt_probing", &[NOW, NOW + 10]);
@@ -560,7 +560,7 @@ fn a_trend_that_did_not_cross_produces_no_escalation() {
 #[test]
 fn a_threshold_registered_after_the_first_run_is_refused() {
     // L11-12: "the threshold is registered before the run, never tuned after". Ordering is the only
-    // thing that makes a threshold evidence rather than a rationalisation with a number on it.
+    // thing that makes a threshold evidence rather than a rationalization with a number on it.
     let root = tempdir("late-threshold");
     record_runs(&root, "wrt_probing", &[NOW]);
     record_refusals(&root, "wrt_probing", NOW + 20, 9);
@@ -627,7 +627,7 @@ fn an_unreadable_threshold_file_is_an_error_and_never_treated_as_absent() {
     // CONTROL: a well-formed file at the same path reads back, so the error is about the content.
     std::fs::write(
         scorer::threshold_path(&root),
-        serde_json::to_string(&threshold(0.4, NOW)).expect("serialise"),
+        serde_json::to_string(&threshold(0.4, NOW)).expect("serialize"),
     )
     .expect("write");
     assert!((read_rate(&root) - 0.4).abs() < f64::EPSILON);

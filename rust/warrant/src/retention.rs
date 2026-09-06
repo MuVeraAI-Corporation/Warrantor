@@ -260,7 +260,7 @@ impl ArtifactClass {
             Self::Actors => "who settled, voided, stopped or approved each warrant -- hash-chained, and the only place a name is attached to a decision",
             Self::Runs => "when each supervised session started, and whether anything was watching it. The `guard: null` lines are the only positive record that a session ran unwatched",
             Self::Reviews => "which blocker was last announced for each warrant, so a repeated check does not repeatedly notify. Bookkeeping, not evidence",
-            Self::Scorer => "the reward-hacking threshold, registered BEFORE a run and never rewritten, and the escalations that crossing it produced. The threshold's value is its ORDERING against the runs it judges: one chosen after the traces are in is a rationalisation with a number on it",
+            Self::Scorer => "the reward-hacking threshold, registered BEFORE a run and never rewritten, and the escalations that crossing it produced. The threshold's value is its ORDERING against the runs it judges: one chosen after the traces are in is a rationalization with a number on it",
             Self::Witness => {
                 "how far each warrant's staged-effect chain reached, recorded outside the log it                  describes"
             }
