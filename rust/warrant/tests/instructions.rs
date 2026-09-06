@@ -135,6 +135,10 @@ const ACCEPTED_FLAGS: &[&str] = &[
     // has to type rather than something inferred.
     "confined",
     "register-threshold",
+    // `asserted-by` names the operator making the `--confined` assertion, resolved against the
+    // operator registry by `scorer::asserted_by`. It exists because the signed pre-flight named the
+    // warrant being GRADED as the asserting party, which names no party at all.
+    "asserted-by",
     // notify commands
     "allow-notify-command",
     // Task 2.1: upstream tool effect decompositions. `--upstream-effects` and

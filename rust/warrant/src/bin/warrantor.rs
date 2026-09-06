@@ -536,13 +536,14 @@ warrantor — bounded authority for coding agents
   approve <warrant-id>
   queue   [--notify]
   sandbox <warrant-id> [--kind bubblewrap|firejail]
-  scorer  <warrant-id> [--confined [--kind bubblewrap|firejail]]
+  scorer  <warrant-id> [--confined --asserted-by <operator> [--kind bubblewrap|firejail]]
           [--register-threshold RATE]   register the reward-hacking threshold, ONCE, before the run
           what a scored agent can reach of the machinery that scores it: three
           properties with the tier and the party that actually holds each, a
           fail-closed pre-flight over them, and the probing-rate trend against a
           threshold registered beforehand. --confined asserts that you launched a
-          confinement profile; nothing here can check that you did.
+          confinement profile; nothing here can check that you did, so
+          --asserted-by names the registered operator making that assertion.
   agents  list | detect | show <harness>
           | wire <harness> <warrant-id> [--repo .] [--apply] [--replace]
                  [--upstream 'name=command args' ...]
@@ -4680,7 +4681,11 @@ fn cmd_scorer(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         println!("  {line}");
     }
     println!();
-    println!("{}", scorer::ISOLATION_RECORD_CAVEAT);
+    // DERIVED from the record printed above, not written beside it. As a constant this sentence
+    // asserted "the filesystem property is held by an operating system this process cannot
+    // interrogate" underneath the default record, whose own lines two rows up said `observed` and
+    // `held by warrantor`. That is the Task 1.1 / Task 9.1 defect and a reviewer caught it here.
+    println!("{}", scorer::isolation_caveat(&properties));
     println!();
 
     // The pre-flight. `keys/issuer.key` and not the settle key: this signs a statement about the
@@ -4689,7 +4694,47 @@ fn cmd_scorer(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         Ok(key) => key,
         Err(e) => return fail(&e),
     };
-    let asserted_by = format!("operator-at-cli:{id}");
+    // Who asserted the four booleans. This read `operator-at-cli:{id}` -- the id of the warrant being
+    // GRADED, which names no party at all and is the anonymous assertion `Provenance::Asserted`
+    // exists to stop, wearing a prefix. A reviewer caught it.
+    //
+    // Two cases, and the split is the point. `--confined` IS an operator's assertion about a kernel,
+    // so it has to name the operator making it, resolved against the registry that already holds
+    // names. Without `--confined` nothing about a kernel was asserted by anybody: the four booleans
+    // are this command's own reading of the store, and the source names the component rather than
+    // inventing a principal.
+    let asserted_by = match confinement {
+        Some(_) => {
+            let Some(name) = args.flags.get("asserted-by") else {
+                return fail(
+                    "--confined asserts that a confinement profile is in force, and the pre-flight \
+                     signs WHO asserted it. Name a registered operator with --asserted-by <name> \
+                     (`warrantor operator list`). Refusing rather than naming the warrant being \
+                     graded, which is what this printed before: the subject of a grading is not a \
+                     party to it, and a signature over four booleans whose source is unnamed is the \
+                     one case that attestation actively misleads.",
+                );
+            };
+            let registry = match warrantor_warrant::operators::OperatorRegistry::load(root) {
+                Ok(registry) => registry,
+                Err(e) => return fail(&e.to_string()),
+            };
+            match scorer::asserted_by(&registry, name) {
+                Ok(source) => source,
+                Err(e) => return fail(&e.to_string()),
+            }
+        }
+        None => {
+            if args.flags.contains_key("asserted-by") {
+                return fail(
+                    "--asserted-by names the operator asserting a confinement, and without \
+                     --confined no confinement is asserted. Naming a party here would attribute to \
+                     them four booleans this command derived from the store on its own.",
+                );
+            }
+            scorer::NO_CONFINEMENT_ASSERTER.to_string()
+        }
+    };
     match scorer::preflight(&properties, &asserted_by, &key) {
         Ok(attestation) => {
             println!(
@@ -4724,11 +4769,27 @@ fn cmd_scorer(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
                      property means none, never satisfied."
                 ),
             }
+            // The closing line is derived from the boundary that actually failed too. It was a
+            // literal reading "a pre-flight that passed over a property nothing holds would be
+            // signing the gap" -- true of ProcessIsolation and false of the boundary this command
+            // most often refuses on, where the property IS held, at Mediated. A reviewer caught it:
+            // the sentence described a different refusal from the one printed above it.
+            let held = properties
+                .iter()
+                .find(|p| p.name == name)
+                .is_some_and(|p| p.strength.is_some());
             println!(
                 "  This is invariant I-09 firing on the product's own path rather than a wiring \
-                 fault -- a pre-flight that passed over a property nothing holds would be signing \
-                 the gap. See `crate::scorer::preflight` for the whole four-to-three mapping, \
-                 including which of the four is the least comfortable."
+                 fault: {} See `crate::scorer::preflight` for the whole four-to-three mapping, \
+                 including which of the four is the least comfortable.",
+                if held {
+                    "the pre-flight passes only on Enforced, and this property carries a weaker \
+                     tier, so passing here would sign a bound stronger than the one the record \
+                     states."
+                } else {
+                    "a pre-flight that passed over a property NOTHING holds would be signing the \
+                     gap."
+                }
             );
         }
         Err(e) => println!("pre-flight REFUSED — {e}"),
