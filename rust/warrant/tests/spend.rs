@@ -136,8 +136,12 @@ fn the_budget_bound_is_still_observed_after_wiring() {
     );
     assert_eq!(
         bound_strengths().len(),
-        7,
-        "no bound was added or removed by this wiring"
+        8,
+        "no bound was added or removed by this wiring. The number counts bounds and is not a \
+         property of spend: it moved 7 -> 8 when Task 8.1 added `horizon` (L3-04), which is the \
+         only legitimate reason for it to move. What must never move is the assertion above -- if \
+         THAT one fails, the answer is to stop promoting the budget bound, never to edit the \
+         expectation."
     );
 }
 

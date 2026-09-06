@@ -899,14 +899,22 @@ pub fn bound_strengths() -> Vec<(&'static str, BoundStrength)> {
         ("delegation_depth", BoundStrength::Enforced),
         // Parsed from the agent's own usage reporting; defeatable by an agent that does not report.
         ("budget_cents_observed", BoundStrength::Observed),
-        // Two mechanisms, and this entry names the WEAKER of the two because a reader takes the
-        // first word and moves on. The wall-clock and unattended dimensions terminate through the
-        // supervisor's OS process link and are unbypassable while the supervisor is running; the
-        // effect ceiling is refused at the MCP proxy, which sees only what the agent routes through
-        // it. Mediated is the tier the whole bound earns. `horizon::HorizonDimension::strength`
-        // gives the per-dimension answer, and `warrantor horizon` prints it per dimension so the
-        // stronger half is not lost to this row.
-        ("horizon", BoundStrength::Mediated),
+        // THREE dimensions with three different tiers, and this row names the WEAKEST because a
+        // reader takes the first word and moves on:
+        //   max_wall_seconds        Enforced  monotonic elapsed time against a signed issued_at,
+        //                                    terminated through the supervisor's OS process link
+        //   max_effects             Mediated  refused at the MCP proxy, which sees only what the
+        //                                    agent routes through it
+        //   max_unattended_seconds  Observed  the same OS kill, but triggered by a read of an
+        //                                    UNSIGNED actor log that any process able to write the
+        //                                    store root -- the agent included, since write_paths is
+        //                                    enforced nowhere -- can append to and thereby reset
+        // A bound is the weaker of its trigger and its consequence, so `Observed` is what the whole
+        // bound earns. This row said `Mediated` when it was first written, which read the unattended
+        // dimension as Enforced from its kill alone and ignored that its clock is forgeable by the
+        // party it bounds. `horizon::HorizonDimension::strength` gives the per-dimension answer and
+        // `warrantor horizon` prints it, so the Enforced wall ceiling is recoverable, not lost here.
+        ("horizon", BoundStrength::Observed),
     ]
 }
 

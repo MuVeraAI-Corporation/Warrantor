@@ -546,12 +546,17 @@ fn every_bound_declares_the_tier_that_actually_holds_it() {
         ("write_paths", BoundStrength::Observed),
         ("budget_cents_observed", BoundStrength::Observed),
         // The horizon (L3-04) is ONE bound with three mechanisms, so it takes the weakest word.
-        // Two of its dimensions terminate through the OS process link and would earn Enforced on
-        // their own -- `horizon::HorizonDimension::strength` says so per dimension -- but the
-        // effect ceiling is refused at the MCP proxy, and a reader takes the first word and moves
-        // on. Naming the whole bound Enforced here would be the mislabelling this suite exists to
-        // catch.
-        ("horizon", BoundStrength::Mediated),
+        // `max_wall_seconds` earns Enforced on its own -- monotonic elapsed time against a signed
+        // `issued_at`, terminated through the OS process link -- and
+        // `horizon::HorizonDimension::strength` says so per dimension. `max_effects` is Mediated:
+        // refused at the MCP proxy, which sees only what the agent routes through it.
+        // `max_unattended_seconds` is the one that reads weaker than it feels -- it shares the wall
+        // ceiling's Tier A kill, but its TRIGGER is a read of the UNSIGNED actor log, which any
+        // process able to write the store root can append to, and `write_paths` is enforced nowhere,
+        // so the agent is such a process. Weakest of the three is Observed, so that is what the bound
+        // says. This row said `Mediated` when the horizon first landed, from reading the unattended
+        // dimension's kill instead of its clock; that is the mislabel this suite exists to catch.
+        ("horizon", BoundStrength::Observed),
     ];
     for (name, tier) in expected {
         assert_eq!(

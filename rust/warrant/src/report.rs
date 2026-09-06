@@ -386,7 +386,7 @@ pub struct HorizonLine {
     /// Whole percentage of the ceiling consumed, capped at 100.
     pub percent: u8,
     /// The tier THIS dimension's own mechanism earns, which is not always the tier the whole
-    /// `horizon` bound is labelled with in `bound_strengths()`.
+    /// `horizon` bound is labeled with in `bound_strengths()`.
     pub strength: crate::BoundStrength,
     /// What this dimension does not cover.
     pub caveat: String,
@@ -653,6 +653,14 @@ pub struct ReportBundle {
     /// before this field existed stops verifying.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub revocation: Option<RevocationSection>,
+    /// Where this warrant stood against its horizon when the report was built (L3-04). See
+    /// [`HorizonSection`], whose doc states what `None` here asserts and what it does not.
+    ///
+    /// Same `skip_serializing_if` contract as `custody`, and for the same non-negotiable reason: an
+    /// absent section must stay absent through the canonical round trip, or every report signed
+    /// before this field existed stops verifying.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub horizon: Option<HorizonSection>,
     /// Which effects were performed under which receipts. See [`EffectEvidenceSection`]. Same
     /// `skip_serializing_if` reasoning as `custody`: an absent section stays absent through the
     /// digest round trip, so every earlier export keeps verifying.
@@ -821,6 +829,7 @@ fn limitations(
     spend: Option<&SpendSection>,
     custody: Option<&CustodySection>,
     revocation: Option<&RevocationSection>,
+    horizon: Option<&HorizonSection>,
 ) -> Vec<String> {
     // Said whether or not a section is present, because the absence is itself a claim a reader
     // would otherwise fill in wrongly.
@@ -858,6 +867,43 @@ fn limitations(
             section.records
         ),
     };
+    // The horizon (L3-04), stated from the SECTION rather than from the bounds, so a sentence
+    // cannot say "breached" about a warrant whose section says otherwise. Three distinct claims,
+    // and collapsing any two of them would be the defect Rule 2 exists to prevent:
+    //
+    //   None                 -> nobody measured. Says so. Never reads as a pass.
+    //   Some(not declared)   -> measured, and the warrant grants no horizon: its only ceiling on
+    //                           duration is its deadline.
+    //   Some(declared)       -> measured against real ceilings, so the ceilings' own caveat applies,
+    //                           and a breach the section recorded is repeated here verbatim.
+    let horizon_lines: Vec<String> = match horizon {
+        None => vec![
+            "This report does not say where this warrant stood against its horizon: no horizon \
+             state was computed when it was built. That is not a statement that it stayed inside \
+             one."
+                .to_string(),
+        ],
+        Some(section) if !section.declared => vec![format!(
+            "This warrant declares no horizon (L3-04): its only ceiling on how long it may run is \
+             its deadline of {}, and it has no ceiling at all on how many effects it may produce, \
+             nor on how long it may run without a named human. The horizon state reads \"{}\", which \
+             is the absence of a bound and not the satisfaction of one.",
+            stored.warrant.claims.bounds.expires_at, section.verdict_word
+        )],
+        Some(section) => {
+            let mut lines = vec![crate::horizon::EFFECT_COUNT_LIMITATION.to_string()];
+            // Derived from the section's own field, never written beside it.
+            if let Some(breach) = &section.breached {
+                lines.push(format!(
+                    "This warrant reached a horizon ceiling: {breach} What the halt establishes is \
+                     that the supervised process group was terminated through the OS process link; \
+                     it does not establish that the agent had no other route to an effect."
+                ));
+            }
+            lines
+        }
+    };
+
     let mut out = vec![
         "Bounds are declared values. `bound_strengths` says which the system refuses to exceed \
          and which it only measures; an observed bound can be exceeded without this report \
@@ -896,6 +942,7 @@ fn limitations(
          establish that the signing key is trusted; that has to come from somewhere else."
             .to_string(),
     ];
+    out.extend(horizon_lines);
     out.push(custody_line);
     out.push(NO_EFFECT_RECEIPTS_LIMITATION.to_string());
     // Containment is the one gate whose caveat changes with the input, so it is stated from the
@@ -1090,6 +1137,14 @@ pub struct Observed {
     pub custody: Option<CustodySection>,
     /// What the revocation source held, when one was read.
     pub revocation: Option<RevocationSection>,
+    /// What the warrant has actually used against its horizon, when a caller measured it (L3-04).
+    ///
+    /// `None` asserts "no horizon state was computed", exactly as the three fields above do about
+    /// their own sources. It is emphatically **not** "the horizon is satisfied": measuring a horizon
+    /// needs a store root to read the actor log from and a staged count, so a caller with neither
+    /// cannot honestly report where a run stood. [`limitations`] states the difference in words,
+    /// because a reader who is not told will fill it in in the generous direction.
+    pub horizon: Option<crate::horizon::HorizonUsage>,
 }
 
 /// Build the report, honoring containment and carrying whatever the caller observed.
@@ -1115,9 +1170,19 @@ pub fn build_observed(
         spend,
         custody,
         revocation,
+        horizon: horizon_usage,
     } = observed;
     let claims = &stored.warrant.claims;
     let bounds = &claims.bounds;
+
+    // The horizon section (L3-04). Built from the bounds and the usage the caller measured, and only
+    // when it measured one: a section synthesized from bounds alone would report every ceiling as
+    // zero-consumed, which is a pass nobody earned. `horizon_section` itself distinguishes "the
+    // warrant declares none" from "inside its ceilings"; this `Option` distinguishes both of those
+    // from "nobody looked".
+    let horizon = horizon_usage
+        .as_ref()
+        .map(|usage| horizon_section(bounds, usage));
 
     // ── staged effects ───────────────────────────────────────────────────────────────
     let (staged, staged_count, chain_head, staged_tools, queue_available) = match queue {
@@ -1310,10 +1375,12 @@ pub fn build_observed(
             spend.as_ref(),
             custody.as_ref(),
             revocation.as_ref(),
+            horizon.as_ref(),
         ),
         spend,
         custody,
         revocation,
+        horizon,
         effect_evidence: None,
         egress: None,
         staged,

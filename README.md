@@ -70,8 +70,16 @@ in this product collapses them. The table is generated from `bound_strengths()` 
 | `expires_at` | enforced | held by cryptography or the operating system; holds against an agent that tries to route around it |
 | `delegation_depth` | enforced | held by cryptography or the operating system; holds against an agent that tries to route around it |
 | `budget_cents_observed` | observed | measured and reported after the fact; nothing refuses the action as it happens |
-| `horizon` | mediated | held only for calls that traverse the MCP proxy; a shell or a harness built-in reaches past it, and no netns, seccomp or firewall stands behind it |
+| `horizon` | observed | measured and reported after the fact; nothing refuses the action as it happens |
 <!-- bound-tiers:end -->
+
+`horizon` (L3-04) is one bound over three dimensions with three different tiers, so the row above
+takes the weakest of them. `warrantor horizon <warrant-id>` prints the per-dimension answer, which is
+where the stronger halves live: `max_wall_seconds` is **enforced** (monotonic elapsed time against a
+signed `issued_at`, terminated through the same OS process link as `expires_at`), `max_effects` is
+**mediated** (refused at the MCP proxy as the call arrives), and `max_unattended_seconds` is
+**observed** -- it shares the wall ceiling's kill, but its clock is read from an unsigned actor log
+that any process able to write the store root can append to, and `write_paths` is enforced nowhere.
 
 A limit you believe in that does not hold is worse than no limit.
 

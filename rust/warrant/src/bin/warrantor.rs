@@ -41,6 +41,7 @@ use warrantor_warrant::egress::{
 };
 use warrantor_warrant::guard;
 use warrantor_warrant::harness;
+use warrantor_warrant::horizon;
 use warrantor_warrant::mcp::serve;
 use warrantor_warrant::mcp_endpoints::{agent_endpoint_for, ControlEndpoint};
 use warrantor_warrant::notify::{self, Notification, NotifyConfig, NotifyTransport};
@@ -479,6 +480,77 @@ fn duration_seconds(value: &str) -> Option<u64> {
     }
 }
 
+/// Parse the horizon flags on `warrantor grant` (L3-04), or `None` when none were given.
+///
+/// # Errors
+/// A sentence naming the flag. Every failure is a refusal and never a drop: the whole point of a
+/// ceiling is that it exists, and a `--max-effects fifty` that parsed to `None` would hand the
+/// operator a warrant with no effect ceiling in the moment they were setting one. That is the
+/// `--budget 5x` defect, and it has already happened once in this file.
+fn parse_grant_horizon(args: &Args) -> Result<Option<warrantor_warrant::Horizon>, String> {
+    fn count(args: &Args, flag: &str) -> Result<Option<u64>, String> {
+        match args.flags.get(flag) {
+            None => Ok(None),
+            Some(raw) => raw.parse::<u64>().map(Some).map_err(|_| {
+                format!(
+                    "--{flag} must be a whole, non-negative number; {raw:?} does not parse, and a \
+                     ceiling that does not parse would silently mean NO ceiling."
+                )
+            }),
+        }
+    }
+    fn seconds(args: &Args, flag: &str) -> Result<Option<u64>, String> {
+        match args.flags.get(flag) {
+            None => Ok(None),
+            // Whole seconds or a `8h`/`30m`/`90s` duration, so `--max-wall-seconds 4h` reads the way
+            // an operator writing `--deadline 8h` two flags earlier expects it to.
+            Some(raw) => raw
+                .parse::<u64>()
+                .ok()
+                .or_else(|| duration_seconds(raw))
+                .map(Some)
+                .ok_or_else(|| {
+                    format!(
+                        "--{flag} must be whole seconds or a duration like 4h, 30m or 90s; {raw:?} \
+                         does not parse, and a ceiling that does not parse would silently mean NO \
+                         ceiling."
+                    )
+                }),
+        }
+    }
+
+    let horizon = warrantor_warrant::Horizon {
+        max_wall_seconds: seconds(args, "max-wall-seconds")?,
+        max_effects: count(args, "max-effects")?,
+        max_unattended_seconds: seconds(args, "max-unattended-seconds")?,
+        escalate_at_percent: match count(args, "escalate-at-percent")? {
+            None => None,
+            Some(percent) => Some(u8::try_from(percent).map_err(|_| {
+                format!(
+                    "--escalate-at-percent must be a whole number in 1..=100; {percent} is not, so \
+                     the warrant was NOT granted."
+                )
+            })?),
+        },
+    };
+
+    if horizon.is_empty() {
+        if horizon.escalate_at_percent.is_some() {
+            return Err(
+                "--escalate-at-percent was given with no ceiling to measure it against. \
+                        Add --max-wall-seconds, --max-effects or --max-unattended-seconds too: a \
+                        percentage of nothing would render as a configured escalation that can \
+                        never fire."
+                    .to_string(),
+            );
+        }
+        // No horizon flags at all. Absent, and honestly so: `warrantor horizon` and the report
+        // both render that as `not-declared` rather than as a satisfied bound.
+        return Ok(None);
+    }
+    Ok(Some(horizon))
+}
+
 // ── commands ──────────────────────────────────────────────────────────────────────────
 
 const USAGE: &str = "\
@@ -494,6 +566,15 @@ warrantor — bounded authority for coding agents
 
   grant   --goal G --tools T,T --write P,P [--deadline 8h] [--repo .] [--egress H,H]
           [--egress-capability NAME,NAME] [--budget CENTS] [--subject <id>]
+          [--max-wall-seconds 4h] [--max-effects N] [--max-unattended-seconds 30m]
+          [--escalate-at-percent N]
+                          the horizon (L3-04). Ceilings on how long and how far this
+                          warrant's autonomy runs, each of which can only TIGHTEN the
+                          deadline. Omitting them all leaves the deadline as the only
+                          ceiling -- which `warrantor horizon` reports as not-declared,
+                          never as satisfied. A flag that does not parse is REFUSED,
+                          because a ceiling that silently became no ceiling is worse
+                          than no flag at all.
   list
   holdings
   prune   [--apply]
@@ -522,6 +603,8 @@ warrantor — bounded authority for coding agents
   stage   <warrant-id> --tool T [--target H] [--arg k=v ...]
   run     <warrant-id> -- <command> [args...]
   status
+  horizon <warrant-id>    how much of its horizon this warrant has used, one line per
+                          dimension with the tier and the caveat that dimension earns
   mcp     [--agent <warrant-id>] [--observe] [--guard [--guard-model M] ...]
           [--upstream 'name=command args' ...] [--upstream-timeout 30s]
           [--upstream-effects '<tool>=<verb>+<verb>' ...] [--upstream-effects-file <path> ...]
@@ -820,6 +903,14 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         },
     };
 
+    // The horizon (L3-04). Every one of these REFUSES rather than dropping, for the reason the
+    // `--budget 5x` comment above gives at length: a ceiling that does not parse would leave the
+    // warrant with no ceiling at the exact moment the operator was setting one.
+    let horizon = match parse_grant_horizon(args) {
+        Ok(horizon) => horizon,
+        Err(message) => return fail(&message),
+    };
+
     let issuer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
         Ok(k) => k,
         Err(e) => return fail(&e),
@@ -842,7 +933,7 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         expires_at: now() + deadline,
         budget_cents_observed: budget_cents,
         delegation_depth: 3,
-        horizon: None,
+        horizon,
     };
 
     let warrant = match Warrant::grant(
@@ -1132,6 +1223,18 @@ fn cmd_report(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
             spend: Some(spend::section(&ledger)),
             custody: custody_section(root, id),
             revocation: revocation_section(root),
+            // Measured, not synthesized: the staged count comes from the queue this surface already
+            // opened, so the bundle's `staged_count` and its horizon's effect figure are one number.
+            // An unreadable queue contributes zero, which is the floor `EFFECT_COUNT_LIMITATION`
+            // names -- and `staged_count: None` in the same bundle is what tells the two apart.
+            horizon: Some(horizon::usage_counted(
+                root,
+                id,
+                stored.warrant.claims.issued_at,
+                queue.as_ref().map_or(0, |q| q.len() as u64),
+                0,
+                now(),
+            )),
         },
     );
     let receipt_log = match ReceiptLog::open(store.receipts_path(id)) {
@@ -5048,22 +5151,201 @@ fn cmd_supervise(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     // would have to be an absolute path rather than a relative slip.
     let cwd = stored.worktree.as_deref();
 
-    match supervise_run(
+    let outcome = supervise_run(
         &state,
         &SuperviseRequest {
             warrant_id: id.clone(),
-            expires_at: stored.warrant.claims.bounds.expires_at,
+            // The composition point for the horizon's wall-clock ceiling (L3-04): the supervisor's
+            // wait budget is `deadline - now`, so handing it a smaller deadline is how a horizon
+            // reaches an OS process link without re-implementing one. `effective_deadline` takes the
+            // EARLIER of the two, so a horizon can only move the deadline in -- one that could
+            // extend it would be an authority expansion wearing a governor's name.
+            expires_at: horizon::effective_deadline(
+                &stored.warrant.claims.bounds,
+                stored.warrant.claims.issued_at,
+            ),
             program: program.clone(),
             args: rest.to_vec(),
             cwd: cwd.map(Path::to_path_buf),
             root: root.to_path_buf(),
             now: now(),
+            horizon: stored.warrant.claims.bounds.horizon.clone(),
+            issued_at: stored.warrant.claims.issued_at,
+            staged_path: Some(store.staged_path(id)),
         },
-    ) {
+    );
+
+    // A horizon breach is where L3-04's verification clause lands: "halts the workload through the
+    // kernel's halt() verb with staged effects discarded". `stop::halt` exists as of Task 1.3, and
+    // this is the caller that can reach it -- `supervise_run` itself holds no store handle and no
+    // signing key, and giving the unattended daemon one to satisfy a sentence would be the wrong
+    // trade. The loop terminates the process group; this halts the warrant and leaves a signed stop
+    // receipt.
+    if let Some(breach) = state
+        .completion(id)
+        .and_then(|record| record.horizon_breach)
+    {
+        halt_on_horizon_breach(store, root, id, &breach);
+    }
+
+    match outcome {
         Ok(0) => ExitCode::SUCCESS,
         Ok(_) => ExitCode::FAILURE,
         Err(e) => fail(&e),
     }
+}
+
+/// Halt a warrant whose horizon was breached, through the same verb `warrantor stop` uses.
+///
+/// Failures here are reported and never fatal: the run is already over and the process group is
+/// already dead. What is lost is the signed receipt and the state transition, and an operator told
+/// their run "failed" when the containment worked is how they stop trusting the tool -- so this says
+/// exactly which half did not happen.
+///
+/// The issuer key, not the settle key, for the reason `cmd_stop` gives: a halt releases nothing and
+/// performs nothing, so loading settle authority to record it would put that key in a process with no
+/// business holding it.
+fn halt_on_horizon_breach(store: &WarrantStore, root: &Path, id: &str, breach: &str) {
+    let stops = match StopStore::open(root) {
+        Ok(store) => store,
+        Err(e) => {
+            eprintln!(
+                "warrantor: {id} was terminated on its horizon ({breach}) and the stop store could \
+                 not be opened ({e}), so no signed stop receipt exists for it. The process group is \
+                 dead and the completion record names the dimension; run `warrantor stop {id}` to \
+                 record the halt."
+            );
+            return;
+        }
+    };
+    let conformance = match ConformanceStore::open(root) {
+        Ok(store) => store,
+        Err(e) => {
+            eprintln!("warrantor: {id} horizon halt: conformance store unavailable ({e})");
+            return;
+        }
+    };
+    let daemons = match DaemonState::open(root) {
+        Ok(state) => state,
+        Err(e) => {
+            eprintln!("warrantor: {id} horizon halt: daemon state unavailable ({e})");
+            return;
+        }
+    };
+    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
+        Ok(key) => key,
+        Err(e) => {
+            eprintln!("warrantor: {id} horizon halt: issuer key unavailable ({e})");
+            return;
+        }
+    };
+    let context = HaltContext {
+        store,
+        daemons: &daemons,
+        stops: &stops,
+        conformance: &conformance,
+        control: &OsProcessControl,
+        now: now(),
+    };
+    match stop::halt(
+        &HaltScope::Warrant(id.to_string()),
+        &context,
+        &issuer,
+        Some(breach),
+    ) {
+        Ok(receipts) => {
+            for signed in &receipts {
+                println!("{}", stop::render_cli(signed));
+            }
+        }
+        Err(e) => eprintln!(
+            "warrantor: {id} was terminated on its horizon ({breach}) and the halt could not be \
+             recorded ({e}). The process group is dead; the warrant state was NOT transitioned and \
+             no stop receipt was written."
+        ),
+    }
+}
+
+/// `warrantor horizon <warrant-id>` — how much of a warrant's horizon it has used (L3-04).
+///
+/// The command an operator runs before deciding whether to extend one, and the reason it prints a
+/// tier and a caveat **per dimension** rather than the single word `bound_strengths()` gives the
+/// `horizon` bound: that row has to describe the whole bound and so takes the weakest of three
+/// mechanisms, which loses the fact that two of the three are held by the operating system. A
+/// governor whose stronger half is invisible gets treated as its weaker half everywhere.
+fn cmd_horizon(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
+    let Some(id) = args.positional.first() else {
+        return fail("usage: warrantor horizon <warrant-id>");
+    };
+    let stored = match store.load(id) {
+        Ok(s) => s,
+        Err(e) => return fail(&e.to_string()),
+    };
+    let bounds = &stored.warrant.claims.bounds;
+
+    // Measured from the same two sources the report reads: this store's staging log and its actor
+    // log. The forwarded half of the effect count is not visible here at all -- it lives in a
+    // running session's proxy, and there is no daemon IPC -- which is one of the reasons the count
+    // below is printed as a floor.
+    let queue = open_queue(store, id);
+    let usage = horizon::usage_counted(
+        root,
+        id,
+        stored.warrant.claims.issued_at,
+        queue.as_ref().map_or(0, |q| q.len() as u64),
+        0,
+        now(),
+    );
+    let section = report::horizon_section(bounds, &usage);
+
+    println!("warrant     {id}");
+    println!("state       {:?}", stored.warrant.state);
+    println!("horizon     {}", section.verdict_word);
+    if !section.declared {
+        println!();
+        println!(
+            "  This warrant declares NO horizon. Its only ceiling on duration is its deadline\n  \
+             ({}), and it has no ceiling at all on effects or on time without a named human.\n  \
+             That is the absence of a bound, not a bound that is being met.",
+            bounds.expires_at
+        );
+        println!();
+        println!(
+            "  Grant one with: warrantor grant ... --max-wall-seconds 4h --max-effects 50 \\\n     \
+             --max-unattended-seconds 30m --escalate-at-percent 80"
+        );
+        return ExitCode::SUCCESS;
+    }
+
+    println!();
+    for line in &section.dimensions {
+        println!(
+            "  {}  {} of {} ({}%)",
+            render_bound(&line.dimension, line.strength),
+            line.observed,
+            line.limit,
+            line.percent
+        );
+        println!("      {}", line.caveat);
+    }
+    if let Some(breach) = &section.breached {
+        println!();
+        println!("  BREACHED: {breach}");
+    }
+    println!();
+    for line in render_tier_legend() {
+        println!("  {line}");
+    }
+    println!();
+    println!("  {}", horizon::EFFECT_COUNT_LIMITATION);
+    if let Err(e) = &queue {
+        println!();
+        println!(
+            "  The staging log could not be read ({e}), so the effect figure above counts ZERO \
+             staged effects rather than the real number. It is a floor in the strongest sense here."
+        );
+    }
+    ExitCode::SUCCESS
 }
 
 /// `warrantor status` — what is running, what stopped, and what needs a decision.
@@ -6644,6 +6926,18 @@ fn build_final_report(
             spend: Some(spend::section(&ledger)),
             custody: custody_section(root, id),
             revocation: revocation_section(root),
+            // Measured, not synthesized: the staged count comes from the queue this surface already
+            // opened, so the bundle's `staged_count` and its horizon's effect figure are one number.
+            // An unreadable queue contributes zero, which is the floor `EFFECT_COUNT_LIMITATION`
+            // names -- and `staged_count: None` in the same bundle is what tells the two apart.
+            horizon: Some(horizon::usage_counted(
+                root,
+                id,
+                stored.warrant.claims.issued_at,
+                queue.as_ref().map_or(0, |q| q.len() as u64),
+                0,
+                now(),
+            )),
         },
     );
     let receipt_log = ReceiptLog::open(store.receipts_path(id))
@@ -7073,6 +7367,7 @@ fn main() -> ExitCode {
         "run" => cmd_run(&args, &store, &root),
         "supervise" => cmd_supervise(&args, &store, &root),
         "status" => cmd_status(&store, &root),
+        "horizon" => cmd_horizon(&args, &store, &root),
         "mcp" => cmd_mcp(&args, store, &root),
         "operator" => cmd_operator(&args, &root),
         "approve" => cmd_approve(&args, &store, &root),

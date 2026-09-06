@@ -455,10 +455,23 @@ fn each_dimension_declares_the_tier_its_own_mechanism_earns() {
         BoundStrength::Enforced,
         "the wall horizon terminates through the supervisor's OS process link"
     );
+    // The correction that matters most in this task, and the one the stronger word wanted.
+    // `Unattended` shares `Wall`'s Tier A kill and does NOT share its tier, because a bound is the
+    // weaker of its trigger and its consequence and this trigger is a read of `operators.rs`'s actor
+    // log -- hash-chained, UNSIGNED, and appendable by any process that can write the store root.
+    // `write_paths` is enforced nowhere in this system, so the agent is such a process: it can name
+    // an operator in a file and buy itself more unattended horizon. Calling that Enforced because
+    // the kill is enforced is precisely the mislabel `BoundStrength` exists to prevent.
     assert_eq!(
         HorizonDimension::Unattended.strength(),
-        BoundStrength::Enforced,
-        "the unattended horizon terminates through the same link"
+        BoundStrength::Observed,
+        "the unattended clock is read from an unsigned local log the bounded party can append to;          the OS kill at the end of it does not make the trigger unforgeable"
+    );
+    // And the caveat has to say so in words, not only in the tier word.
+    let caveat = HorizonDimension::Unattended.caveat();
+    assert!(
+        caveat.contains("NOT signed") && caveat.contains("write the store root"),
+        "the weaker half must be named, not just scored: {caveat}"
     );
     assert_eq!(
         HorizonDimension::Effects.strength(),
@@ -470,9 +483,22 @@ fn each_dimension_declares_the_tier_its_own_mechanism_earns() {
     // The whole bound takes the weakest word, because a reader takes the first word and moves on.
     let strengths: std::collections::BTreeMap<_, _> =
         warrantor_warrant::bound_strengths().into_iter().collect();
+    // The whole-bound row takes the weakest of the three, which is now Observed rather than
+    // Mediated. Derived here rather than asserted as a literal, so the row and the dimensions cannot
+    // drift: whatever the weakest dimension is, that is what the row must say.
+    let weakest = HorizonDimension::ALL
+        .into_iter()
+        .map(HorizonDimension::strength)
+        .max_by_key(|strength| match strength {
+            BoundStrength::Enforced => 0u8,
+            BoundStrength::Mediated => 1,
+            BoundStrength::Observed => 2,
+        })
+        .expect("three dimensions");
+    assert_eq!(weakest, BoundStrength::Observed);
     assert_eq!(
         strengths.get("horizon"),
-        Some(&BoundStrength::Mediated),
+        Some(&weakest),
         "the horizon bound must declare the weakest tier any of its dimensions earns"
     );
 }
@@ -723,4 +749,174 @@ fn tempdir(tag: &str) -> std::path::PathBuf {
     std::fs::create_dir_all(&path).expect("create temp root");
     assert!(Path::new(&path).is_dir());
     path
+}
+
+// ── the horizon on the signed report bundle ─────────────────────────────────────────────
+
+fn issuer_key() -> ed25519_dalek::SigningKey {
+    ed25519_dalek::SigningKey::from_bytes(&[1; 32])
+}
+
+fn stored_with_horizon(
+    id: &str,
+    horizon: Option<Horizon>,
+) -> warrantor_warrant::store::StoredWarrant {
+    let mut bounds = bounds_without_horizon();
+    bounds.horizon = horizon;
+    let warrant = warrantor_warrant::Warrant::grant(
+        id,
+        "fix the auth token refresh bug",
+        "spiffe://muveraai.com/agent/alpha",
+        bounds,
+        ISSUED_AT,
+        &ed25519_dalek::SigningKey::from_bytes(&[2; 32]).verifying_key(),
+        &issuer_key(),
+    )
+    .expect("grant");
+    warrantor_warrant::store::StoredWarrant {
+        warrant,
+        worktree: None,
+        repo: None,
+        branch: None,
+        base_commit: None,
+        staged_chain: None,
+    }
+}
+
+fn report_for(
+    id: &str,
+    horizon: Option<Horizon>,
+    observed: Option<HorizonUsage>,
+) -> warrantor_warrant::report::Report {
+    let stored = stored_with_horizon(id, horizon);
+    warrantor_warrant::report::build_observed(
+        &stored,
+        Err("no queue in this test".to_string()),
+        &issuer_key().verifying_key(),
+        ISSUED_AT + 100,
+        &[],
+        warrantor_warrant::report::Observed {
+            horizon: observed,
+            ..Default::default()
+        },
+    )
+}
+
+/// The section has to reach the SIGNED bundle, not just exist as a function. A governor whose state
+/// no evidence surface carries is a governor a reader of the evidence cannot see.
+#[test]
+fn the_signed_bundle_carries_the_horizon_state_and_a_limitation_derived_from_it() {
+    let horizon = Horizon {
+        max_wall_seconds: Some(3_600),
+        max_effects: Some(10),
+        max_unattended_seconds: Some(1_800),
+        escalate_at_percent: Some(80),
+    };
+    let report = report_for("wrt_hz_rep", Some(horizon), Some(usage(100, 2, 100)));
+    let bundle = report.bundle();
+    let section = bundle
+        .horizon
+        .as_ref()
+        .expect("a bundle built with an observed horizon must carry the section");
+    assert!(section.declared);
+    assert_eq!(section.verdict_word, "within");
+    assert_eq!(section.dimensions.len(), 3, "three declared ceilings");
+
+    // Rule 2: the limitation must be DERIVED from the section, and it must be the one sentence the
+    // crate keeps in one place rather than a paraphrase.
+    assert!(
+        bundle
+            .limitations
+            .iter()
+            .any(|line| line == horizon::EFFECT_COUNT_LIMITATION),
+        "a declared horizon must carry its own limitation verbatim: {:?}",
+        bundle.limitations
+    );
+}
+
+/// A bundle built without looking says so, and does NOT say the warrant was inside its horizon.
+/// "Not consulted" and "consulted and clear" are different claims, which is the rule every other
+/// section in this bundle already follows.
+#[test]
+fn a_bundle_that_did_not_measure_the_horizon_says_so_rather_than_reporting_a_pass() {
+    let horizon = Horizon {
+        max_wall_seconds: Some(3_600),
+        ..Horizon::none()
+    };
+    let report = report_for("wrt_hz_unmeasured", Some(horizon), None);
+    let bundle = report.bundle();
+    assert!(
+        bundle.horizon.is_none(),
+        "no usage was supplied, so no horizon state may be rendered"
+    );
+    assert!(
+        bundle
+            .limitations
+            .iter()
+            .any(|line| line.contains("does not say where this warrant stood against its horizon")),
+        "the absence must be stated: {:?}",
+        bundle.limitations
+    );
+    assert!(
+        !bundle
+            .limitations
+            .iter()
+            .any(|line| line == horizon::EFFECT_COUNT_LIMITATION),
+        "an unmeasured horizon must not print the caveat of a measured one"
+    );
+}
+
+/// The control that keeps the two assertions above from being one-sided: a warrant with no horizon
+/// at all reports `not-declared` on the bundle and says its only ceiling is its deadline.
+#[test]
+fn a_bundle_for_a_warrant_with_no_horizon_reports_not_declared_and_names_the_deadline() {
+    let report = report_for("wrt_hz_none", None, Some(usage(100, 0, 100)));
+    let bundle = report.bundle();
+    let section = bundle.horizon.as_ref().expect("measured, so present");
+    assert!(!section.declared);
+    assert_eq!(section.verdict_word, "not-declared");
+    assert!(section.dimensions.is_empty());
+    assert!(
+        bundle
+            .limitations
+            .iter()
+            .any(|line| line.contains("declares no horizon")
+                && line.contains("only ceiling")
+                && line.contains("deadline")),
+        "an undeclared horizon must be named as unbounded-but-for-the-deadline: {:?}",
+        bundle.limitations
+    );
+    assert!(
+        !bundle
+            .limitations
+            .iter()
+            .any(|line| line == horizon::EFFECT_COUNT_LIMITATION),
+        "no ceiling was granted, so no ceiling's caveat may be printed"
+    );
+}
+
+/// A breached horizon puts the breach sentence in the limitations, and it is the same sentence the
+/// completion record carries — one source, so a report and a run log cannot disagree about which
+/// dimension ended a run.
+#[test]
+fn a_breached_horizon_states_the_breach_in_the_signed_limitations() {
+    let horizon = Horizon {
+        max_effects: Some(2),
+        ..Horizon::none()
+    };
+    let report = report_for("wrt_hz_breach", Some(horizon), Some(usage(10, 2, 10)));
+    let bundle = report.bundle();
+    let section = bundle.horizon.as_ref().expect("measured");
+    assert_eq!(section.verdict_word, "breached");
+    let expected = horizon::breach_reason(HorizonDimension::Effects, 2, 2);
+    assert_eq!(section.breached.as_deref(), Some(expected.as_str()));
+    assert!(
+        bundle
+            .limitations
+            .iter()
+            .any(|line| line.contains(&expected)),
+        "a breach the bundle recorded must appear in what the bundle says it does not establish: \
+         {:?}",
+        bundle.limitations
+    );
 }

@@ -264,6 +264,12 @@ fn a_completed_run_is_reported_as_finished_not_interrupted() {
             exit_code: 0,
             expired: false,
             finished_at: NOW + 60,
+            // No horizon on these warrants, so no dimension can have ended the run and
+            // nothing can have been escalated. Both stated rather than defaulted: a record
+            // that omits them is a record from before the fields existed, and reconcile has
+            // to read that case too.
+            horizon_breach: None,
+            horizon_escalations: Vec::new(),
         })
         .expect("record completion");
 
@@ -306,6 +312,12 @@ fn a_deadline_stop_is_reported_as_a_deadline() {
             exit_code: -1,
             expired: true,
             finished_at: NOW + 3600,
+            // No horizon on these warrants, so no dimension can have ended the run and
+            // nothing can have been escalated. Both stated rather than defaulted: a record
+            // that omits them is a record from before the fields existed, and reconcile has
+            // to read that case too.
+            horizon_breach: None,
+            horizon_escalations: Vec::new(),
         })
         .expect("record completion");
 
@@ -340,6 +352,12 @@ fn a_live_daemon_outranks_an_old_completion_record() {
             exit_code: 0,
             expired: false,
             finished_at: NOW,
+            // No horizon on these warrants, so no dimension can have ended the run and
+            // nothing can have been escalated. Both stated rather than defaulted: a record
+            // that omits them is a record from before the fields existed, and reconcile has
+            // to read that case too.
+            horizon_breach: None,
+            horizon_escalations: Vec::new(),
         })
         .expect("record completion");
     state
@@ -373,6 +391,12 @@ fn a_new_run_clears_the_previous_runs_completion_record() {
             exit_code: 0,
             expired: false,
             finished_at: NOW,
+            // No horizon on these warrants, so no dimension can have ended the run and
+            // nothing can have been escalated. Both stated rather than defaulted: a record
+            // that omits them is a record from before the fields existed, and reconcile has
+            // to read that case too.
+            horizon_breach: None,
+            horizon_escalations: Vec::new(),
         })
         .expect("first run finished");
 

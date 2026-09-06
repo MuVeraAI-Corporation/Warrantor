@@ -132,6 +132,7 @@ class HorizonProposal:
 
         if payload is None:
             return None
+
         def whole(key: str) -> int | None:
             value = payload.get(key)
             return None if value is None else int(value)

@@ -10,18 +10,30 @@
 //!
 //! # The three dimensions and their three tiers
 //!
-//! | Dimension | Refused / terminated by | Tier |
-//! |---|---|---|
-//! | `max_wall_seconds` | the supervisor's OS process link, reached by shortening the wait budget | [`BoundStrength::Enforced`] |
-//! | `max_unattended_seconds` | the same link, on a clock that only advances when nobody acts | [`BoundStrength::Enforced`] |
-//! | `max_effects` | [`crate::proxy::Proxy::decide`], as the call arrives | [`BoundStrength::Mediated`] |
+//! A bound is only as strong as **the weaker of its trigger and its consequence**, so the table has
+//! a column for each. Two dimensions share the same Tier A consequence and get different words,
+//! because one of the two triggers is a file the bounded party can write.
 //!
-//! The *decision* in every case is arithmetic in this module over signed claims, and arithmetic
-//! refuses nothing. What earns the tier is the mechanism the decision reaches:
-//! [`crate::supervise::Supervisor::terminate`] → [`crate::supervise::terminate_group`] → a Windows
-//! job object or `kill -KILL -pgid` under `setsid`, for the two time dimensions; a
-//! [`crate::proxy::Decision::Deny`] returned at the moment the call is attempted, for the count.
-//! `bound_strengths()` labels the bound as a whole `Mediated`, which is the weakest of the three.
+//! | Dimension | Trigger | Consequence | Tier |
+//! |---|---|---|---|
+//! | `max_wall_seconds` | monotonic elapsed time against a *signed* `issued_at`; unforgeable | the supervisor's OS process link, reached by shortening the wait budget | [`BoundStrength::Enforced`] |
+//! | `max_effects` | the proxy's own admitted-call counter | [`crate::proxy::Decision::Deny`] returned as the call arrives | [`BoundStrength::Mediated`] |
+//! | `max_unattended_seconds` | a read of `operators.rs`'s actor log, which is hash-chained and **not signed** | the same OS process link | [`BoundStrength::Observed`] |
+//!
+//! The arithmetic in this module refuses nothing; what earns a tier is the weaker of the two columns.
+//! For `max_wall_seconds` both columns are strong: elapsed time cannot be forged and
+//! [`crate::supervise::Supervisor::terminate`] → [`crate::supervise::terminate_group`] reaches a
+//! Windows job object or `kill -KILL -pgid` under `setsid`. For `max_unattended_seconds` the
+//! consequence is identical and the **trigger is not**: `operators::record` takes no key, so any
+//! process that can write the store root — the agent included, since `write_paths` is enforced
+//! nowhere — can append a well-formed entry naming an operator and reset the clock. A bound the
+//! bounded party can extend by writing a file is `Observed`, and calling it `Enforced` because the
+//! kill is enforced is the exact defect [`BoundStrength`] exists to prevent.
+//!
+//! `bound_strengths()` therefore labels the bound as a whole [`BoundStrength::Observed`] — the
+//! weakest of the three, because a reader takes the first word and moves on.
+//! [`HorizonDimension::strength`] and `warrantor horizon` give the per-dimension answer, so the
+//! `Enforced` wall ceiling is recoverable rather than lost to that row.
 //!
 //! **This module composes with `supervise.rs` and does not duplicate it.** `supervise.rs` is
 //! unmodified by the task that added this file. All the wall-clock dimension does is supply a
@@ -86,11 +98,14 @@ pub const EFFECT_COUNT_LIMITATION: &str = "The horizon's effect ceiling counts o
      running, which are counted in memory and are NOT persisted -- a resumed session starts that \
      half at zero. Nothing counts a shell command, a harness built-in, or any call that never \
      reached the proxy. The observed number is a floor on this warrant's effects, never a total. \
-     The wall-clock and unattended ceilings are terminated by the operating system and cannot be \
-     outlived while the supervisor is running; the effect ceiling is refused at a chokepoint the \
-     agent could decline to use. \"Unattended\" means no named operator has appeared in this \
-     warrant's actor log, which is evidence about a local hash-chained file, not proof that no \
-     human was watching.";
+     The wall-clock ceiling is terminated by the operating system and cannot be outlived while the \
+     supervisor is running; the effect ceiling is refused at a chokepoint the agent could decline to \
+     use. The unattended ceiling shares the wall-clock ceiling's kill and NOT its strength: \
+     \"unattended\" means no named operator has appeared in this warrant's actor log, and that log \
+     is hash-chained but unsigned, so any process able to write the store root -- the agent included, \
+     because write_paths is enforced nowhere -- can append an entry naming an operator and reset the \
+     clock. Read the unattended figure as a measurement of a local file, not as proof that no human \
+     was watching and not as a limit the agent cannot extend.";
 
 /// Which ceiling is being talked about.
 #[derive(
@@ -137,14 +152,46 @@ impl HorizonDimension {
     /// [`crate::bound_strengths`]: that row has to describe the whole bound and so takes the weakest
     /// word, which loses the fact that two of the three dimensions are held by the operating system.
     /// `warrantor horizon` prints this per dimension so the stronger half is recoverable.
+    /// The tier THIS dimension's own mechanism earns.
+    ///
+    /// Deliberately more precise than the single `("horizon", ..)` row in
+    /// [`crate::bound_strengths`], which has to describe the whole bound and so takes the weakest of
+    /// the three — losing the fact that one of them is held by the operating system.
+    ///
+    /// **A bound is only as strong as the weaker of its trigger and its consequence, and the three
+    /// answers here differ because the triggers do.** The consequence is the same OS termination for
+    /// both time dimensions:
+    ///
+    /// * `Wall` — **Enforced.** The trigger is elapsed monotonic time measured against `issued_at`
+    ///   from the *signed* claims, and nothing the bounded party can do makes a clock run slower.
+    ///   The consequence is [`crate::supervise::Supervisor::terminate`]. Same basis as `expires_at`,
+    ///   which `bound_strengths()` has always called `Enforced`, and the horizon reaches it by
+    ///   shortening that deadline rather than by adding a mechanism.
+    /// * `Effects` — **Mediated.** Refused at [`crate::proxy::Proxy::decide`] as the call arrives,
+    ///   which is a refusal and so not Observed; and the proxy sees only what the agent routes
+    ///   through it, which is why it is not Enforced.
+    /// * `Unattended` — **Observed**, and this is the one that reads weaker than it feels. The
+    ///   consequence is the same Tier A kill, but the trigger is a read of `operators.rs`'s actor
+    ///   log, which is hash-chained and **not signed**: `operators::record` takes no key, so any
+    ///   process that can write the store root can append a well-formed entry carrying
+    ///   `actor: Some("someone")` and reset this clock. `write_paths` is not enforced anywhere in
+    ///   this system, so the agent is such a process. A bound the bounded party can extend by
+    ///   writing a file is measured, not enforced, however strong the kill at the end of it —
+    ///   naming it `Enforced` because the *kill* is enforced would be the exact defect
+    ///   [`crate::BoundStrength`] exists to prevent.
     #[must_use]
     pub const fn strength(self) -> BoundStrength {
         match self {
-            // Terminated by supervise.rs: a Windows job object, or setsid + PR_SET_PDEATHSIG.
-            // The horizon does not re-implement that -- it shortens the wait budget that reaches it.
-            Self::Wall | Self::Unattended => BoundStrength::Enforced,
+            // Trigger: monotonic elapsed time against a signed `issued_at`, unforgeable by the
+            // bounded party. Consequence: supervise.rs -- a Windows job object, or setsid +
+            // PR_SET_PDEATHSIG. The horizon does not re-implement that; it shortens the wait budget
+            // that reaches it.
+            Self::Wall => BoundStrength::Enforced,
             // Refused at the MCP proxy, which sees only what the agent routes through it.
             Self::Effects => BoundStrength::Mediated,
+            // Same kill as Wall, but the trigger is an UNSIGNED local log the agent can append to.
+            // The weaker half is the one the word has to describe.
+            Self::Unattended => BoundStrength::Observed,
         }
     }
 
@@ -163,9 +210,14 @@ impl HorizonDimension {
                  persisted across sessions. The number is a floor, never a total."
             }
             Self::Unattended => {
-                "measured from this store's actor log. An entry with no operator name is the \
-                 unscoped session token and does not count as human contact; a present name is a \
-                 line in a local hash-chained file, not proof a human was watching."
+                "measured from this store's actor log, which is hash-chained and NOT signed. An \
+                 entry with no operator name is the unscoped session token and does not count as \
+                 human contact -- but `operators::record` takes no key, so any process that can \
+                 write the store root can append an entry naming an operator and reset this clock, \
+                 and nothing in this system refuses the agent that write. Read it as a measurement \
+                 of a local file, not as proof a human was watching and not as a bound the agent \
+                 cannot extend. The termination at the end of it IS the OS process link; the clock \
+                 that triggers it is the weaker half."
             }
         }
     }
@@ -359,7 +411,28 @@ pub fn usage_at(
             u64::try_from(body.lines().filter(|line| !line.trim().is_empty()).count())
                 .unwrap_or(u64::MAX)
         });
+    usage_counted(root, warrant_id, issued_at, staged, forwarded, now)
+}
 
+/// The same measurement for a caller that has already opened the staging queue and knows its length.
+///
+/// [`usage_at`] re-reads the log from disk; a report surface has the queue in hand, and re-reading it
+/// would be a second count that could disagree with the one the rest of the bundle is built from.
+/// One measurement, so a bundle's `staged_count` and its horizon's effect figure cannot differ.
+///
+/// `staged` of zero from a caller whose queue was *unreadable* is the same number as zero from a
+/// caller whose queue was empty. That is not hidden: it is why the effect figure is documented as a
+/// floor in [`EFFECT_COUNT_LIMITATION`], and why the bundle reports `staged_count: None` separately
+/// so a reader can tell the two apart.
+#[must_use]
+pub fn usage_counted(
+    root: &Path,
+    warrant_id: &str,
+    issued_at: u64,
+    staged: u64,
+    forwarded: u64,
+    now: u64,
+) -> HorizonUsage {
     // An act recorded BEFORE the warrant was issued cannot shorten the run's own age: the run
     // started at issue, so the clock starts there and a named act can only move it forward.
     let last_named = crate::operators::read_log(root, warrant_id)

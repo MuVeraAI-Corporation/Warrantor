@@ -1236,9 +1236,26 @@ names its dimension, a `HorizonSection` on the report bundle, `warrantor horizon
   inherits `describe_linkage`'s honest caveat — on a platform where `survives_supervisor_death` is
   `false` (anything that is neither Windows nor Linux, macOS included) an agent outlives a supervisor
   killed uncleanly, and this ceiling with it.
-- Escalation writes a review request under the store root and calls the existing notification path.
-  It establishes that a notification was **queued on this machine**. It does not establish that a
-  human read it, and it adds no trust root.
+- **`max_unattended_seconds` is `Observed`, not `Enforced`, and it took a second pass to say so.** It
+  shares the wall ceiling's Tier A kill, so the first version of this bound scored it from its
+  consequence and called it `Enforced`. Its *trigger* is a read of `operators.rs`'s actor log, which
+  is hash-chained and **not signed** — `operators::record` takes no key. Any process that can write
+  the store root can append a well-formed entry carrying `actor: Some("someone")` and reset the
+  clock, and since `write_paths` is enforced nowhere in this system, the agent is such a process. A
+  bound the bounded party can extend by writing a file is measured, whatever happens at the end of
+  it. Weakest of the three dimensions is therefore `Observed`, which is what the whole `horizon` row
+  in `bound_strengths()` now says, and both README tables were regenerated from it. The `Enforced`
+  wall ceiling is not lost: `warrantor horizon` and `HorizonLine::strength` print the per-dimension
+  answer. Closing this properly needs a signed actor log, which is a change to `operators.rs` and
+  not this task's.
+- Escalation writes a review request under the store root — the same durable marker every other
+  blocker in this system uses — and **does not send a webhook**. The unattended supervisor holds no
+  notify transport and no config reader, so it makes the request durable at the second the threshold
+  is crossed and the announcement waits for the next `warrantor review --announce`. What an
+  escalation establishes is therefore narrower than "a human was told": a request exists **on this
+  machine**, at a known second. It does not establish that anyone read it, that anything left the
+  machine, or that the run was reconsidered — and it adds no trust root: no approval service, no
+  directory, no new signer.
 - L3-04's verification clause says the halt goes *"through the kernel's `halt()` verb"*. `stop::halt`
   exists on `main` as of Task 1.3, and the CLI supervision path now calls it on a horizon breach. The
   **supervision loop itself does not**: `supervise_run` holds no store handle and no signing key, and
@@ -1248,6 +1265,24 @@ names its dimension, a `HorizonSection` on the report bundle, `warrantor horizon
   `CompletionRecord`, and no signed stop receipt.
 - L3-04's own residual stands untouched: a population can pass work between short-lived instances,
   and this governor bounds one warrant's horizon, not a population's. That is L3-11 and Task 8.4.
+- The number itself is still a guess. Nothing here tells an operator what `--max-effects` should be.
+  A ceiling set too low strangles ordinary work and gets the governor turned off; one set far above
+  real usage never fires and is a comfort. Choosing it needs a distribution of effect counts from
+  real runs, and this repository has none — every figure in this entry is a mechanism, not a
+  calibration.
+
+**And a finding about this entry, which is the reason it is worth keeping in the ledger.** The
+paragraph above headed *"What this task closed"* was written and committed in the same commit that
+introduced `horizon.rs` — before the sliced supervision wait, `CompletionRecord::horizon_breach`, the
+`HorizonSection` on the bundle, the four `grant` flags, `warrantor horizon` and the halt on breach
+existed. Five of the six things it named were true of nothing in the tree at the time; `horizon.rs`
+compiled, `effective_deadline` and `usage_at` had zero production call sites, and the two dimensions
+whose per-dimension tier reads `Enforced` reached no mechanism at all. Every item is now wired and
+tested, so the paragraph reads correctly today — which is exactly why it was worth catching: a
+delivery ledger that describes the plan rather than the diff is the same defect class as a signed
+bundle whose sentence disagrees with its own record, and it is harder to spot because nothing
+compiles it. The rule this earns: an entry in this file is written from `git diff`, never from a
+task's step list.
 
 (`3.7` was taken by the delegation-algebra entry; `3.6` by the Windows-CI entry. This is `3.8`.)
 

@@ -179,3 +179,87 @@ fn the_kill_path_is_stronger_than_advisory() {
          proxy, and against no other. Drill: {drill:?}",
     );
 }
+
+// -- the horizon's kill path (L3-04) ---------------------------------------------------
+
+/// The horizon reaches its safe state from the signed claims and a clock, and from nothing else.
+///
+/// This is I-12's ordering claim applied to L3-04. Containment is gate 1 in the notary, ahead of
+/// identity, because the case you most need to contain is the one where identity is compromised. A
+/// horizon that needed the identity plane, a key, a network hop or a writable store to decide it had
+/// been breached would inherit exactly the dependency that ordering exists to remove.
+///
+/// So the store root here is a directory that does not exist: no actor log, no keys, no revocation
+/// journal, no staging log. A breach is still decided, and it still names its dimension.
+///
+/// What this does NOT establish is the strength of the kill itself. Deciding a breach and reaching a
+/// dead process group are two claims, and the second is asserted where it can be observed — against
+/// a real supervised tree in `rust/warrant/tests/horizon_supervision.rs`.
+#[test]
+fn a_horizon_breach_is_decided_without_the_identity_plane_and_a_run_inside_it_is_not() {
+    use warrantor_warrant::horizon::{self, HorizonDimension, HorizonVerdict};
+    use warrantor_warrant::Horizon;
+
+    // A root that was never created. Every source `usage_at` consults is therefore absent.
+    let absent_root = std::env::temp_dir().join(format!(
+        "warrantor-i12-horizon-absent-{}",
+        std::process::id()
+    ));
+    assert!(
+        !absent_root.exists(),
+        "this test's premise is an unreadable store; {} exists",
+        absent_root.display()
+    );
+
+    let issued_at = scenario::NOW;
+    let ceiling = 3_600;
+    let measure = |elapsed: u64| {
+        horizon::usage_at(
+            &absent_root,
+            "wrt_i12_horizon",
+            issued_at,
+            None,
+            0,
+            issued_at + elapsed,
+        )
+    };
+    let declared = Horizon {
+        max_unattended_seconds: Some(ceiling),
+        ..Horizon::none()
+    };
+
+    // CONTROL: one second in, with the same absent root. Must be allowed, or the refusal below
+    // proves only that an unreadable store refuses everything.
+    let control = horizon::evaluate(&declared, &measure(1));
+    // ATTACK: an hour of nobody acting, which is the incident's shape.
+    let attacked = horizon::evaluate(&declared, &measure(ceiling));
+
+    harness::refused_at_the_boundary(
+        "I-12 horizon: a breach must be decidable with the identity plane unreachable",
+        &control,
+        &attacked,
+        |verdict| !matches!(verdict, HorizonVerdict::Breached { .. }),
+    );
+
+    // And the safe state is *named*, not merely entered: a halt with no reason is indistinguishable
+    // from a crash, which is the failure mode `CompletionRecord::expired` had on its own.
+    match attacked {
+        HorizonVerdict::Breached {
+            dimension,
+            limit,
+            observed,
+        } => {
+            assert_eq!(dimension, HorizonDimension::Unattended);
+            assert_eq!((limit, observed), (ceiling, ceiling));
+            assert!(horizon::breach_reason(dimension, limit, observed)
+                .starts_with("horizon:unattended"));
+        }
+        other => panic!("the boundary refused without naming a dimension: {other:?}"),
+    }
+
+    // The unreadable store is not silently read as "a human was here": with no actor log at all the
+    // unattended clock runs from issue, which is the conservative direction. The opposite default --
+    // treating an unreadable log as recent contact -- would make an unwritable store into an
+    // unbounded horizon.
+    assert_eq!(measure(ceiling).unattended_seconds, ceiling);
+}

@@ -2978,6 +2978,17 @@ impl StoreApi {
                     .ok()
                     .as_ref()
                     .map(report::RevocationSection::from_store),
+                // Same measurement as the CLI and the MCP surface, from the queue this route already
+                // opened. Three surfaces, one number: a report served over HTTP that computed the
+                // horizon differently from the one the operator prints would be two governors.
+                horizon: Some(crate::horizon::usage_counted(
+                    &self.root,
+                    id,
+                    stored.warrant.claims.issued_at,
+                    queue.as_ref().map_or(0, |q| q.len() as u64),
+                    0,
+                    now,
+                )),
             },
         );
         built

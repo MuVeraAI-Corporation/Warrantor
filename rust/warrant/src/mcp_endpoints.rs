@@ -393,6 +393,18 @@ impl ControlEndpoint {
                     .ok()
                     .as_ref()
                     .map(crate::report::RevocationSection::from_store),
+                // The horizon (L3-04) IS reported to the agent, unlike custody: it names no human,
+                // and an agent that cannot see how much of its own horizon it has consumed cannot
+                // ask for an extension before the ceiling arrives -- which is the whole point of
+                // escalating as a horizon extends rather than after it ends.
+                horizon: Some(crate::horizon::usage_counted(
+                    &self.root,
+                    &id,
+                    stored.warrant.claims.issued_at,
+                    queue.as_ref().map_or(0, |q| q.len() as u64),
+                    0,
+                    (self.now)(),
+                )),
             },
         );
         let mut out = vec![crate::report::render_mcp(built.bundle())];

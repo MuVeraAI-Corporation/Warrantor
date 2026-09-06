@@ -126,6 +126,13 @@ const ACCEPTED_FLAGS: &[&str] = &[
     "list",
     "at",
     "write-evidence",
+    // Task 8.1: the horizon (L3-04), on `grant`. Every one is read by `parse_grant_horizon`, which
+    // REFUSES a value it cannot parse rather than dropping it -- so naming one here is a claim that
+    // the flag both exists and cannot silently become no ceiling.
+    "max-wall-seconds",
+    "max-effects",
+    "max-unattended-seconds",
+    "escalate-at-percent",
     // queue
     "notify",
     // sandbox

@@ -384,8 +384,10 @@ pub fn profile(bounds: &WarrantBounds, worktree: &str, confinement: Confinement)
         why: "three dimensions, and a sandbox adds nothing to any of them. The wall-clock and \
               unattended ceilings reach the same OS process link `expires_at` does; the effect \
               ceiling counts admitted MCP calls, which no confinement can distinguish from any \
-              other syscall traffic -- the same reason `tools` is a gap. Stays Mediated as a whole \
-              bound."
+              other syscall traffic -- the same reason `tools` is a gap. Nor would a sandbox fix \
+              the weakest link: the unattended clock is read from an UNSIGNED actor log under the \
+              store root, and confining an agent's syscalls does not stop a process that can write \
+              that root from appending an entry naming an operator. Stays Observed as a whole bound."
             .to_string(),
     });
 

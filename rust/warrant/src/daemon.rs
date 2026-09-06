@@ -114,6 +114,26 @@ pub struct CompletionRecord {
     pub expired: bool,
     /// When the run finished, seconds since the Unix epoch.
     pub finished_at: u64,
+    /// Which horizon dimension ended the run, in [`crate::horizon::breach_reason`]'s words (L3-04).
+    ///
+    /// `expired` is one boolean for three dimensions plus the deadline, and a stop with no reason is
+    /// indistinguishable from a crash. `None` means no horizon halted this run: either it finished,
+    /// or it reached the warrant's own `expires_at`, which is a different event and prints a
+    /// different line.
+    ///
+    /// `#[serde(default, skip_serializing_if = "Option::is_none")]` so a record written before this
+    /// field existed still parses, and a run that had no horizon does not carry a `null` that reads
+    /// as "checked, nothing found".
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub horizon_breach: Option<String>,
+    /// Escalation blockers this run actually recorded, in the order they were crossed.
+    ///
+    /// One entry per *distinct* blocker: [`crate::review::should_announce`] compares the blocker
+    /// string, so a threshold that stays crossed for the rest of a run is recorded once rather than
+    /// once per poll. Empty is the normal state, and the only state for a run whose horizon declares
+    /// no `escalate_at_percent`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub horizon_escalations: Vec<String>,
 }
 
 /// Tracks daemon records on disk.
@@ -315,6 +335,57 @@ pub struct SuperviseRequest {
     pub root: PathBuf,
     /// Current time, injected so the caller owns the clock.
     pub now: u64,
+    /// The warrant's horizon (L3-04), when it declares one. Polled while the run is live.
+    ///
+    /// `expires_at` above is expected to be the **effective** deadline —
+    /// [`crate::horizon::effective_deadline`], the earlier of the warrant's deadline and this
+    /// horizon's wall-clock ceiling — because that is the whole of the composition with
+    /// `supervise.rs`: the horizon shortens the wait budget the supervisor already enforces rather
+    /// than adding a second mechanism. This field is still needed alongside it, for two reasons the
+    /// deadline cannot carry: an unattended clock only advances when nobody acts, and a record has
+    /// to be able to say *which* limit arrived.
+    pub horizon: Option<crate::Horizon>,
+    /// When the warrant was issued: the origin of both the elapsed and the unattended clock.
+    pub issued_at: u64,
+    /// This warrant's staged-effect log, for the polled effect count. `None` when the caller has no
+    /// path for it, in which case zero staged effects are counted — honest about what was read, and
+    /// one of the reasons the effect figure is documented as a floor.
+    pub staged_path: Option<PathBuf>,
+}
+
+/// The longest a horizon poll interval may be, however loose the ceilings are.
+///
+/// Thirty seconds rather than the whole wait: a single up-front budget cannot express a clock that
+/// only advances when nobody acts, so the wait has to be sliced. Thirty is the point past which a
+/// breach would be noticed late enough to matter on a run an operator is watching.
+pub const HORIZON_SLICE_CEILING_SECONDS: u64 = 30;
+
+/// The fraction of the tightest declared time ceiling one poll interval takes.
+///
+/// A tenth: a breach is noticed within 10% of the ceiling it crossed, which is close enough that the
+/// number an operator granted is the number they get.
+pub const HORIZON_SLICE_FRACTION: u64 = 10;
+
+/// How long one slice of the supervision wait should be, for this horizon.
+///
+/// Derived rather than fixed, because a fixed interval is wrong at both ends. A flat thirty seconds
+/// would let a four-second ceiling arrive inside a single slice — the breach and any escalation
+/// before it both unobserved — and a flat one second would make an eight-hour run re-read the actor
+/// log twenty-eight thousand times for a clock that could not have moved meaningfully between reads.
+///
+/// So: a tenth of the tightest declared **time** ceiling, clamped to `1..=`
+/// [`HORIZON_SLICE_CEILING_SECONDS`]. A horizon that declares no time ceiling at all (effects only)
+/// has nothing to derive an interval from and gets the ceiling.
+#[must_use]
+pub fn horizon_slice_seconds(horizon: &crate::Horizon) -> u64 {
+    let tightest = [horizon.max_wall_seconds, horizon.max_unattended_seconds]
+        .into_iter()
+        .flatten()
+        .min();
+    match tightest {
+        None => HORIZON_SLICE_CEILING_SECONDS,
+        Some(seconds) => (seconds / HORIZON_SLICE_FRACTION).clamp(1, HORIZON_SLICE_CEILING_SECONDS),
+    }
 }
 
 /// Run the supervision loop: hold the agent under an OS link until it finishes or the warrant
@@ -336,8 +407,11 @@ pub fn supervise_run(state: &DaemonState, request: &SuperviseRequest) -> Result<
         cwd,
         root,
         now,
+        horizon,
+        issued_at,
+        staged_path,
     } = request;
-    let (expires_at, now) = (*expires_at, *now);
+    let (expires_at, now, issued_at) = (*expires_at, *now, *issued_at);
     let mut supervisor = crate::supervise::Supervisor::new()?;
     let linkage = supervisor.describe();
 
@@ -371,20 +445,114 @@ pub fn supervise_run(state: &DaemonState, request: &SuperviseRequest) -> Result<
     // `now` is injected rather than read here, which is what keeps this function testable.
     let started = std::time::Instant::now();
 
-    let remaining = expires_at.saturating_sub(now);
-    let (code, expired) = match supervisor.wait_until(remaining)? {
-        Some(code) => {
-            println!("warrantor: agent exited with {code}");
-            (code, false)
+    // The horizon (L3-04) turns one wait into a loop of slices. `wait_until` already polls once per
+    // second, so a slice costs no extra syscalls; what it buys is a bound that a single up-front
+    // budget cannot express — an unattended clock only advances while nobody acts, and an escalation
+    // has to fire *before* a ceiling arrives rather than being discovered after it.
+    //
+    // A warrant with no horizon keeps the single wait it always had, exactly. That is deliberate:
+    // the slice exists to re-evaluate a horizon, and slicing a wait that has nothing to re-evaluate
+    // would add a loop for no reason.
+    let mut breach: Option<String> = None;
+    let mut escalations: Vec<String> = Vec::new();
+    let (code, expired) = loop {
+        // Monotonic elapsed added to the injected clock: `now` is owned by the caller, and reading
+        // the wall clock here would make the loop untestable and vulnerable to a clock adjustment
+        // during a long overnight run.
+        let clock = now.saturating_add(started.elapsed().as_secs());
+
+        // The horizon is evaluated FIRST, so that when the effective deadline came from the
+        // horizon's own wall ceiling the record names the horizon rather than the deadline. Which
+        // limit arrived is derived from the verdict, never assumed from which branch we are in.
+        if let Some(declared) = horizon.as_ref() {
+            let usage = crate::horizon::usage_at(
+                root,
+                warrant_id,
+                issued_at,
+                staged_path.as_deref(),
+                // The supervisor cannot see the proxy's in-session forwarded count: there is no
+                // daemon IPC in this system. The polled figure is the persisted staged length only,
+                // and the forwarded half is bounded by the proxy's own refusal, within one session.
+                // `horizon::EFFECT_COUNT_LIMITATION` says this on every surface that prints a count.
+                0,
+                clock,
+            );
+            match crate::horizon::evaluate(declared, &usage) {
+                crate::horizon::HorizonVerdict::Breached {
+                    dimension,
+                    limit,
+                    observed,
+                } => {
+                    let reason = crate::horizon::breach_reason(dimension, limit, observed);
+                    println!(
+                        "warrantor: warrant {warrant_id} reached its horizon -- {reason}. \
+                         Terminating the agent and everything it started."
+                    );
+                    supervisor.terminate()?;
+                    breach = Some(reason);
+                    break (-1, true);
+                }
+                crate::horizon::HorizonVerdict::Escalate {
+                    dimension,
+                    at_percent,
+                    limit,
+                    observed,
+                } => {
+                    // Ask, do not stop. The blocker carries the dimension and the threshold, so
+                    // `should_announce` records one crossing once rather than once per slice, and a
+                    // *different* dimension crossing later is a new request rather than a duplicate.
+                    let blocker = crate::horizon::escalation_blocker(dimension, at_percent);
+                    if crate::review::should_announce(root, warrant_id, &blocker) {
+                        match crate::review::record_request(root, warrant_id, clock, &blocker) {
+                            Ok(()) => {
+                                println!(
+                                    "warrantor: warrant {warrant_id} has consumed {at_percent}% of \
+                                     its {} ceiling ({observed} of {limit}); a review request is \
+                                     recorded under the store root. The run continues. Nothing \
+                                     extends the horizon by default, and this establishes only that \
+                                     a request was made durable ON THIS MACHINE -- not that anyone \
+                                     read it. `warrantor review --announce` is what sends it.",
+                                    dimension.field()
+                                );
+                                escalations.push(blocker);
+                            }
+                            Err(e) => {
+                                // Said out loud rather than swallowed: an escalation nobody can find
+                                // is worse than none, because the run carries on either way.
+                                eprintln!(
+                                    "warrantor: warrant {warrant_id} crossed its horizon escalation \
+                                     threshold and the review request could NOT be recorded ({e}). \
+                                     The run is continuing unescalated."
+                                );
+                            }
+                        }
+                    }
+                }
+                crate::horizon::HorizonVerdict::Within { .. } => {}
+            }
         }
-        None => {
-            // The deadline is the point of the warrant. Reaching it means stopping, not asking.
+
+        // The warrant's own deadline (or the effective one, when the horizon supplied it). Reaching
+        // it means stopping, not asking. When the horizon's wall ceiling *was* the effective
+        // deadline, the block above has already broken out naming the horizon, so arriving here is
+        // the deadline and nothing else.
+        let left = expires_at.saturating_sub(clock);
+        if left == 0 {
             println!(
                 "warrantor: warrant {warrant_id} expired; terminating the agent and everything it \
                  started. Staged effects are kept -- review with `warrantor report {warrant_id}`."
             );
             supervisor.terminate()?;
-            (-1, true)
+            break (-1, true);
+        }
+
+        let slice = match horizon.as_ref() {
+            Some(declared) => left.min(horizon_slice_seconds(declared)),
+            None => left,
+        };
+        if let Some(code) = supervisor.wait_until(slice)? {
+            println!("warrantor: agent exited with {code}");
+            break (code, false);
         }
     };
 
@@ -397,6 +565,8 @@ pub fn supervise_run(state: &DaemonState, request: &SuperviseRequest) -> Result<
         exit_code: code,
         expired,
         finished_at: now.saturating_add(started.elapsed().as_secs()),
+        horizon_breach: breach.clone(),
+        horizon_escalations: escalations,
     }) {
         // Not fatal: the run really did finish, and failing here would turn a successful run into
         // an error. It costs the precision of the next `status`, which says so rather than guessing.
