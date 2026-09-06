@@ -120,7 +120,7 @@ fmt 0, clippy 0, cargo 0 at 153 suites / 1548 passing / 0 failed / 20 ignored (`
 --workspace`, doctests included). Census 13 of 41 over 22 edges; ratchet 82 at floor 82, 15 at
 ceiling 15; ledger 12 invariants; `check_us_english.py` ok; `check_docs.py` PASS. Mutation control:
 one injected double space in the disclosure turned the hardened test red, and the file was restored
-byte-identical afterwards.
+byte-identical afterward.
 
 ## Post-merge gate on main `371037d` (2026-09-06)
 
