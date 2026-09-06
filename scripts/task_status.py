@@ -189,16 +189,31 @@ def load_tasks() -> list[Task]:
         # used `impl/task-N.M`. The convention stays advisory; the plan stays authoritative.
         pattern = re.compile(rf"(?:^|/)task-{re.escape(task_id)}(?:-|$)")
         candidates = sorted(b for b in all_branches if pattern.search(b))
-        if branch_from_plan and branch_from_plan in all_branches:
+        def has_work(name: str) -> bool:
+            # A branch whose tip sits on main's first-parent line has contributed nothing yet: it
+            # was created and not committed to. Only a branch with a tip OFF that line did work.
+            return name in all_branches and git("rev-parse", name) not in first_parent_of_main
+
+        # A lane that found the declared name already taken by an empty bookmark suffixes it
+        # (`feat/x` -> `feat/x-w6`). Two lanes did exactly that on 2026-09-06, and the board then
+        # scored the empty bookmark as the task and called a merged task BLOCKED. The declared name
+        # wins when it did work; otherwise a suffixed sibling that did work is the same task.
+        suffixed = sorted(
+            b for b in all_branches
+            if branch_from_plan and b.startswith(branch_from_plan + "-") and has_work(b)
+        )
+        if branch_from_plan and has_work(branch_from_plan):
+            branch = branch_from_plan
+        elif suffixed:
+            branch = suffixed[0]
+        elif branch_from_plan and branch_from_plan in all_branches:
             branch = branch_from_plan
         elif candidates:
             branch = candidates[0]
         else:
             branch = branch_from_plan or convention.format(id=task_id)
         exists = branch in all_branches
-        # A branch whose tip sits on main's first-parent line has contributed nothing yet: it was
-        # created and not committed to. Treat it as not started rather than as merged.
-        started = exists and git("rev-parse", branch) not in first_parent_of_main
+        started = has_work(branch)
         merged = started and (
             branch in merged_into_main or any(pattern.search(b) for b in merged_into_main)
         )
