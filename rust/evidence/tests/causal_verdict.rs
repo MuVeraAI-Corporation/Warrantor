@@ -674,6 +674,11 @@ fn the_products_limitations_carry_the_tamper_evident_sentence_rather_than_a_proo
              about."
         );
     }
+    assert!(
+        !report.contains("The causal verdict is computed"),
+        "the product never computes the verdict, so the bundle must not say it does (the first \
+         shipped wording did, in the present tense)"
+    );
 }
 
 /// Collapse Rust's `\`-at-end-of-line string continuations, which eat the newline and the next
