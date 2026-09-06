@@ -4836,48 +4836,52 @@ fn cmd_scorer(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
                  `warrantor scorer {id} --register-threshold 0.2`."
             );
         }
-        Ok(Some(threshold)) => match scorer::trend_checked(root, &threshold) {
-            Err(e) => {
-                println!("probing trend REFUSED — {e}");
-            }
-            Ok(trend) => {
-                println!(
+        Ok(Some(threshold)) => {
+            match scorer::trend_checked(root, &threshold) {
+                Err(e) => {
+                    println!("probing trend REFUSED — {e}");
+                }
+                Ok(trend) => {
+                    println!(
                     "probing rate per graded warrant, threshold {} refusals/run registered at {}:",
                     trend.threshold, trend.registered_at
                 );
-                if trend.per_run.is_empty() {
-                    println!("  no supervised runs recorded, so there is nothing to trend");
-                }
-                for (warrant, rate) in &trend.per_run {
-                    let mark = if *rate >= trend.threshold {
-                        "CROSSED"
-                    } else {
-                        ""
-                    };
-                    println!("  {warrant:<24}{rate:>8.3}  {mark}");
-                }
-                if trend.crossed.is_some() {
-                    let registry = match OperatorRegistry::load(root) {
-                        Ok(registry) => registry,
-                        Err(e) => return fail(&e),
-                    };
-                    match scorer::escalate(root, &trend, &registry, now()) {
-                        Ok(escalation) => {
-                            println!();
-                            println!(
-                                "ESCALATED to {:?} (holds stop, does not hold settle)",
-                                escalation.to
-                            );
-                            println!("  {}", escalation.note);
-                        }
-                        Err(e) => {
-                            println!();
-                            println!("escalation REFUSED — {e}");
+                    if trend.per_run.is_empty() {
+                        println!("  no supervised runs or refusals recorded, so there is nothing to trend");
+                    }
+                    for (warrant, rate) in &trend.per_run {
+                        // The same comparison `trend` used to decide `crossed`, not a second copy of
+                        // it: with two copies the row said CROSSED while nothing escalated.
+                        let mark = if threshold.crossed_by(*rate) {
+                            "CROSSED"
+                        } else {
+                            ""
+                        };
+                        println!("  {warrant:<24}{rate:>8.3}  {mark}");
+                    }
+                    if trend.crossed.is_some() {
+                        let registry = match OperatorRegistry::load(root) {
+                            Ok(registry) => registry,
+                            Err(e) => return fail(&e),
+                        };
+                        match scorer::escalate(root, &trend, &registry, now()) {
+                            Ok(escalation) => {
+                                println!();
+                                println!(
+                                    "ESCALATED to {:?} (holds stop, does not hold settle)",
+                                    escalation.to
+                                );
+                                println!("  {}", escalation.note);
+                            }
+                            Err(e) => {
+                                println!();
+                                println!("escalation REFUSED — {e}");
+                            }
                         }
                     }
                 }
             }
-        },
+        }
     }
 
     if preflight_refused {

@@ -746,6 +746,28 @@ fn a_threshold_registered_after_the_first_run_is_refused() {
 }
 
 #[test]
+fn a_rate_exactly_at_the_threshold_has_crossed_it() {
+    // `RegisteredThreshold::rate` is documented as "refusals per run at or above which the trend
+    // has crossed", and no fixture sat at the line: 4.5 against 0.2, 0 against 0.2, 0.5 and 8.0
+    // against 2.0. So `>=` could become `>` with every suite green, and the shipped command --
+    // which had its own second copy of the comparison -- printed CROSSED on the row and then
+    // neither escalated nor refused. A reviewer showed it through the binary. One refusal over two
+    // runs is exactly 0.5.
+    let root = tempdir("at-the-line");
+    record_runs(&root, "wrt_edge", &[NOW, NOW + 1]);
+    record_refusals(&root, "wrt_edge", NOW + 5, 1);
+    let at = scorer::trend(&root, &threshold(0.5, NOW - 1));
+    assert_eq!(at.crossed.as_deref(), Some("wrt_edge"), "{at:?}");
+    // CONTROL: a threshold a hair above the rate is not crossed, so the assertion above is about
+    // the boundary and not about this store always crossing.
+    let above = scorer::trend(&root, &threshold(0.5 + 1e-9, NOW - 1));
+    assert_eq!(above.crossed, None, "{above:?}");
+    // And the one comparison both the trend and the CLI mark read agrees at the line.
+    assert!(threshold(0.5, NOW).crossed_by(0.5));
+    assert!(!threshold(0.5, NOW).crossed_by(0.5 - 1e-9));
+}
+
+#[test]
 fn a_registered_threshold_cannot_be_rewritten_once_the_runs_have_happened() {
     let root = tempdir("no-rewrite");
     let first = scorer::register_threshold(&root, 0.2, NOW, None).expect("first registration");
@@ -1210,4 +1232,38 @@ fn the_preflight_refuses_to_name_the_graded_warrant_as_the_party_that_asserted_t
         "{control}"
     );
     assert!(control.contains("pre-flight REFUSED"), "{control}");
+}
+
+#[test]
+fn the_crossed_mark_and_the_escalation_agree_at_the_threshold_line() {
+    // Through the shipped binary, at the boundary. With two copies of the comparison the row said
+    // CROSSED while nothing escalated; with one function they cannot disagree, and this pins the
+    // agreement where a reader sees it. The threshold is registered directly at NOW - 1 rather than
+    // through --register-threshold, which would stamp it with the wall clock -- after the fixture's
+    // runs, which `trend_checked` rightly refuses.
+    let dir = store_dir("cli-at-the-line");
+    store_with_worktree(&dir, "wrt_scored", WORKTREE);
+    mint_operator(&dir, "env-owner", "stop");
+    record_runs(&dir, "wrt_edge", &[NOW, NOW + 1]);
+    record_refusals(&dir, "wrt_edge", NOW + 5, 1);
+    scorer::register_threshold(&dir, 0.5, NOW - 1, None).expect("registered before the runs");
+
+    let (_, text) = run(&dir, &["wrt_scored"]);
+    assert!(text.contains("0.500  CROSSED"), "{text}");
+    assert!(text.contains("ESCALATED to \"env-owner\""), "{text}");
+    assert_eq!(scorer::read_escalations(&dir).len(), 1, "{text}");
+
+    // CONTROL: the same store shape with the threshold a hair above the rate prints no mark and
+    // records no escalation -- so the mark and the escalation move together, at the line.
+    let control = store_dir("cli-above-the-line");
+    store_with_worktree(&control, "wrt_scored", WORKTREE);
+    mint_operator(&control, "env-owner", "stop");
+    record_runs(&control, "wrt_edge", &[NOW, NOW + 1]);
+    record_refusals(&control, "wrt_edge", NOW + 5, 1);
+    scorer::register_threshold(&control, 0.5 + 1e-9, NOW - 1, None).expect("registered");
+    let (_, text) = run(&control, &["wrt_scored"]);
+    assert!(text.contains("wrt_edge"), "{text}");
+    assert!(!text.contains("CROSSED"), "{text}");
+    assert!(!text.contains("ESCALATED"), "{text}");
+    assert!(scorer::read_escalations(&control).is_empty());
 }

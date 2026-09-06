@@ -653,6 +653,22 @@ fn default_threshold_format() -> String {
     THRESHOLD_FORMAT.to_string()
 }
 
+impl RegisteredThreshold {
+    /// Whether a measured rate has crossed this threshold: at or above, as [`Self::rate`] says.
+    ///
+    /// One comparison, and every reader of the threshold uses it. It was written twice — once in
+    /// [`trend`] to decide `crossed`, once in `warrantor scorer` to print the `CROSSED` mark — and
+    /// every fixture sat far from the line, so the first copy could become `>` with the shipped
+    /// command still printing `CROSSED` on the row and then neither escalating nor refusing. A
+    /// reviewer showed it through the binary. A boundary that is documented as "at or above" has
+    /// to be tested at the boundary, and it has to be one function so the row and the escalation
+    /// cannot disagree.
+    #[must_use]
+    pub fn crossed_by(&self, rate: f64) -> bool {
+        rate >= self.rate
+    }
+}
+
 /// Probing rate per graded warrant, ordered by that warrant's first run.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProbingTrend {
@@ -903,7 +919,7 @@ pub fn trend(root: &Path, threshold: &RegisteredThreshold) -> ProbingTrend {
 
     let crossed = ordered
         .iter()
-        .find(|(_, rate, _)| *rate >= threshold.rate)
+        .find(|(_, rate, _)| threshold.crossed_by(*rate))
         .map(|(id, _, _)| id.clone());
 
     ProbingTrend {
