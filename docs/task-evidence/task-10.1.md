@@ -560,3 +560,68 @@ Both archive suites are at the required counts, unchanged. The refusals naming a
 `pr://staged/wrt_f02/99`); their controls are `the_identical_chain_with_every_hop_granted_passes` and
 `a_well_formed_order_passes`. Nine of the nineteen tests are refusals and ten are acceptances, and the
 first mutation above shows exactly that split going red and staying green respectively.
+
+---
+
+## Verified in a fresh detached worktree, not in the one that built it
+
+The single highest-yield check in this program, and it is run because it has already caught a real
+failure here: an evidence file was `.gitignore`-excluded, `git add` skipped it silently, `git status`
+said clean, the implementer's run was green, and the committed branch was red for everyone else.
+
+```
+$ df -h /m | tail -1
+M:              1.2T  897G  297G  76% /m        (297 GB free, above the 40 GB floor)
+
+$ cd "M:/Project AumOS - Open Secure AI Alliance/aumos"
+$ git worktree add --detach M:/wt-g6-10.1 feat/causal-verdict-strict
+HEAD is now at 32198d8 fix: use American spellings on the lines this branch added
+
+$ cd M:/wt-g6-10.1 && git status --porcelain
+                                                (empty)
+
+$ git ls-files testvectors/notary/ rust/evidence/tests/ rust/notary/tests/ \
+      rust/warrant/tests/causal_trace.rs docs/task-evidence/task-10.1.md
+docs/task-evidence/task-10.1.md
+rust/evidence/tests/causal_verdict.rs
+rust/evidence/tests/delegation_algebra.rs
+rust/evidence/tests/four_deep_revocation.rs
+rust/evidence/tests/v1_predicates_still_verify.rs
+rust/notary/tests/conformance.rs
+rust/notary/tests/v1_receipt_fixture.rs
+rust/warrant/tests/causal_trace.rs
+testvectors/notary/frozen_v1_receipt_body.json
+testvectors/notary/vectors.json
+
+$ git check-ignore -v <each of the eight paths any test opens>
+                                                (no output: none is ignored)
+
+$ cd rust && cargo fmt --check                              FMT=0
+$ cargo clippy --all-targets -- -D warnings                 CLIPPY=0
+$ cargo test --workspace -j 2                               CARGO=0
+  154 suites, 1568 passing, 0 failed, 20 ignored     (summed over all 154 result lines)
+
+$ cd .. && python tools/ci/wiring_census.py
+wiring census: 13 of 41 crates reachable from warrantor-warrant over 22 path edges     UNCHANGED
+$ python tools/ci/check_invariant_ratchet.py
+invariant ratchet: ok (82 passing at floor 82, 15 recorded findings at ceiling 15)     UNCHANGED
+$ python tools/ci/check_invariants.py
+invariant ledger: 12 invariants; enforced=2, orphaned=1, partial=8, unimplemented=1    UNCHANGED
+$ python tools/ci/check_us_english.py main
+us-english: 2721 added line(s) across 18 file(s), since main; matcher = vendored verify-us-english.mjs
+us-english: ok
+$ python tools/ci/check_docs.py
+RESULT: PASS - 269 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
+$ python tools/ci/run_python_checks.py test                 PY=0
+RESULT: PASS - 54/54 Python projects passed test
+```
+
+Every path any test in this branch opens is tracked, none is ignored, and the counts from the fresh
+worktree are identical to the counts from the worktree that built it.
+
+**One thing the US-English gate caught and one thing it did not ask for.** It found five Britishisms on
+lines this branch added — four `afterwards`, one `behaviour` — fixed in commit `32198d8`. It did **not**
+flag three pre-existing `afterwards`/`behaviours` elsewhere in `docs/W1-delivery-gaps.md`, because it is
+scoped to added lines. A first pass had rewritten those too; they were reverted to exactly what their
+authors wrote. Rewriting prose in a contended document to satisfy a check that never asked is how a
+needless conflict gets made.
