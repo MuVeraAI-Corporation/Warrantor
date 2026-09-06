@@ -940,3 +940,50 @@ mod session_preconditions {
         );
     }
 }
+
+// -- L4-27: capability-name decisions and the derived catalog the HTTP adapter binds to -------
+
+/// The HTTP adapter names a destination by capability, so the broker must decide a capability
+/// string exactly as it decides the host the capability was derived from.
+#[test]
+fn a_capability_name_is_decided_like_its_host() {
+    let broker = EgressBroker::for_bounds(&bounds_with(&["api.github.com"]));
+    assert!(matches!(
+        broker.decide_capability(&capability_for("api.github.com")),
+        EgressVerdict::Allow { .. }
+    ));
+    assert_eq!(
+        broker.decide_capability(&capability_for("evil.example.com")),
+        EgressVerdict::Deny {
+            reason: DenyReason::NotInCatalog
+        }
+    );
+    assert_eq!(broker.capabilities(), &[capability_for("api.github.com")]);
+}
+
+/// A string without the capability prefix is a raw address, whatever it looks like.
+#[test]
+fn a_raw_address_is_not_a_capability() {
+    let broker = EgressBroker::for_bounds(&bounds_with(&["api.github.com"]));
+    for raw in ["api.github.com", "https://api.github.com", "203.0.113.9"] {
+        assert_eq!(
+            broker.decide_capability(raw),
+            EgressVerdict::Deny {
+                reason: DenyReason::NotACapability
+            },
+            "{raw}"
+        );
+    }
+}
+
+/// `--egress H` compiles to a READ-ONLY, PUBLIC-ONLY capability for the HTTP adapter. Anything
+/// that writes or carries more than public data needs a declared capability.
+#[test]
+fn a_bare_egress_host_compiles_to_a_get_only_public_only_entry() {
+    let broker = EgressBroker::for_bounds(&bounds_with(&["api.github.com"]));
+    let catalog = broker.catalog().expect("a catalog");
+    assert_eq!(catalog.version, "warrantor.warrant-egress-catalog/2");
+    let entry = catalog.find("api.github.com").expect("entry");
+    assert_eq!(entry.permitted_methods, vec!["GET".to_string()]);
+    assert_eq!(entry.max_data_class, None);
+}

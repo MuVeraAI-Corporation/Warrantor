@@ -69,7 +69,12 @@ pub use warrantor_egress::{DenyReason, EgressVerdict, BROKER_VERSION};
 ///
 /// Distinct from [`crate::WARRANT_FORMAT`] on purpose: it names the shape of the *catalogue*
 /// derivation, so a later change to how bounds become entries is visible in the digest.
-pub const CATALOG_VERSION: &str = "warrantor.warrant-egress-catalog/1";
+/// Version string stamped on the catalog built from a warrant's bounds.
+///
+/// `/2`: a bare `--egress` host now compiles to a `GET`-only entry with no data-class ceiling
+/// (public only), because the HTTP adapter reads those two fields and an absent limit means none.
+/// The broker's own host decision is unchanged; the version moved because the digest did.
+pub const CATALOG_VERSION: &str = "warrantor.warrant-egress-catalog/2";
 
 /// The capability prefix a destination is expressed under.
 pub const EGRESS_CAPABILITY_PREFIX: &str = "net.egress:";
@@ -209,10 +214,12 @@ impl EgressBroker {
                 addresses: vec![host.clone()],
                 // No TLS identity is pinned or checked anywhere in this system.
                 tls_identity: None,
-                // A warrant bounds destinations, not HTTP methods. Empty is the honest value; the
-                // broker does not read this field.
-                permitted_methods: Vec::new(),
+                // Read-only for the HTTP adapter. The broker does not read this field for
+                // forwarded tools; the adapter does, and a bare host was never a write grant.
+                permitted_methods: vec!["GET".to_string()],
                 expires_at: bounds.expires_at,
+                // Public only. A ceiling above `public` is declared per capability, never implied.
+                max_data_class: None,
             })
             .collect();
         let mut catalog = broker::DestinationCatalog {
@@ -259,6 +266,36 @@ impl EgressBroker {
     #[must_use]
     pub fn catalogued(&self) -> usize {
         self.catalog.as_ref().map_or(0, |c| c.entries.len())
+    }
+
+    /// The derived catalog itself, for an adapter that must decide against the same object the
+    /// proxy decided against. `None` when the warrant permits no egress.
+    #[must_use]
+    pub fn catalog(&self) -> Option<&broker::DestinationCatalog> {
+        self.catalog.as_ref()
+    }
+
+    /// Every capability this warrant grants, in bound order. This is the closed vocabulary the
+    /// HTTP tool's schema publishes: there is no other way to say where a call goes.
+    #[must_use]
+    pub fn capabilities(&self) -> &[String] {
+        &self.chain
+    }
+
+    /// Decide a capability *name* rather than a host.
+    ///
+    /// A string without the [`EGRESS_CAPABILITY_PREFIX`] is a raw address however it is spelled,
+    /// and is refused as [`DenyReason::NotACapability`] before the catalog is consulted.
+    #[must_use]
+    pub fn decide_capability(&self, capability: &str) -> broker::EgressVerdict {
+        match capability.strip_prefix(EGRESS_CAPABILITY_PREFIX) {
+            Some(logical_endpoint) if !logical_endpoint.is_empty() => {
+                self.decide(logical_endpoint)
+            }
+            _ => broker::EgressVerdict::Deny {
+                reason: DenyReason::NotACapability,
+            },
+        }
     }
 }
 
