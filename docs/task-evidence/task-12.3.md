@@ -1,7 +1,8 @@
 # Task 12.3 — Continuous promotion with an enforced parity gate; deployment-configuration parity
 
-Branch `feat/deployment-configuration-parity-w6`, written on local `main` at `5d3e44d` and rebased onto
-`main` at `065961b` on 2026-09-06 (section 9, which re-measures every gate on the rebased tip).
+Branch `feat/deployment-configuration-parity-w6`, written on local `main` at `5d3e44d`, rebased onto
+`main` at `065961b` (section 9) and then onto `main` at `2463504` after an adversarial review
+(section 10, which closes nineteen findings and re-measures every gate on the final tip `07e7553`).
 Items addressed: continuous promotion with an enforced parity gate (L9-03) and
 deployment-configuration parity (L9-08).
 
@@ -581,7 +582,12 @@ from that line: it fails collection without `.bounds_interop.json`, which
 task, and the workspace `cargo test` above covers the Rust side of that binding.
 
 The gate is wired into `.github/workflows/ci.yml` — `Check deployment-configuration parity` and
-`Test the deployment-parity gate` — so it runs rather than merely existing.
+`Test the deployment-parity gate` — so it runs rather than merely existing. **As first written it
+would not have run at all**, and the adversarial review found it (§10, CH-1): the `docs` job
+installed only `pytest`, and both steps import `warrantor_ml.deploy_model`, which imports
+`model_card`, which imports `cryptography` at module scope. On a runner carrying only the standard
+library the steps exit 1 with `ModuleNotFoundError` before the first check. The install step now
+names `cryptography`; the sentence above is true of a fresh runner only because of that commit.
 
 ---
 
@@ -671,14 +677,20 @@ deployment parity: 7 documents scanned; 2 parity, 5 refused (quantisation is abs
 deployment parity: PASS. This compares RECORDS, not processes -- ...
 EXIT=0
 
-$ python -m pytest python/warrantor_ml/tests tools/ci/test_check_deployment_parity.py -q --ignore=python/warrantor_ml/tests/test_bounds_interop.py
+$ PYTHONPATH=M:/wt-w6-12.3/python/warrantor_ml/src python -m pytest python/warrantor_ml/tests tools/ci/test_check_deployment_parity.py -q --ignore=python/warrantor_ml/tests/test_bounds_interop.py
 647 passed in 12.11s
-$ python -m pytest tools/ci/test_disk_guard.py tools/ci/test_check_us_english.py tools/ci/test_check_invariants.py -q
+$ PYTHONPATH=M:/wt-w6-12.3/python/warrantor_ml/src python -m pytest tools/ci/test_disk_guard.py tools/ci/test_check_us_english.py tools/ci/test_check_invariants.py -q
 27 passed in 48.91s
 ```
 
 Same seven documents, same 2/5 split, same digest, same five refusals for the same one reason as
 §4. The `guard_parity` suite this branch extends is inside the 1549: `8 passed; 0 failed`.
+
+**The `PYTHONPATH` on those two pytest lines is not decoration**, and the review found it missing
+from the transcript (§10, TR-8). Without it, on this box, collection fails with `ImportError:
+cannot import name serving from warrantor_ml` against `M:/wt-2point1` — the editable install §1
+warns about. The counts above were measured with it set, and the transcript now shows the
+environment that makes them reproducible.
 
 ### 9.1 The suite that was red on eight runs and green on the ninth, and why it is the box
 
@@ -749,3 +761,269 @@ of the same command from `M:/wt-w6-10.1` into `M:/wt-rv-10.1-target`; only the p
 file was private. Every number above comes from runs into a lane-private subdirectory, each log
 checked for this worktree's path before it was read. No number from the clobbered log appears in
 this file.
+
+---
+
+## 10. Corrections after adversarial review — rebased onto `main` at `2463504`, regated on `07e7553`
+
+Three adversarial lenses read this branch at `a144e6f` on `main` `065961b`: claim-honesty
+(5 findings, CH-1..CH-5), test-rigor by mutation (8, TR-1..TR-8) and evidence-truth (6,
+ET-1..ET-6). All nineteen are closed below. Every one was reproduced first; **none was refuted**,
+though two were closed differently from the way the lens proposed and both say so.
+
+`main` moved twice during this pass — `065961b` → `ce5d02d` → `2463504` — so the branch was
+rebased twice and every number in this section is measured on the final tip `07e7553`. Sections 1
+to 9 still describe the tips they name. Nothing in `.github/workflows/ci.yml` conflicted on either
+rebase: `main`'s `Test the disk guard` step stays directly after `Test the US-English gate`, and
+this branch's `Check deployment-configuration parity` and `Test the deployment-parity gate` stay
+after that, in that order.
+
+### 10.1 The nineteen findings
+
+**CH-1 — the CI wiring was dead on arrival.** The `docs` job installed only `pytest`, and both new
+steps import `warrantor_ml.deploy_model` → `model_card` → `cryptography` at module scope, so on a
+runner carrying only the standard library they exit 1 with `ModuleNotFoundError` before the first
+check. Reproduced on a `python -m venv --without-pip` interpreter: exit 1, traceback at
+`model_card.py:40`. With a stub `cryptography` package supplied and nothing else added, that same
+interpreter runs the gate to **exit 0 with all four checks ok**, so `cryptography` was the whole
+gap — `model_sbom` and `huggingface_hub` are imported inside functions. **Fixed** in `ci.yml`: the
+install step now names `cryptography` and says which import chain needs it. Section 8 records that
+the sentence "so it runs rather than merely existing" was true of no fresh runner until this commit.
+
+**CH-2 / TR-3 — the adapter's `SERVED_*` constants were written beside the record.** Two lenses
+found the same defect: the generated file says the constants are the configuration the scanner was
+**promoted at**, and `render_rust_adapter` took them from `serving.DEPLOYED`. Reproduced — a receipt
+recording `Q8_0` / `num_ctx 4096` produced a registration document saying `Q8_0`/4096 and, from the
+same object, an adapter saying `Q4_K_M`/8192 under that comment. This is the failure class the
+branch had already fixed in `to_dict`, left standing in its twin. **Fixed** at the root:
+`_promoted_configuration` derives the four constants from
+`parity_receipt.recorded_serving_configuration`, and a registration whose receipt records no
+configuration — or malforms one of the four fields — is refused rather than filled in from the
+declared record. Two new tests replace a test that compared the rendered constants against
+`serving.*` and therefore passed for every receipt. Reverting the four kwargs turns the first
+**RED (1 failed, 30 passed)**; the file was restored byte-identical.
+
+**CH-3 — "writes all of them flat" was false.** `baselines._ollama_backend` writes five of the seven
+compared keys (`quantisation`, `num_ctx`, `seed`, `temperature`, `top_k`) and omits `num_predict`
+and `top_p`; reproduced by passing the 4B baseline's own literal through this module's reader, which
+refuses on exactly those two. **Fixed**: the docstring states the measured five, says the literal is
+therefore refused on the two it omits, and says why that is not a hole in the gate (the gate reads
+`eval_results/` documents, and no result document is built from that literal). A new test asserts
+the five keys by name, that the only refusals are the two omissions, and that nothing the literal
+does declare disagrees.
+
+**CH-4 — the tag reader was not as narrow as its docstring.** It asked whether the suffix started
+with `Q`/`F16`/`F32`/`BF16`/`IQ` and held any digit, so `foo:Qwen3` resolved to `Qwen3` and the
+evaluator wrote that string into a signed result document as provenance. Reproduced. **Fixed**: the
+whole suffix is matched against a label shape — a float width, or `Q`/`IQ` plus a block count and
+its block-type parts. Tests now cover `:Qwen3`, `:Qwen3-4B`, `:F8` and a bare `:Q`, plus the labels
+that must still read (`Q6_K`, `BF16`, `F32`, lowercase `q4_k_m`), and a new test asserts the
+descriptor records nothing for a name-shaped suffix while still recording an explicit
+`--quantization`. Restoring the first-letter reader turns two tests **RED (2 failed, 14 passed)**.
+
+**CH-5 — a build-time assertion was labeled Tier B.** Reproduced: `guard_parity.rs` is eight
+`#[test]` functions and no runtime code path, and `guard.rs` never reads `serving.py`. Under Task
+0.4's vocabulary a Mediated bound is a decision at the moment of attempt; this one is taken when a
+checkout holding both files is built, and it bounds no promotion, registration or request.
+**Fixed**: the row now reads **Tier C, observed at build**, with what escapes it named. The word
+appeared in this file only, never in a signed bundle.
+
+**TR-1 — the evaluator's no-default rule was unconstrained.** Defaulting `descriptor()`'s
+quantization to `serving.QUANTIZATION` when the tag names none passed the whole suite, against a
+comment two lines above saying it is NEVER defaulted; the existing refusal tests read the five
+committed documents, and `test_programme`'s fixture deletes the key by hand. **Fixed** with a test
+that drives `descriptor()` over three tags naming no quantization and asserts the field is absent
+and refused as absent, with a labeled tag as the control. Mutation P19: **3 RED (45 passed)**;
+`evaluate.py` restored byte-identical.
+
+**TR-2 — `--quantization` was never plumbed under test.** Setting `quantisation=None` in
+`_build_backend` passed the whole suite. **Fixed** with a test that parses argv through the real
+parser into `_build_backend` and asserts the flag reaches the descriptor and reaches parity, with
+the flagless case as the control. Mutation P20: **1 RED (31 passed)**, at the `KeyError`; restored
+byte-identical.
+
+**TR-4 — the digest test asserted a prefix, not a digest.** Replacing `deployed_digest()`'s body
+with a constant passed the suite, because the CI test writes whatever the function returns into its
+own record; the real gate against the committed record exits 1. **Fixed**: the test asserts the
+value **is** the canonical digest of `DEPLOYED` and that patching one field moves it.
+Constant-digest mutation: **1 RED (15 passed)**; restored byte-identical.
+
+**TR-5 — condition 2's allowed control was not load-bearing.** Deleting it
+(`matching = divergent; if False:`) passed the suite, because the only test asserted that the
+function returns `None` on the real code. **Fixed** with a test that patches
+`warrantor_ml.parity.parity_gate` — the name the function imports at call time — to refuse both
+candidates, and asserts the function reports the control as the failure. Mutation: **1 RED
+(8 passed)**; the gate script restored byte-identical.
+
+**TR-6 — the schema version was credited with the gate's work.** Nothing reads `schema_version`;
+reverting 2 → 1 passed the suite, while the comment claimed the bump was what stopped the gate
+reading "did not say" as "said `Q4_K_M`". That is the absent-field rule in
+`serving.recorded_serving_configuration`, which refuses whatever version declared the document.
+**Fixed**: the comment states the number's two real properties, names the function that
+discriminates, and says nothing reads the version. Both properties are now asserted — a document
+this build writes declares version 2, and the version is a term in the digested body. Mutation P18:
+**1 RED (32 passed)**; restored byte-identical.
+
+**TR-7 — the Rust every-key assertion retyped the list it claimed to read.** A literal array of
+seven constant names asserted the seven it knew about and nothing about `serving.REQUIRED_KEYS`,
+which is the list the gate refuses on; adding an eighth key everywhere left cargo at 8 passed while
+the Python suite went to 24 failed. **Fixed**: the test parses `REQUIRED_KEYS` and the `DEPLOYED`
+mapping out of `serving.py` and binds three things — the list is seven keys, `DEPLOYED` declares
+exactly those keys, and every `DEPLOYED` value is a constant this side can resolve. Three
+mutations, each applied alone and each restoring `serving.py` byte-identical: a key in
+`REQUIRED_KEYS` only → **RED** on the count; a `DEPLOYED` value written as the literal `1` → **RED**
+naming `DEPLOYED["top_k"]`; a `DEPLOYED` key renamed → **RED** naming the disagreement. Restored:
+8 passed, 0 failed.
+
+**TR-8 — a transcript that does not reproduce as printed.** Section 9's two pytest lines omitted
+the `PYTHONPATH`; without it, collection on this box fails with `ImportError: cannot import name
+serving from warrantor_ml` against `M:/wt-2point1`, the editable install section 1 warns about. The
+counts were right and were measured with it set. **Fixed**: both lines now carry the environment,
+with a note saying why it is not decoration.
+
+**ET-1 — `orphaned=1` was attributed to the wrong instrument.** `wiring_census.py` prints one line
+and no orphan figure; its artifact records `orphaned` as a **list of 28 crates** (41 − 13); the
+`orphaned=1` is `check_invariants.py`'s invariant-ledger line, counting invariants, not crates. All
+three reproduced. **Fixed** in sections 8 and 9: each figure now sits with the instrument that
+prints it.
+
+**ET-2 — "enforced" used for Tier B chokepoints.** Reproduced by grepping the added lines: the gate
+printed "the promotion refusal is not enforced" and "the registration refusal is not enforced",
+which implies the passing state is Enforced, and this file said "the enforced line in each case is
+named below" and "what `build_registration` enforces". Both refusals are a `raise
+RegistrationError` and a `blocking.append` in Python functions whose escape this file itself names.
+**Fixed** in the code that prints it — both messages now say the refusal "did not hold" — and in
+the prose: the opening sentence says every bound is named with its line and its tier and that none
+is Enforced, with the reason, and deviation 3 says `build_registration` refuses at its Tier B
+chokepoint. The signed surfaces (registration `notes`, adapter comment, tier table) were already
+correct, so nothing inside a bundle changed.
+
+**ET-3 — check `[2/4]` does not measure the plan's criterion, and the report did not say so.**
+Reproduced by reading it: no `parity_main`, no `--out`, no exit code, no filesystem, so neither
+clause of criterion 2 (a non-zero exit; what the refusal leaves on disk) is measured by the exit
+gate. **Closed differently from the way the lens proposed, and this paragraph is the disclosure.**
+A CLI leg was implemented first and it worked — the gate drove `warrantor-ml-parity` over a
+document built by the real producers, asserted exit 3 and the receipt on disk, and still exited 0
+with all four checks ok. It also broke the US-English gate: the CLI's module name is a Britishism,
+and the matcher flags that word on any line a branch adds in a `.py` file, import statements
+included. Keeping the coverage required either building the module name at runtime to get past a
+gate or renaming a module this task has no business renaming, so the leg was reverted (`99dd2f8`,
+then `951138c`). What ships instead is a true sentence where a reader lands: check 2's docstring
+says exactly what it measures, says it observes no exit code and no filesystem, names
+`test_programme.py` as where exit 3 and the receipt-on-disk are measured, and says CI runs that
+suite in the Python job. The acceptance line in section 10.2 carries the same caveat.
+
+**ET-4 — a test named for the opposite of what it asserts.**
+`test_a_document_recording_no_quantization_is_refused_and_writes_nothing` runs `parity_main` with
+`--out`, asserts exit 3, then reads the decision document back and checks its verdict; reproduced
+by reading lines 500 to 502. The name was the plan's deleted criterion surviving as a label over
+code that implements this branch's inverted rule. **Fixed**: renamed
+`..._is_refused_and_receipted`, with a docstring saying what the old name was, why the rule is
+inverted, and where "writes nothing" IS asserted — `test_deploy_model.py`, over a registration and
+an adapter.
+
+**ET-5 — a claim about the tree that had gone stale.** "Not one match anywhere in the tree" for
+`severity instab` was true at `5d3e44d` and false on the rebase base: `git grep -l` exits 1 at
+`5d3e44d`, names four plan files on `main`, and names those four plus this file on `HEAD`.
+**Fixed**: the block shows the measurement at each tip and claims what holds — no *measurement* of
+severity instability exists anywhere; the matches are plan prose quoting the seed finding, and
+nothing in this branch asserts anything about a severity field.
+
+**ET-6 — four figures from a document this file says may not be cited as landed.** The
+0.50 / 2.78 / 0.48 / 2.72 GB sizes exist only in `docs/model-inventory-reconciliation-2026-09-01.md`
+on `docs/content-program-p9-fold`;
+`git ls-tree -r --name-only main docs/ | grep -c model-inventory-reconciliation` returns `0`.
+**Fixed**: sections 4 and 7 name the source and its status and say the sentence they support — that
+the pipeline cannot determine what those five candidates were served at — holds without them.
+Nothing in this branch's code, tests or gate reads a model size.
+
+Two findings changed a tier word or a rendered sentence, and neither touched a signed bundle: CH-5
+(a row in this file) and ET-2 (this file plus two CI log lines). **No bound inside a signed
+artifact was mislabeled, and none was relabeled.**
+
+### 10.2 The full gate on `07e7553`, every exit code captured before any pipe
+
+Disk guard before every cargo invocation: `disk_guard.py --require 80` → 210–233 GB free;
+`--require-commit 5` → 18.5–18.6 GB available. One earlier check refused at 1.1 GB of commit
+charge; the Python work was done first and the cargo runs waited for it to clear, so no cargo call
+ran under a refusal.
+
+```
+$ cd rust && cargo fmt --all -- --check;                      echo FMT=$?
+FMT=0
+$ cargo clippy --workspace --all-targets -- -D warnings;      echo CLIPPY=$?
+CLIPPY=0
+$ cargo test --workspace --all-targets;                       echo CARGO=$?
+CARGO=0
+$ cargo test --workspace --doc;                               echo DOC=$?
+DOC=0
+```
+
+**Every `test result:` line summed**, on `07e7553`:
+
+| run | suites | passed | failed | ignored |
+|---|---|---|---|---|
+| `cargo test --workspace --all-targets` | 121 | 1582 | 0 | 20 |
+| `cargo test --workspace --doc` | 40 | 1 | 0 | 0 |
+
+121 suites where section 9 counted 119, and 1582 passed where it counted 1549: `main` gained the
+effect adapter SDK and the network common-mode work between `065961b` and `2463504`. `ignored` is
+20 on this tip as it was in sections 8 and 9 — no `#[ignore]` was added or removed.
+`conformance_receipt.rs`, the load-dependent Windows drill of section 9.1, was green on the first
+run of this pass; section 9.1's warning to a re-runner stands.
+
+```
+$ (cd rust && python ../tools/ci/wiring_census.py)
+wiring census: 13 of 41 crates reachable from warrantor-warrant over 23 path edges
+$ python tools/ci/check_invariant_ratchet.py --show-findings   # read the "invariant ratchet:" line
+invariant ratchet: ok (85 passing at floor 85, 15 recorded findings at ceiling 15)
+$ python tools/ci/check_invariants.py
+invariant ledger: 12 invariants; enforced=2, orphaned=1, partial=8, unimplemented=1
+$ python tools/ci/check_docs.py
+RESULT: PASS 302 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
+$ python tools/ci/check_us_english.py main
+us-english: 3014 added line(s) across 17 file(s), since main; matcher = vendored verify-us-english.mjs
+us-english: ok
+```
+
+**23 path edges where section 9 read 22, and the ratchet at 85/15 where it read 82/15 — both came
+from `main`, not from here.** `evidence/wiring-coverage.json` on `main` already records 23 edges
+(`cad254a`), and `git diff main..HEAD -- rust/ evidence/` is `guard_parity.rs` alone: this branch
+adds no crate, no edge and no artifact change. The floor was raised to 85 by merges into `main`
+before this rebase; the invariants suite on this merged tree reports `85 passed; 0 failed; 15
+ignored`, which is exactly the floor and the ceiling, so **this branch neither raises the ratchet
+nor needs to**.
+
+**The task's own exit gate and the Python suites, on this tip:**
+
+```
+$ PYTHONPATH=python/warrantor_ml/src python tools/ci/check_deployment_parity.py;  echo EXIT=$?
+deployment parity: 7 documents scanned; 2 parity, 5 refused (quantisation is absent from the recorded configuration); deployed digest sha256:823ab30e9a648515bb5fd66aa6bb50330bbb0aeaed30a06351318d0788f30350 matches record; MEASURED_NUM_CTX 8192 == DEPLOYED num_ctx 8192
+  [1/4] ok: counts match the record (7/2/5)
+  [2/4] ok: a divergent quantization is refused and receipted; the matching control promotes
+  [3/4] ok: registration without a promote receipt writes no document and no adapter; the promote control writes both
+  [4/4] ok: the deployed digest matches its record and the Rust constant agrees
+deployment parity: PASS. This compares RECORDS, not processes -- ...
+EXIT=0
+
+$ PYTHONPATH=python/warrantor_ml/src python -m pytest python/warrantor_ml/tests tools/ci/test_check_deployment_parity.py -q --ignore=python/warrantor_ml/tests/test_bounds_interop.py
+655 passed in 17.13s
+$ PYTHONPATH=python/warrantor_ml/src python -m pytest tools/ci/test_disk_guard.py tools/ci/test_check_us_english.py tools/ci/test_check_invariants.py -q
+27 passed in 62.46s
+```
+
+655 passed where section 9 read 647: this pass adds eight tests — two on the adapter's derived
+constants, one on the baseline literal's five keys, one on a name-shaped tag suffix, two on the
+evaluator's no-default rule and the `--quantization` route, one on the schema version, one on
+condition 2's control. Same seven documents, same 2/5 split, same digest, same five refusals for the
+same one reason as section 4. `guard_parity` is inside the 1582 at `8 passed; 0 failed`.
+
+**Acceptance, on `07e7553`: RUN.** The plan's exit gate for this task is
+`python tools/ci/check_deployment_parity.py`, and it was executed on this tip: exit 0, all four
+checks ok, the counts equal to the record. Two sentences travel with that word, both recorded above
+rather than smoothed over. The gate measures the *verdict* of a refusal and not the exit code of the
+CLI that produces it (ET-3 — exit 3 and the receipt on disk are measured by `test_programme.py`,
+which CI runs in the Python job). And the plan's own second clause for criterion 2 is deliberately
+inverted here (section 6, item 3 — the refusal IS receipted, and what a refusal must not produce is
+a registration or an adapter). The ledger may cite Task 12.3 as built on this record, with those
+two sentences attached.
