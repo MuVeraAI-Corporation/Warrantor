@@ -523,34 +523,40 @@ Specific, not modest.
 
 ## Fresh-worktree gate
 
-Run at `M:/wt-fresh-5.4`, a **detached** worktree of `feat/task-5.4-network-common-mode` at
-`6864ec1`, with its own `CARGO_TARGET_DIR`. This is the run that caught the CRLF defect above; the
-capture below is the re-run after the fix.
+Run at `M:/wt-g6-5.4`, a **detached** worktree of `feat/task-5.4-network-common-mode` at `950ab00`,
+created from the shared checkout and never written to by hand. This capture supersedes the one taken
+at `6864ec1`; the review-fix commits changed nine files and every number below was re-measured rather
+than carried forward.
 
 ```text
-$ cd M:/wt-fresh-5.4 && git log --oneline -1
-6864ec1 fix(tests): assert the two egress notes by value, because CRLF broke the source match
+$ cd M:/wt-g6-5.4 && git log --oneline -1
+950ab00 docs(evidence): record the correction, because a task refuted twice must say what was wrong
 
 ### git status --porcelain
-(empty)
+(empty, before and after every command below)
 
-### git ls-files (every path a test or gate opens)
+### git ls-files (every path a test or the gate opens)
 README.md
+deploy/spire/trust-domain-config.yaml
 docs/05-network-common-mode-analysis.md
 docs/W1-delivery-gaps.md
-docs/task-evidence/task-5.3.md
 docs/task-evidence/task-5.4.md
 evidence/invariants.json
 evidence/network-independence.json
 evidence/wiring-coverage.json
-rust/eval-guard/src/cli.rs
+rust/egress-filter/src/lib.rs
+rust/egress/src/lib.rs
+rust/warrant/Cargo.toml
+rust/warrant/src/egress.rs
+rust/warrant/src/proxy.rs
+rust/warrant/src/sandbox.rs
 rust/warrant/tests/invariants/i09_failure_is_safe.rs
 rust/warrant/tests/network_independence.rs
 tools/ci/invariant-ratchet.json
 tools/ci/network_independence.py
 tools/ci/test_network_independence.py
 
-### git check-ignore -v (all of the above)
+### git check-ignore -v (all nineteen)
 CHECK_IGNORE=1        # 1 = no rule matched any path
 
 ### cargo fmt --check
@@ -562,7 +568,7 @@ CLIPPY=0
 
 ### cargo test --workspace -j 2        (exit captured BEFORE any pipe)
 CARGO=0
-suites: 145  passed: 1520  failed: 0  ignored: 20
+suites: 145  passed: 1525  failed: 0  ignored: 20      # summed over every `test result:` line
 
 ### python tools/ci/wiring_census.py
 wiring census: 12 of 40 crates reachable from warrantor-warrant over 21 path edges
@@ -577,7 +583,7 @@ invariant ledger: 12 invariants; enforced=2, orphaned=1, partial=8, unimplemente
 LEDGER=0
 
 ### python tools/ci/check_us_english.py main
-us-english: 2331 added line(s) across 13 file(s), since main; matcher = vendored verify-us-english.mjs
+us-english: 3723 added line(s) across 13 file(s), since main; matcher = vendored verify-us-english.mjs
 us-english: ok
 USEN=0
 
@@ -586,19 +592,27 @@ RESULT: PASS - 268 Markdown files, 58 RFCs, 81 catalogue rows, and all local lin
 DOCS=0
 
 ### python tools/ci/network_independence.py
-network independence: 1 independent intercept on a permitted destination; 6 shared axes of 8; 2 policy engines
-network independence: ok
+network independence: 1 independent intercept on a permitted destination; 6 shared axes of 8;
+  1 policy engine decides in the product, 2 once an operator wires the second
 NETIND=0
 
 ### python -m pytest tools/ci/test_network_independence.py tools/ci/test_wiring_census.py -q
-29 passed
+  (run from rust/, exactly as CI invokes it)
+42 passed
 PYTEST=0
 ```
 
+One later commit exists: the one that pastes this capture into this file. Nothing outside this
+markdown block changed, and `check_docs.py`, `check_us_english.py main` and
+`network_independence.py` were re-run at that commit -- the three gates a markdown edit can move --
+with identical output. `RUST_MIN_STACK=33554432` was exported for every cargo command: without it
+`rustc` aborts compiling `syn` with `STATUS_STACK_BUFFER_OVERRUN` on this box, which is the known
+Windows hazard and nothing to do with this branch.
+
 ### The gate was also seen red, deliberately
 
-A gate that has only ever been green proves nothing. Each of these was run by hand before the pytest
-suite was written, and each is now covered by a case in `tools/ci/test_network_independence.py`:
+A gate that has only ever been green proves nothing. Two directions were captured when the task was
+first written, and both still hold:
 
 ```text
 $ # a stale rendered count in the README
@@ -620,9 +634,14 @@ The second is the more important direction. A gate that recomputed a *fresh* num
 derivation moved would keep publishing a measured-looking value that nothing supports; this one
 refuses to publish at all.
 
+**And fourteen more reds, one per surviving mutation**, in the CORRECTION section above. Those are the
+ones that matter for this branch's second pass: seven of them were **exit 0 at `82118f8`**, which is
+what "refuted" meant.
+
 ### Not pushed, not merged
 
-Three commits on `feat/task-5.4-network-common-mode`, based on local `main` at `f9c3523`. A human
-merges. Per [[merging parallel PRs safely]], rebase on the then-current `main` and re-run this gate
+Seven commits on `feat/task-5.4-network-common-mode`, based on local `main` at `f9c3523`: four for
+the task, and three for the adversarial-review correction -- the fix, the record of what was wrong,
+and this capture. A human merges. Per [[merging parallel PRs safely]], rebase on the then-current `main` and re-run this gate
 before merging — Task 1.2 is editing `rust/warrant/src/egress.rs`, which this branch also edits, and
 PR CI tests the branch against the *old* main.
