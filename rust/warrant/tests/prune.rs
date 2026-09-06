@@ -235,3 +235,44 @@ fn the_retention_line_states_the_truth_in_all_three_states() {
         "{broken}"
     );
 }
+
+/// The scorer store is refused by the plan with its own note, even when its files are old enough.
+/// Pinned because the class's deletion effect was unlabeled by any test: relabeling it
+/// NO-CONSEQUENCE would have put `scorer/threshold.json` on the delete list with every suite green.
+#[test]
+fn an_old_threshold_file_is_refused_by_the_plan_with_the_scorer_classes_own_note() {
+    let root = tempdir("scorer-refused");
+    let _old_threshold = file_old_by(&root, ArtifactClass::Scorer, "threshold.json", 90 * 86_400);
+    let _old_escalations = file_old_by(
+        &root,
+        ArtifactClass::Scorer,
+        "escalations.jsonl",
+        90 * 86_400,
+    );
+    // CONTROL: a log of the same age in the one prunable class IS planned, so the refusal below
+    // is about the class and not about the plan refusing everything.
+    let old_log = file_old_by(&root, ArtifactClass::Logs, "wrt_a.log", 90 * 86_400);
+
+    let report = retention::plan_prune(&root, &policy(true, 86_400), NOW).expect("plan");
+    let scorer = report
+        .classes
+        .iter()
+        .find(|entry| entry.class == ArtifactClass::Scorer)
+        .expect("the scorer class appears in the report");
+    assert!(
+        scorer.files.is_empty(),
+        "nothing under scorer/ may be planned: {:?}",
+        scorer.files
+    );
+    assert_eq!(
+        scorer.refused,
+        Some(ArtifactClass::Scorer.deletion_note()),
+        "the refusal must carry the class's own note"
+    );
+    let logs = report
+        .classes
+        .iter()
+        .find(|entry| entry.class == ArtifactClass::Logs)
+        .expect("logs are planned");
+    assert_eq!(logs.files, vec![old_log], "control");
+}

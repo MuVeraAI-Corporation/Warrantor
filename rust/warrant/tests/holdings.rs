@@ -416,3 +416,32 @@ fn every_directory_this_store_creates_is_a_known_class() {
         );
     }
 }
+
+#[test]
+fn the_scorer_class_loses_evidence_when_deleted_and_is_never_prunable() {
+    // `ArtifactClass::Scorer` holds the registered threshold and the escalations. Deleting the
+    // threshold does not lose a verdict -- it loses the ORDERING that made the verdict admissible,
+    // and a threshold can then be re-registered AFTER the runs it judges, which is the one thing
+    // L11-12 says must never happen. Nothing pinned that label: the effect could be flipped to
+    // NO-CONSEQUENCE -- the one class `warrantor prune` deletes freely -- with holdings, prune and
+    // the whole library green. A reviewer showed it with that exact mutation.
+    assert_eq!(
+        ArtifactClass::Scorer.deletion_effect(),
+        DeletionEffect::LosesEvidence,
+        "the threshold's value is its ordering against the runs it judges"
+    );
+    assert!(
+        !retention::prunable(ArtifactClass::Scorer),
+        "a class whose deletion un-registers a threshold must never be on the prune job's list"
+    );
+    assert!(
+        ArtifactClass::Scorer
+            .deletion_note()
+            .contains("re-registered AFTER the runs"),
+        "the note an operator reads must say what the deletion costs: {}",
+        ArtifactClass::Scorer.deletion_note()
+    );
+    // CONTROL: the label is a decision per class and not a constant -- the one class the job does
+    // delete still says so.
+    assert!(retention::prunable(ArtifactClass::Logs));
+}
