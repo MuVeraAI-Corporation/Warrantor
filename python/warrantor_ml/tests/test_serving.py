@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from warrantor_ml import serving
+from warrantor_ml._canonical import canonical_json, sha256_text
 from warrantor_ml.baselines import get_baseline
 from warrantor_ml.evaluate import OllamaGuardBackend
 
@@ -98,9 +101,26 @@ def test_the_measured_baselines_declare_the_deployed_configuration_on_the_keys_t
             )
 
 
-def test_the_digest_is_stable_and_moves_when_the_record_moves() -> None:
+def test_the_digest_is_stable_and_moves_when_the_record_moves(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The name promised movement and the body asserted only a prefix and self-equality.
+
+    Replacing the function's body with a constant digest passed the whole suite: the CI test
+    writes whatever ``deployed_digest()`` returns into its own sandbox record, so the property
+    was held by the committed ``deployment-parity.json`` and not by any test. Two assertions fix
+    that -- the digest is the canonical digest OF the record, and moving one field moves it.
+    """
+
     assert serving.deployed_digest().startswith("sha256:")
     assert serving.deployed_digest() == serving.deployed_digest()
+    assert serving.deployed_digest() == sha256_text(canonical_json(dict(serving.DEPLOYED)))
+
+    unchanged = serving.deployed_digest()
+    monkeypatch.setattr(serving, "DEPLOYED", {**serving.DEPLOYED, "num_ctx": 4096})
+    moved = serving.deployed_digest()
+    assert moved != unchanged, "a digest that does not move with the record pins nothing"
+    assert moved == sha256_text(canonical_json(dict(serving.DEPLOYED)))
 
 
 def test_the_descriptor_shape_and_the_baseline_shape_are_both_readable() -> None:
@@ -230,8 +250,9 @@ def test_the_descriptor_records_no_quantization_for_a_name_shaped_suffix() -> No
 
     assert "quantisation" not in OllamaGuardBackend(model="hf.co/some/repo:Qwen3").descriptor()
     assert (
-        OllamaGuardBackend(model="hf.co/some/repo:Qwen3", quantisation="Q4_K_M")
-        .descriptor()["quantisation"]
+        OllamaGuardBackend(model="hf.co/some/repo:Qwen3", quantisation="Q4_K_M").descriptor()[
+            "quantisation"
+        ]
         == "Q4_K_M"
     ), "an operator who says what is served is still recorded; only guessing is refused"
 

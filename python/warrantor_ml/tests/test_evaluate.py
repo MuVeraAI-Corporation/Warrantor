@@ -379,9 +379,9 @@ def test_the_quantization_flag_reaches_the_result_document(tmp_path: Path) -> No
     backend = ev._build_backend(arguments)
     descriptor = backend.descriptor()
     assert descriptor["quantisation"] == serving.QUANTIZATION
-    assert serving.configuration_mismatch(
-        serving.recorded_serving_configuration(descriptor)
-    ) == (), "with the flag supplied, an unlabeled tag reaches parity through the documented route"
+    assert (
+        serving.configuration_mismatch(serving.recorded_serving_configuration(descriptor)) == ()
+    ), "with the flag supplied, an unlabeled tag reaches parity through the documented route"
 
     without = ev.build_parser().parse_args(
         ["--eval-set", "unused.jsonl", "--model", "warrantor-guard-0.6b-local-2026-08-22a"]
