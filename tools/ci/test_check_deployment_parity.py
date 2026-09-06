@@ -144,3 +144,31 @@ def test_the_promotion_and_registration_checks_hold_on_the_real_code(sandbox: Pa
 
     assert gate._promotion_refusal_is_receipted() is None
     assert gate._registration_refusal_writes_nothing() is None
+
+
+def test_condition_2s_allowed_control_is_load_bearing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A CI check that only proves refusals would pass over a gate wired shut.
+
+    ``_promotion_refusal_is_receipted`` says exactly that in a comment above its control, and the
+    only test of the function asserted that it returns ``None`` on the real code -- so deleting
+    the control (``matching = divergent``) passed the whole suite. Nothing fed it a gate that
+    refuses everything. This does: ``parity_gate`` is patched to refuse both candidates in the
+    shape the divergent one refuses in, and the function must then name the control as the
+    failure.
+    """
+
+    import warrantor_ml.parity as real_parity
+
+    class _AlwaysRefuses:
+        verdict = "insufficient_evidence"
+        reasons = (
+            "quantisation was recorded as 'Q8_0' and this build serves 'Q4_K_M'",
+            "the promoted candidate was evaluated at a configuration this build does not serve",
+        )
+        decision_digest = "sha256:" + "b" * 64
+
+    monkeypatch.setattr(real_parity, "parity_gate", lambda *_a, **_k: _AlwaysRefuses())
+    problem = gate._promotion_refusal_is_receipted()
+    assert problem is not None, "a gate that refuses its own control must not report a pass"
+    assert "was not promoted" in problem
+    assert "insufficient_evidence" in problem
