@@ -7,6 +7,7 @@ correct-US word passes is there because that version failed it.
 """
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -93,6 +94,39 @@ def test_diff_mode_scans_more_than_zero_files() -> None:
         lines_added, files_scanned = int(match.group(1)), int(match.group(2))
         if lines_added:
             assert files_scanned > 0, f"{lines_added} added lines resolved to no files"
+
+
+def _throwaway_repo(tmp_path: Path) -> Path:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    env = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
+    def g(*args: str) -> None:
+        subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, env={**os.environ, **env})
+    g("init", "-q")
+    (repo / "committed.md").write_text("The organization is fine." + chr(10), encoding="utf-8")
+    g("add", "committed.md")
+    g("commit", "-q", "-m", "seed")
+    return repo
+
+
+def test_diff_mode_refuses_a_dirty_tree_it_cannot_see(tmp_path: Path) -> None:
+    """The second vacuous pass: uncommitted work, no commits past the base, so nothing is scanned.
+    The gate must say so and fail rather than print ok."""
+    repo = _throwaway_repo(tmp_path)
+    (repo / "draft.md").write_text("The organisation is not." + chr(10), encoding="utf-8")
+    out = subprocess.run([sys.executable, str(GATE), "HEAD"], capture_output=True, text=True,
+                         env={**os.environ, "US_ENGLISH_REPOSITORY_ROOT": str(repo)})
+    assert out.returncode == 2, out.stdout + out.stderr
+    assert "Nothing was checked" in out.stderr and "--files" in out.stderr
+
+
+def test_diff_mode_passes_a_clean_tree_with_no_commits_past_the_base(tmp_path: Path) -> None:
+    """The paired control: a clean tree with nothing added since the base is a real ok, not a refusal."""
+    repo = _throwaway_repo(tmp_path)
+    out = subprocess.run([sys.executable, str(GATE), "HEAD"], capture_output=True, text=True,
+                         env={**os.environ, "US_ENGLISH_REPOSITORY_ROOT": str(repo)})
+    assert out.returncode == 0, out.stdout + out.stderr
+    assert "0 added line(s)" in out.stdout and "ok" in out.stdout
 
 
 def test_the_two_documented_false_positives_pass(tmp_path: Path) -> None:

@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import re
 import shutil
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -38,7 +39,8 @@ from pathlib import Path
 # parents[2], not parents[1]: this file is tools/ci/, so parents[1] is tools/ and every
 # repo-relative path from the diff failed its existence check -- the gate reported "ok" while
 # scanning zero files. The "0 file(s)" in its own summary line was the only tell.
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+# The override exists so the guard below can be tested in a throwaway repository.
+REPOSITORY_ROOT = Path(os.environ.get("US_ENGLISH_REPOSITORY_ROOT") or Path(__file__).resolve().parents[2])
 MATCHER = Path(__file__).resolve().parent / "verify-us-english.mjs"
 
 # `    line   12  honour -> honor`
@@ -140,6 +142,16 @@ def main() -> int:
                   f"the paths from the diff do not exist under {REPOSITORY_ROOT}. This is a bug in "
                   f"this gate, not a passing branch.", file=sys.stderr)
             return 1
+        # The other vacuous pass. This mode diffs COMMITS, so on a tree with uncommitted work and no
+        # commits past the base it scans nothing and says ok. That exact run certified two evidence
+        # commits carrying a Britishism on 2026-09-06. Uncommitted work is checked with --files.
+        if not total_added:
+            dirty = git("status", "--porcelain", "--untracked-files=all").strip()
+            if dirty:
+                print(f"::error::us-english: 0 added line(s) since {base}, but the working tree has "
+                      f"uncommitted changes. This mode scans commits only; commit first, or run "
+                      f"--files <paths> on the changed files. Nothing was checked.", file=sys.stderr)
+                return 2
         hits = [h for h in scan(existing) if h[1] in added.get(h[0], set())]
         scope = f"{total_added} added line(s) across {len(existing)} file(s), since {base}"
 
