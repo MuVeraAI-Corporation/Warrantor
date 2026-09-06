@@ -6,16 +6,16 @@
 > of the evidence, which is the one job `docs/W1-delivery-gaps.md` names for a
 > ledger. Regenerate with `python scripts/task_status.py --write`.
 
-**117 tasks · 954 steps · 178 steps landed**
+**117 tasks · 954 steps · 186 steps landed**
 
 | State | Count | Meaning |
 |---|---|---|
-| DONE | 17 | Merged into `main` **and** exit-gate evidence recorded |
+| DONE | 18 | Merged into `main` **and** exit-gate evidence recorded |
 | UNEVIDENCED | 0 | Merged with no evidence file. **This is a defect, not a state.** |
 | IN-FLIGHT | 26 | Branch exists, not yet merged |
 | READY | 0 | Expanded, unblocked, nobody has started it |
 | NEEDS-EXPANSION | 0 | Task structure exists; Step-0 detail not yet captured |
-| BLOCKED | 74 | A predecessor has not landed |
+| BLOCKED | 73 | A predecessor has not landed |
 
 | Task | Ph | Owner | State | Steps | Branch | SHA | Blocked by |
 |---|---|---|---|---|---|---|---|
@@ -29,7 +29,7 @@
 | **1.3** Containment and the kill switch into the `stop` v... | 1 | `glm-5.3-flash` | DONE | 12 | `feat/task-1.3` | d92e85e | — |
 | **1.4** Spend into the budget path, last (L3-03; label pr... | 1 | `glm-5.3-flash` | IN-FLIGHT | 9 | `feat/spend-call-ceiling` | 9834302 | — |
 | **1.5** One delegation algebra: evidence delegates to del... | 1 | `opus` | DONE | 14 | `feat/task-1.5-one-delegation-algebra` | 5ce580d | — |
-| **1.6** Trust directory bundle export/import and second-m... | 1 | `glm-5.3-flash` | IN-FLIGHT | 7 | `feat/trust-bundle-second-machine` | 51afb4b | — |
+| **1.6** Trust directory bundle export/import and second-m... | 1 | `glm-5.3-flash` | IN-FLIGHT | 7 | `feat/trust-bundle-second-machine` | b45d3b2 | — |
 | **2.1** Effect decomposition registry with strict-mode re... | 2 | `opus` | DONE | 14 | `feat/effect-decomposition-registry` | 6eea354 | phase 1 |
 | **2.2** Signed tool and skill admission manifests (L4-09) | 2 | `glm-5.3-flash` | IN-FLIGHT | 9 | `feat/tool-admission-manifests` | f3896cc | phase 1 |
 | **2.3** Two-phase staged effects for every syscall with i... | 2 | `glm-5.3-flash` | IN-FLIGHT | 13 | `feat/two-phase-staged-effects` | 75a9bc0 | phase 1 |
@@ -63,7 +63,7 @@
 | **7.1** Effect-class SDK, conformance kit, and the non-am... | 7 | `opus` | DONE | 12 | `feat/effect-sdk-and-deny-floor` | 6ab7c3a | phase 2 |
 | **7.2** Deserialization and template-injection guard (L4-06) | 7 | `glm-5.3-flash` | BLOCKED | 7 | `feat/deserialization-guard` | — | phase 2 |
 | **7.3** Adapters — messaging, ticketing and email (L4-10,... | 7 | `glm-5.3-flash` | BLOCKED | 8 | `feat/adapters-messaging` | — | phase 2 |
-| **7.4** Adapters — cloud control plane, CI/CD and identit... | 7 | `opus` | BLOCKED | 8 | `feat/adapters-substrate-mutating` | — | phase 2 |
+| **7.4** Adapters — cloud control plane, CI/CD and identit... | 7 | `opus` | DONE | 8 | `feat/adapters-substrate-mutating` | 1a659e0 | phase 2 |
 | **7.5** Adapters — package registries, data platforms and... | 7 | `glm-5.3-flash` | BLOCKED | 8 | `feat/adapters-spend-and-data` | — | phase 2 |
 | **7.6** Adapter — browser and computer use (L4-18) | 7 | `opus` | DONE | 8 | `feat/computer-use-adapter` | 5ecefa6 | phase 2 |
 | **7.7** Semantic egress purpose and data-class binding, w... | 7 | `opus` | BLOCKED | 10 | `feat/egress-purpose-binding` | — | phase 2 |
@@ -86,7 +86,7 @@
 | **9.7** Cross-tenant channel firewall and coordination pr... | 9 | `glm-5.3-flash` | BLOCKED | 8 | `feat/cross-tenant-firewall` | — | phase 1, phase 3 |
 | **9.8** Escalation channel to humans — reachable and attr... | 9 | `glm-5.3-flash` | BLOCKED | 7 | `feat/human-escalation-channel` | — | phase 1, phase 3 |
 | **9.9** Interop profile for A2A and MCP transports (L5-10) | 9 | `glm-5.3-flash` | BLOCKED | 7 | `feat/transport-interop-profile` | — | phase 1, phase 3 |
-| **10.1** The causal verdict — STRICT_CAUSAL, made real (L7... | 10 | `opus` | IN-FLIGHT | 12 | `feat/causal-verdict-strict` | e3008ef | phase 1, phase 5 |
+| **10.1** The causal verdict — STRICT_CAUSAL, made real (L7... | 10 | `opus` | IN-FLIGHT | 12 | `feat/causal-verdict-strict` | d31e92b | phase 1, phase 5 |
 | **10.2** Receipt query language and live stream (L7-13) | 10 | `glm-5.3-flash` | BLOCKED | 9 | `feat/receipt-query` | — | phase 1, phase 5 |
 | **10.3** Evidence-integrity monitors and multi-modal corre... | 10 | `glm-5.3-flash` | BLOCKED | 7 | `feat/evidence-integrity-monitors` | — | phase 1, phase 5 |
 | **10.4** Evidence retention, jurisdiction policy, cross-ru... | 10 | `glm-5.3-flash` | BLOCKED | 7 | `feat/retention-and-credential-flow` | — | phase 1, phase 5 |
@@ -96,19 +96,19 @@
 | **10.8** Key ceremony and rotation runbook, receipted (L1-06) | 10 | `glm-5.3-flash` | BLOCKED | 7 | `feat/key-rotation-runbook` | — | phase 1, phase 5 |
 | **10.9** Post-quantum dual signature and composite attesta... | 10 | `glm-5.3-flash` | BLOCKED | 7 | `feat/post-quantum-dual-signature` | — | phase 1, phase 5 |
 | **10.10** Sovereign key topologies (L1-05) | 10 | `human` | BLOCKED | 5 | `docs/task-10.10-sovereign-key-topologies` | — | phase 1, phase 5 |
-| **11.1** Fleet console and the agent inventory register (L... | 11 | `minimax-m3` | IN-FLIGHT | 6 | `feat/phase-11-operator-estate` | b34b4fa | phase 4 |
-| **11.2** Incident console; containment latency and exercis... | 11 | `minimax-m3` | IN-FLIGHT | 6 | `feat/phase-11-operator-estate` | b34b4fa | phase 4 |
-| **11.3** Policy studio for non-developers (L8-04) | 11 | `minimax-m3` | IN-FLIGHT | 6 | `feat/phase-11-operator-estate` | b34b4fa | phase 4 |
-| **11.4** Audit workbench and evidence pack generator (L8-0... | 11 | `minimax-m3` | IN-FLIGHT | 6 | `feat/phase-11-operator-estate` | b34b4fa | phase 4 |
-| **11.5** Plain-language scope and dependency-aware partial... | 11 | `minimax-m3` | IN-FLIGHT | 6 | `feat/phase-11-operator-estate` | b34b4fa | phase 4 |
-| **11.6** Approval quality, cognitive load, automation bias... | 11 | `minimax-m3` | IN-FLIGHT | 6 | `feat/phase-11-operator-estate` | b34b4fa | phase 4 |
-| **11.7** Accessibility as a control property; onboarding a... | 11 | `minimax-m3` | IN-FLIGHT | 7 | `feat/phase-11-operator-estate` | b34b4fa | phase 4 |
-| **11.8** Framework crosswalk engine and the board safety-c... | 11 | `minimax-m3` | IN-FLIGHT | 7 | `feat/phase-11-operator-estate` | b34b4fa | phase 4 |
-| **11.9** Supervisor/regulator portal and the customer trus... | 11 | `minimax-m3` | IN-FLIGHT | 6 | `feat/phase-11-operator-estate` | b34b4fa | phase 4 |
-| **11.10** Executive risk view; exposure budget and risk-app... | 11 | `minimax-m3` | IN-FLIGHT | 6 | `feat/phase-11-operator-estate` | b34b4fa | phase 4 |
-| **11.11** Outcome contract, baseline, attestation; safe-aut... | 11 | `minimax-m3` | IN-FLIGHT | 6 | `feat/phase-11-operator-estate` | b34b4fa | phase 4 |
-| **11.12** Notice, rights, appeal, contestability; role comp... | 11 | `minimax-m3` | IN-FLIGHT | 7 | `feat/phase-11-operator-estate` | b34b4fa | phase 4 |
-| **11.13** Natural-language console over the receipt graph (... | 11 | `minimax-m3` | IN-FLIGHT | 6 | `feat/phase-11-operator-estate` | b34b4fa | phase 4 |
+| **11.1** Fleet console and the agent inventory register (L... | 11 | `minimax-m3` | IN-FLIGHT | 6 | `feat/phase-11-operator-estate` | d12f9d0 | phase 4 |
+| **11.2** Incident console; containment latency and exercis... | 11 | `minimax-m3` | IN-FLIGHT | 6 | `feat/phase-11-operator-estate` | d12f9d0 | phase 4 |
+| **11.3** Policy studio for non-developers (L8-04) | 11 | `minimax-m3` | IN-FLIGHT | 6 | `feat/phase-11-operator-estate` | d12f9d0 | phase 4 |
+| **11.4** Audit workbench and evidence pack generator (L8-0... | 11 | `minimax-m3` | IN-FLIGHT | 6 | `feat/phase-11-operator-estate` | d12f9d0 | phase 4 |
+| **11.5** Plain-language scope and dependency-aware partial... | 11 | `minimax-m3` | IN-FLIGHT | 6 | `feat/phase-11-operator-estate` | d12f9d0 | phase 4 |
+| **11.6** Approval quality, cognitive load, automation bias... | 11 | `minimax-m3` | IN-FLIGHT | 6 | `feat/phase-11-operator-estate` | d12f9d0 | phase 4 |
+| **11.7** Accessibility as a control property; onboarding a... | 11 | `minimax-m3` | IN-FLIGHT | 7 | `feat/phase-11-operator-estate` | d12f9d0 | phase 4 |
+| **11.8** Framework crosswalk engine and the board safety-c... | 11 | `minimax-m3` | IN-FLIGHT | 7 | `feat/phase-11-operator-estate` | d12f9d0 | phase 4 |
+| **11.9** Supervisor/regulator portal and the customer trus... | 11 | `minimax-m3` | IN-FLIGHT | 6 | `feat/phase-11-operator-estate` | d12f9d0 | phase 4 |
+| **11.10** Executive risk view; exposure budget and risk-app... | 11 | `minimax-m3` | IN-FLIGHT | 6 | `feat/phase-11-operator-estate` | d12f9d0 | phase 4 |
+| **11.11** Outcome contract, baseline, attestation; safe-aut... | 11 | `minimax-m3` | IN-FLIGHT | 6 | `feat/phase-11-operator-estate` | d12f9d0 | phase 4 |
+| **11.12** Notice, rights, appeal, contestability; role comp... | 11 | `minimax-m3` | IN-FLIGHT | 7 | `feat/phase-11-operator-estate` | d12f9d0 | phase 4 |
+| **11.13** Natural-language console over the receipt graph (... | 11 | `minimax-m3` | IN-FLIGHT | 6 | `feat/phase-11-operator-estate` | d12f9d0 | phase 4 |
 | **12.1** Automated corpus extraction from the live graph (... | 12 | `glm-5.3-flash` | BLOCKED | 7 | `feat/corpus-extraction` | — | phase 10 |
 | **12.2** Refusal corpus as an asset; per-plane specialist ... | 12 | `opus` | BLOCKED | 8 | `feat/refusal-corpus` | — | phase 10 |
 | **12.3** Continuous promotion with an enforced parity gate... | 12 | `opus` | DONE | 10 | `feat/deployment-configuration-parity-w6` | 4aa30ad | phase 10 |
