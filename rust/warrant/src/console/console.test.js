@@ -119,6 +119,28 @@ const ELEMENT_IDS = [
   'routing-empty',
   'routing-error',
   'routing-unreadable',
+  // Audit workbench (L8-05, L8-10) — added by Task 11.4. The pane is reached
+  // by clicking the "Audit" tab in the right-hand column; six digits already
+  // own keys 1-5 and settings is click-only, so this pane is click-only too.
+  // The verifier is the only pane helper that ships its own digest, anchor
+  // and absent-list sentence; the pane renders them beside the pack's tier,
+  // never as a single green "verified" badge.
+  'view-audit',
+  'audit',
+  'audit-headline',
+  'audit-form',
+  'audit-packs',
+  'audit-empty',
+  'audit-error',
+  'audit-unreadable',
+  'audit-pack-format',
+  'audit-pack-tier',
+  'audit-pack-anchor',
+  'audit-pack-exercised',
+  'audit-pack-absences',
+  'audit-pack-receipts',
+  'audit-pack-verdict',
+  'audit-pack-bundle',
 ];
 
 function element(tag = 'div', id = '') {
@@ -2728,5 +2750,236 @@ test('the 4 key switches to the routing view, mirroring the click', async () => 
   // guarantee; the regex test in `every destination has a number key` pins the
   // specific key bindings.
   void event;
+});
+
+// ── Task 11.4 — the audit workbench and evidence pack generator (L8-05, L8-10) ──
+//
+// The pack must verify offline, on a machine that never touched this deployment.
+// The four-attack test in `rust/archive/tests/verification_does_not_depend_on_the_archive.rs`
+// is the contract; these tests are the workbench's side of the same guarantee.
+
+import {
+  genuineReportPack,
+  forgedArchivePack,
+  tamperedBundlePack,
+  stopPack,
+  ledgerPack,
+  unknownFormatPack,
+  auditFixtures,
+} from './audit.fixtures.js';
+
+/** Open the audit pane against an answer body — the workbench renders that body without a backend. */
+async function openAudit(audit) {
+  const app = await boot((p) => {
+    if (p === '/v1/health') return HEALTH_OK;
+    if (p === '/v1/audit/packs') return audit;
+    return listOf(ONE_WARRANT);
+  });
+  app.el('view-audit').fire('click');
+  await settle();
+  return app;
+}
+
+test('the audit verifier verifies a genuine pack offline and never reaches for a network', async () => {
+  // The plan's exit gate: "A generated pack verifies with no network and no access to this
+  // deployment, proven by a test that verifies it in a clean directory with networking
+  // disabled." The console's verifier is `verifyPack`; the test pins that it does NOT
+  // import any network primitive — only Web Crypto's `crypto.subtle.digest`, which is
+  // local. The test reads the source, scopes the check to the verifier function, and
+  // bans the four network primitives that would let the verifier reach a server.
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'console.js'), 'utf8');
+  // Find the body of `verifyPack` by locating its braces. A regex would be brittle; a
+  // small parser that walks from `export async function verifyPack` until the matching
+  // closing brace at column 0 finds the body.
+  const start = source.indexOf('export async function verifyPack');
+  assert.ok(start >= 0, 'verifyPack must be exported');
+  let depth = 0;
+  let end = -1;
+  for (let i = start; i < source.length; i++) {
+    if (source[i] === '{') depth++;
+    if (source[i] === '}') {
+      depth--;
+      if (depth === 0) { end = i; break; }
+    }
+  }
+  const body = source.slice(start, end + 1);
+  for (const banned of ['node:net', 'node:http', 'node:https', 'XMLHttpRequest', 'WebSocket']) {
+    assert.ok(
+      !body.includes(banned),
+      `the verifier must not reference ${banned} — verification is offline`,
+    );
+  }
+  // And: the verifier returns anchored-and-valid for a genuine pack.
+  const { module } = await boot(() => HEALTH_OK);
+  const verdict = await module.verifyPack(genuineReportPack);
+  assert.equal(verdict.verdict, 'anchored-and-valid');
+  assert.equal(verdict.tier, 'enforced');
+});
+
+test('the audit verifier refuses a forged pack: digest matches, anchor does not', async () => {
+  // The fourth attack in the archive's contract: an archive key signs a bundle end to end,
+  // and the file is fully self-consistent. The verifier surfaces this as digest-only-valid
+  // with the refusal-of-anchor sentence — never as anchored-and-valid, never as a green tick.
+  const { module } = await boot(() => HEALTH_OK);
+  const verdict = await module.verifyPack(forgedArchivePack);
+  assert.equal(verdict.verdict, 'digest-only-valid');
+  assert.notEqual(verdict.verdict, 'anchored-and-valid');
+  assert.match(verdict.reason, /no receipt was signed by the pinned issuer key/);
+});
+
+test('the audit verifier refuses a tampered bundle on the digest', async () => {
+  // The first and second attacks: edit the bundle, remove a limitation. The digest check
+  // refuses both. The verifier names the digest mismatch in its reason so a reader can
+  // tell a forged bundle from a forged signature.
+  const { module } = await boot(() => HEALTH_OK);
+  const verdict = await module.verifyPack(tamperedBundlePack);
+  assert.equal(verdict.verdict, 'digest-mismatch');
+  assert.match(verdict.reason, /digest mismatch/);
+});
+
+test('the audit verifier refuses a pack whose format is not one the archive holds', async () => {
+  // The format-door case. The archive holds three formats; anything else is refused at the
+  // door. The verifier surfaces this as format-refused without computing a digest.
+  const { module } = await boot(() => HEALTH_OK);
+  const verdict = await module.verifyPack(unknownFormatPack);
+  assert.equal(verdict.verdict, 'format-refused');
+});
+
+test('the audit pane renders every pack from fixtures, with no backend running', async () => {
+  // The pane renders from the body's `data.packs` array. With no body the pane shows the
+  // empty-state paragraph, never the error paragraph. With packs the pane shows one card
+  // per pack, each carrying the verdict the verifier computes.
+  const app = await openAudit({
+    status: 200,
+    body: { data: { packs: [genuineReportPack, stopPack, ledgerPack] } },
+  });
+  assert.equal(app.el('audit-error').hidden, true);
+  assert.equal(app.el('audit-empty').hidden, true);
+  // The verifier is async (Web Crypto). Wait long enough for all three packs to render.
+  for (let i = 0; i < 10; i++) await settle();
+  const cards = app.el('audit-packs').children.filter((c) => c.tagName === 'article');
+  assert.ok(cards.length >= 3, `every pack renders as its own article card — got ${cards.length}`);
+});
+
+test('the audit pane renders the empty-state paragraph when there are no packs', async () => {
+  // A blank audit is the absence of a record, not the record "no audit". The empty-state
+  // paragraph is the only thing shown — the error paragraph and the per-pack list stay
+  // hidden, so a future test that asserted on the absence of cards reads a clean DOM.
+  const app = await openAudit({ status: 200, body: { data: { packs: [] } } });
+  await settle();
+  assert.equal(app.el('audit-empty').hidden, false);
+  assert.equal(app.el('audit-error').hidden, true);
+});
+
+test('the audit pane renders the error paragraph when the backend does not answer', async () => {
+  // The pane refuses to render "no packs" when the request did not complete. A pane that
+  // rendered the empty state for a transport failure would tell the reader "no audit"
+  // when the truth is "I could not ask".
+  const app = await openAudit({ status: 500, body: { data: null } });
+  await settle();
+  assert.equal(app.el('audit-error').hidden, false);
+});
+
+test('every audit pack carries a declared-absences list, and the page renders it', async () => {
+  // The plan's Step 3: "the pack declares what it does not contain. Silence is not
+  // completeness." A pack without a declared-absences list would render as "complete"
+  // when it is not. The page renders the list as its own paragraph; the test pins both.
+  for (const fixture of auditFixtures) {
+    assert.ok(
+      Array.isArray(fixture.declared_absences) && fixture.declared_absences.length > 0,
+      `every fixture must carry a non-empty declared_absences list — ${fixture.format} does not`,
+    );
+  }
+  const app = await openAudit({ status: 200, body: { data: { packs: [genuineReportPack] } } });
+  await settle();
+  await settle();
+  const card = app.el('audit-packs').children.find((c) => c.tagName === 'article');
+  const absences = card.children.find((c) => c.className === 'audit-pack-absences');
+  assert.ok(absences, 'every pack card must carry an absences list');
+  // And: at least one rendered absence contains the substring "no spend ledger" — the
+  // genuine pack's declared absence. A renderer that dropped the list would leave the
+  // card with a single placeholder li, and the substring match fails.
+  const text = textOf(absences);
+  assert.match(text, /no spend ledger/);
+});
+
+test('every audit pack carries its tier in the receipt, and the page renders the tier', async () => {
+  // The plan's Step 4: "every receipt in the pack carries its enforcement tier." A receipt
+  // without a tier is a receipt whose word the verifier would have to invent, and that is
+  // the rule's opposite. Every fixture's receipts carry a tier word; the page renders it.
+  for (const fixture of auditFixtures) {
+    for (const receipt of fixture.receipts ?? []) {
+      assert.ok(
+        ['enforced', 'mediated', 'observed'].includes(receipt.tier),
+        `every receipt must carry one of the three tier words — ${fixture.format} has tier ${receipt.tier}`,
+      );
+    }
+  }
+  const app = await openAudit({ status: 200, body: { data: { packs: [genuineReportPack] } } });
+  // The verifier is async (Web Crypto). Wait a few microtask cycles for the verifier to
+  // resolve and the card to be appended to the DOM.
+  for (let i = 0; i < 5; i++) await settle();
+  const card = app.el('audit-packs').children.find((c) => c.tagName === 'article');
+  assert.ok(card, 'a pack card must be appended to the page after the verifier resolves');
+  const tier = card.children.find((c) => c.className === 'audit-pack-tier');
+  assert.match(textOf(tier), /tier: enforced/);
+});
+
+test('the audit pane distinguishes anchored-and-valid from digest-only-valid in prose', async () => {
+  // The plan's central rule: a merely-observed bound must never look identical to a
+  // cryptographically enforced one. The verifier pins two different sentences; the page
+  // renders one for anchored-and-valid, the other for digest-only-valid. A renderer that
+  // collapsed them would be the rule's opposite.
+  const app = await openAudit({
+    status: 200,
+    body: { data: { packs: [genuineReportPack, forgedArchivePack] } },
+  });
+  // The verifier is async. Wait long enough for both cards to render.
+  for (let i = 0; i < 5; i++) await settle();
+  const cards = app.el('audit-packs').children.filter((c) => c.tagName === 'article');
+  const verdicts = cards.map((card) => {
+    const v = card.children.find((c) => c.className === 'audit-pack-verdict');
+    return v ? textOf(v) : '';
+  });
+  assert.ok(
+    verdicts.some((v) => /anchored-and-valid/.test(v)),
+    'one card must render anchored-and-valid for the genuine pack',
+  );
+  assert.ok(
+    verdicts.some((v) => /digest-only-valid/.test(v)),
+    'one card must render digest-only-valid for the forged pack',
+  );
+  // And: the two sentences are not the same text. A renderer that produced one sentence
+  // for both would fail this assertion, and the rule's opposite is what fails it.
+  assert.notEqual(verdicts[0], verdicts[1]);
+});
+
+test('the audit pane is click-only: six destinations share five digits', async () => {
+  // The five digits are owned by warrants / queue / summary / coverage / routing. The
+  // settings pane is click-only for the same reason; the audit pane follows the same
+  // pattern. A pane that grabbed digit 6 would have rebound the keyboard handler without
+  // updating the SHORTCUTS row, and the regex test below would fail.
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'console.js'), 'utf8');
+  // No `case '6':` in the keyboard handler.
+  assert.ok(
+    !/case\s+'6':\s*setView\('audit'\)/.test(source),
+    'audit must not own a digit key — six destinations share five digits',
+  );
+  // And: the SHORTCUTS row mentions the click path, the same prose style as settings.
+  assert.match(source, /click-only/);
+});
+
+test('the audit pane appears when view-audit is clicked, and only then', async () => {
+  // The pane is hidden by default; clicking the tab reveals it; clicking another tab hides
+  // it again. A pane that was always visible would be a pane the operator could not avoid,
+  // and a pane that did not toggle would be a pane that broke the "one destination at a
+  // time" rule.
+  const app = await openAudit({ status: 200, body: { data: { packs: [] } } });
+  assert.equal(app.el('audit').hidden, false, 'clicking view-audit must reveal the pane');
+  app.el('view-warrants').fire('click');
+  await settle();
+  assert.equal(app.el('audit').hidden, true, 'switching away must hide the pane');
 });
 

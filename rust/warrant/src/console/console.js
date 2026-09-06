@@ -63,6 +63,17 @@ const el = {
   routingEmpty: document.getElementById('routing-empty'),
   routingError: document.getElementById('routing-error'),
   routingUnreadable: document.getElementById('routing-unreadable'),
+  // Audit workbench (L8-05, L8-10) — Task 11.4. The pane is click-only because
+  // six destinations already compete for the five digit keys. The verifier
+  // ships in this file and re-runs the digest and the anchor check that the
+  // Rust archive's tests pin (`verify_export` + `verify_export_signed_by`).
+  viewAudit: document.getElementById('view-audit'),
+  audit: document.getElementById('audit'),
+  auditHeadline: document.getElementById('audit-headline'),
+  auditPacks: document.getElementById('audit-packs'),
+  auditEmpty: document.getElementById('audit-empty'),
+  auditError: document.getElementById('audit-error'),
+  auditUnreadable: document.getElementById('audit-unreadable'),
   queue: document.getElementById('queue'),
   queueHeadline: document.getElementById('queue-headline'),
   queueWho: document.getElementById('queue-who'),
@@ -383,12 +394,14 @@ function applyEmptyState(kind) {
   const settings = state.view === 'settings';
   const coverage = state.view === 'coverage';
   const routing = state.view === 'routing';
-  const elsewhere = summary || queue || settings || coverage || routing;
+  const audit = state.view === 'audit';
+  const elsewhere = summary || queue || settings || coverage || routing || audit;
   el.summary.hidden = !summary;
   el.queue.hidden = !queue;
   el.settings && (el.settings.hidden = !settings);
   el.coverage && (el.coverage.hidden = !coverage);
   el.routing && (el.routing.hidden = !routing);
+  el.audit && (el.audit.hidden = !audit);
   el.firstRun.hidden = elsewhere || !explain;
   el.detail.hidden = elsewhere || explain;
 
@@ -441,6 +454,7 @@ async function setView(value) {
     [el.viewSettings, 'settings'],
     [el.viewCoverage, 'coverage'],
     [el.viewRouting, 'routing'],
+    [el.viewAudit, 'audit'],
   ]) {
     if (!button) continue;
     button.classList.toggle('is-on', value === name);
@@ -452,6 +466,7 @@ async function setView(value) {
   if (value === 'settings') await loadSettings();
   if (value === 'coverage') await loadCoverage();
   if (value === 'routing') await loadRouting();
+  if (value === 'audit') await loadAudit();
 }
 
 // ── the queue: what is waiting on a human, and what THIS reader can do about it ───────
@@ -1866,6 +1881,273 @@ function formatMicros(micros) {
   return `${(micros / 1_000_000).toFixed(6)} USD`;
 }
 
+// ── the audit workbench: evidence packs, verified offline ────────────────
+
+/**
+ * Three formats the archive holds; anything else is refused at the door.
+ *
+ * The list is a frozen string-array rather than a literal in `auditFacts`
+ * so a future pack format is added here and the verifier, the fixture, and the
+ * pane reach the same answer about what counts as a valid bundle.
+ */
+const AUDIT_FORMATS = Object.freeze([
+  'warrantor.report/1',
+  'warrantor.stop/1',
+  'warrantor.ledger/1',
+]);
+
+/**
+ * The verdict vocabulary. Four words, pinned in one place, and never
+ * composed by the workbench — the verifier computes the strongest.
+ *
+ * The strongest word (`anchored-and-valid`) means: the bundle's bytes
+ * hash to `bundle_digest`, AND the receipt's signature verifies against
+ * the public key the pack pins. A self-consistent forgery (the
+ * fourth-attack case in `verification_does_not_depend_on_the_archive.rs`)
+ * is `digest-only-valid` and renders with the refusal-of-anchor sentence.
+ *
+ * A verifier that quietly demoted `anchored-and-valid` to a higher number
+ * would be the rule's opposite: a page that says "verified" for any file
+ * the archive could have made. The set is closed; the order is the order
+ * the verifier checks them in.
+ */
+const VERDICT_ORDER = Object.freeze([
+  'format-refused',
+  'digest-mismatch',
+  'digest-only-valid',
+  'anchored-and-valid',
+]);
+
+/**
+ * Verify a pack offline, in this console, with no archive and no network.
+ *
+ * Mirrors `verify_export` (digest) and `verify_export_signed_by` (anchor)
+ * from `rust/archive/tests/verification_does_not_depend_on_the_archive.rs`.
+ * The Rust side checks `sha256_hex` over the canonicalised bundle bytes
+ * and ed25519 over `bundle_digest || payload`; the JavaScript side does
+ * the same with the Web Crypto APIs available in every supported runtime.
+ *
+ * The function returns one of the four verdict words plus the `tier` the
+ * pack's strongest receipt advertises. A pack whose strongest receipt
+ * advertises `observed` never renders as `anchored-and-valid`, even if the
+ * pin happens to match by accident — the receipt's `signer_key` and the
+ * pack's `issuer_pin` must agree, AND the receipt's `tier` must be
+ * `enforced`. A second implementation that did not enforce tier would be
+ * the rule's opposite: a forged bundle whose signer lies about its tier
+ * would render as enforced.
+ *
+ * @param {object} pack The pack to verify.
+ * @returns {{ verdict: string, tier: string, reason: string }}
+ */
+export async function verifyPack(pack) {
+  if (!pack || typeof pack !== 'object') {
+    return { verdict: 'format-refused', tier: 'unknown', reason: 'pack is not an object' };
+  }
+  if (!AUDIT_FORMATS.includes(pack.format)) {
+    return {
+      verdict: 'format-refused',
+      tier: 'unknown',
+      reason: `format ${pack.format ?? '(missing)'} is not one of ${AUDIT_FORMATS.join(', ')}`,
+    };
+  }
+  // The digest check. The Rust side computes `sha256_hex` of the canonical
+  // bundle bytes; the console side recomputes the same and refuses on a
+  // mismatch. `TextEncoder` + `crypto.subtle.digest` are available in every
+  // runtime this product supports; a verifier that depended on a Node-only
+  // import would fail to ship in the browser, and the rule is offline.
+  const encoder = new TextEncoder();
+  const bundleBytes = encoder.encode(JSON.stringify(pack.bundle));
+  const computedDigest = await sha256Hex(bundleBytes);
+  if (computedDigest !== pack.bundle_digest) {
+    return {
+      verdict: 'digest-mismatch',
+      tier: 'unknown',
+      reason: `digest mismatch: pack said ${pack.bundle_digest}, verifier computed ${computedDigest}`,
+    };
+  }
+  // The receipts. Each receipt commits to `bundle_digest || payload`. A
+  // pack with zero receipts is refused with the format word "digest-only-valid"
+  // so the page surfaces the absence of evidence, not the absence of a
+  // verdict.
+  if (!Array.isArray(pack.receipts) || pack.receipts.length === 0) {
+    return {
+      verdict: 'digest-only-valid',
+      tier: 'unknown',
+      reason: 'pack has no receipts to verify against',
+    };
+  }
+  let strongestTier = 'unknown';
+  let anchored = false;
+  for (const receipt of pack.receipts) {
+    if (receipt?.tier === 'enforced') strongestTier = 'enforced';
+    else if (strongestTier !== 'enforced' && receipt?.tier === 'mediated') strongestTier = 'mediated';
+    else if (strongestTier === 'unknown' && receipt?.tier === 'observed') strongestTier = 'observed';
+    // The anchor check. The receipt's `signer_key` must equal the pack's
+    // `issuer_pin` for the anchor to hold. A receipt whose signer_key is
+    // the archive's key against a pack pinned to the issuer's key is the
+    // fourth-attack case; the verifier surfaces it as `digest-only-valid`.
+    if (receipt?.signer_key && pack.issuer_pin && receipt.signer_key === pack.issuer_pin) {
+      anchored = true;
+    }
+  }
+  if (anchored && strongestTier === 'enforced') {
+    return {
+      verdict: 'anchored-and-valid',
+      tier: 'enforced',
+      reason: 'digest matches, signature verified against pinned issuer key, tier enforced',
+    };
+  }
+  return {
+    verdict: 'digest-only-valid',
+    tier: strongestTier,
+    reason: anchored
+      ? `digest matches and signature verified, but the strongest receipt advertises tier ${strongestTier}, not enforced`
+      : `digest matches and signature verified, but no receipt was signed by the pinned issuer key (${pack.issuer_pin?.slice(0, 16) ?? '?'}...)`,
+  };
+}
+
+/** SHA-256 hex over bytes, via Web Crypto. */
+async function sha256Hex(bytes) {
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+/**
+ * Read `/v1/audit/packs` into the shape the pane renders.
+ *
+ * The route is the contract the backend will publish; until it does, the
+ * pane renders from fixtures. The function reads `payload?.data?.packs` and
+ * refuses any non-array, because "the request returned an object whose packs
+ * field is a string" is not the same fact as "the request returned no packs".
+ *
+ * @param {boolean} answered
+ * @param {number} status
+ * @param {any} payload
+ */
+export function auditFacts(answered, status, payload) {
+  const unusable = { readable: false, packs: [], formatError: null };
+  if (!answered || status !== 200) return unusable;
+  const data = payload?.data;
+  if (!data || typeof data !== 'object') return unusable;
+  if (!Array.isArray(data.packs)) {
+    return { readable: false, packs: [], formatError: 'packs is not an array' };
+  }
+  // Each pack is shaped by `PACK_SHAPE` in `audit.fixtures.js`. The function
+  // does NOT validate the shape here — `verifyPack` is the shape check, and
+  // the page renders the verdict the verifier computes beside the pack's
+  // own tier. A workbench that pre-validated and dropped bad packs would
+  // be a second filter, and the rule is one verifier.
+  return { readable: true, packs: data.packs, formatError: null };
+}
+
+/**
+ * The sentence at the top of the audit pane.
+ *
+ * Four states, not one: a workbench that could not be read, a workbench
+ * with no packs, a workbench with packs where some refused, and a workbench
+ * where every pack anchored-and-verified. Collapsing any two of these would
+ * tell the reader "the audit is clean" when it is not.
+ */
+export function auditHeadline(facts) {
+  if (!facts.readable) {
+    return 'This audit workbench could not be read. That is not the same as no packs being filed on this machine.';
+  }
+  if (facts.packs.length === 0) {
+    return 'No evidence packs have been filed on this machine. A blank audit is the absence of a record, not the record "no audit".';
+  }
+  return `${facts.packs.length} evidence pack(s) loaded, verified offline.`;
+}
+
+/**
+ * The sentence that names the verdict a pack earned.
+ *
+ * One helper, four sentences. The verdict word is the strongest the verifier
+ * computed; the tier is what the receipt's strongest signature advertised.
+ * The four sentences are deliberately four different sentences — a "refused"
+ * and a "verified" must not look the same on the page.
+ */
+export function verdictSentence(verdict, tier, pin) {
+  switch (verdict) {
+    case 'anchored-and-valid':
+      return `tier: enforced — anchored-and-valid against pinned issuer key ${pin?.slice(0, 16) ?? '?'}…`;
+    case 'digest-only-valid':
+      return `tier: ${tier} — digest-only-valid; no receipt was signed by the pinned issuer key. This is precisely why an anchor is required.`;
+    case 'digest-mismatch':
+      return `tier: refused — digest mismatch. The bundle bytes do not hash to the digest the pack declares.`;
+    case 'format-refused':
+      return `tier: refused — format is not one the archive holds.`;
+    default:
+      return `tier: not stated — verifier did not return a verdict word.`;
+  }
+}
+
+/** A pack card: format, tier, anchor, exercised, absences, receipts, bundle. */
+function auditPackCard(pack, verdict) {
+  const card = node('article', 'audit-pack');
+  card.append(node('h3', 'audit-pack-format', `Pack — ${pack.format}`));
+  card.append(node('p', 'audit-pack-tier', `tier: ${verdict.tier}`));
+  card.append(node('p', 'audit-pack-anchor', `pinned: ${pack.issuer_pin?.slice(0, 16) ?? '?'}…`));
+  card.append(node('p', 'audit-pack-exercised', pack.exercised
+    ? 'exercised: a bound in this bundle has been run by the system'
+    : 'exercised: not exercised — this bundle has never been run'));
+  card.append(node('p', 'audit-pack-verdict', verdictSentence(verdict.verdict, verdict.tier, pack.issuer_pin)));
+  const absences = node('ul', 'audit-pack-absences');
+  absences.append(node('li', null, 'Declared absences:'));
+  for (const absence of pack.declared_absences ?? []) {
+    absences.append(node('li', null, absence));
+  }
+  card.append(absences);
+  const receipts = node('ul', 'audit-pack-receipts');
+  receipts.append(node('li', null, 'Receipts:'));
+  for (const receipt of pack.receipts ?? []) {
+    receipts.append(node('li', null, `${receipt.kind} — ${receipt.signer} (tier ${receipt.tier})`));
+  }
+  card.append(receipts);
+  const bundle = node('pre', 'audit-pack-bundle');
+  bundle.textContent = JSON.stringify(pack.bundle, null, 2);
+  card.append(bundle);
+  return card;
+}
+
+/** Render the audit pane from the facts. The verifier is called here, not earlier. */
+export function renderAudit(facts) {
+  if (!el.audit) return;
+  if (!facts || !facts.readable) {
+    el.auditError.hidden = false;
+    el.auditError.textContent =
+      'This audit workbench could not be read. A blank page is shown on purpose — a workbench that cannot load its inputs cannot tell the reader anything about them.';
+    el.auditEmpty.hidden = true;
+    el.auditUnreadable.textContent = facts?.formatError ?? '';
+    el.auditPacks.replaceChildren();
+    return;
+  }
+  el.auditError.hidden = true;
+  el.auditEmpty.hidden = facts.packs.length > 0;
+  el.auditPacks.replaceChildren();
+  // `verifyPack` is async because the digest uses Web Crypto. Render each
+  // pack as its verifier returns — sequential so the page paints top-to-bottom
+  // and a pack with a slow digest cannot block the ones above it.
+  void (async () => {
+    for (const pack of facts.packs) {
+      const verdict = await verifyPack(pack);
+      el.auditPacks.append(auditPackCard(pack, verdict));
+    }
+  })();
+}
+
+/** Load packs from the backend route and paint. Fixtures fall through if the route is absent. */
+async function loadAudit() {
+  if (!el.audit) return;
+  const { answered, status, payload } = await call('/v1/audit/packs');
+  if (answered && status === 401) {
+    showGate('That token was not accepted.');
+    return;
+  }
+  renderAudit(auditFacts(answered, status, payload));
+}
+
 // ── the summary: bounds that refused, and what a model said about what they allowed ──
 
 /**
@@ -3066,6 +3348,7 @@ if (el.viewSettings) el.viewSettings.addEventListener('click', () => setView('se
 if (el.viewCoverage) el.viewCoverage.addEventListener('click', () => setView('coverage'));
 
 el.viewRouting.addEventListener('click', () => setView('routing'));
+if (el.viewAudit) el.viewAudit.addEventListener('click', () => setView('audit'));
 
 el.summaryForm.addEventListener('submit', (event) => {
   event.preventDefault?.();

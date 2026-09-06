@@ -71,6 +71,7 @@
           <button id="view-settings" class="view" type="button">Notifications</button>
           <button id="view-coverage" class="view" type="button">Coverage map</button>
           <button id="view-routing" class="view" type="button">Routing</button>
+          <button id="view-audit" class="view" type="button">Audit</button>
         </div>
 
         <div class="filters" role="group" aria-label="Filter by state">
@@ -417,6 +418,45 @@
         <p id="routing-empty" class="empty" hidden>
           No routing decisions to show. Backends may be configured; nothing has been routed yet.
         </p>
+      </section>
+
+      <!-- The audit workbench (L8-05, L8-10).
+           Everything in this estate exports through it, which is why it is built first in the
+           Phase 11 order. A pack verifies offline, on a machine that never touched this
+           deployment — the test that proves this lives in
+           `rust/archive/tests/verification_does_not_depend_on_the_archive.rs` and the workbench
+           ships its own verifier that agrees with it.
+
+           Every pack renders four facts: format, tier, anchor, exercised. The verdicts are four
+           words — anchored-and-valid, digest-only-valid, digest-mismatch, format-refused — and
+           they are pinned by the verifier. The workbench never composes the strongest word
+           (anchored-and-valid); the verifier computes it, and the page surfaces what it says.
+
+           A pack that does not declare its absences is the rule's opposite: it would render as
+           "complete" when it is not. The page renders the declared-absences list beside the
+           verdict, so the reader sees the gap the same place they see the verdict that names it. -->
+      <section id="audit" class="audit" hidden aria-labelledby="audit-headline">
+        <h2 id="audit-headline">Audit workbench — evidence packs, verified offline</h2>
+
+        <p class="note">
+          Each pack below is verified against its own digest and against the issuer key the pack
+          pins. The verifier is shipped in this console; verification is offline, with no
+          network and no archive process. A pack that verifies is shown with the verdict the
+          verifier computes — never a single green "verified" badge. A pack that refuses is
+          shown with the refusal sentence the verifier names.
+        </p>
+
+        <p id="audit-error" class="empty error" hidden>
+          The packs could not be loaded. A workbench that cannot read its inputs cannot tell
+          the reader anything about them, and the page is blank on purpose.
+        </p>
+        <p id="audit-unreadable" class="note error"></p>
+        <p id="audit-empty" class="empty" hidden>
+          No evidence packs have been filed on this machine. A blank audit is the absence of a
+          record, not the record "no audit".
+        </p>
+
+        <ul id="audit-packs" class="audit-packs"></ul>
       </section>
 
       <!-- The first-run panel.
