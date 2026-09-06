@@ -999,6 +999,18 @@ impl AgentEndpoint {
     pub fn secondary_refusals(&self) -> Vec<&crate::egress::SecondaryRefusal> {
         self.proxy.secondary_refusals()
     }
+
+    /// The schema a staged tool is published with. Open for the GitHub four, whose arguments the
+    /// registry does not type; closed for the HTTP call, whose only destination vocabulary is
+    /// the capability enum.
+    fn staged_schema(&self, name: &str) -> Value {
+        if name == crate::adapters::http::TOOL {
+            crate::adapters::http::tool_spec(self.proxy.egress_broker()).input_schema
+        } else {
+            json!({"type": "object", "additionalProperties": true})
+        }
+    }
+
 }
 
 impl Endpoint for AgentEndpoint {
@@ -1020,7 +1032,7 @@ impl Endpoint for AgentEndpoint {
                 .map(|name| ToolSpec {
                     name: name.clone(),
                     description: self.describe_permitted(name),
-                    input_schema: json!({"type": "object", "additionalProperties": true}),
+                    input_schema: self.staged_schema(name),
                 })
                 .collect();
             if let Some(vocabulary) = self.proxy.vocabulary() {
@@ -1049,7 +1061,7 @@ impl Endpoint for AgentEndpoint {
                 published.push(ToolSpec {
                     name: name.clone(),
                     description: self.describe_permitted(name),
-                    input_schema: json!({"type": "object", "additionalProperties": true}),
+                    input_schema: self.staged_schema(name),
                 });
             }
         }

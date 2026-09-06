@@ -425,3 +425,39 @@ fn a_path_that_could_change_the_destination_is_refused() {
     }
     assert!(validate_path("/repos/o/r/pulls?state=open").is_ok());
 }
+
+use warrantor_warrant::mcp::Endpoint;
+use warrantor_warrant::mcp_endpoints::agent_endpoint_for;
+use warrantor_warrant::store::StoredWarrant;
+
+fn now() -> u64 {
+    NOW
+}
+
+/// Through the real endpoint, not the helper: the published `http.call` carries the closed
+/// schema and the capability enum, and never the open `additionalProperties: true` shape.
+#[test]
+fn the_agent_endpoint_publishes_the_closed_http_schema() {
+    let dir = tempdir("endpoint");
+    let (w, _) = warrant(&["api.github.com"]);
+    let stored = StoredWarrant {
+        warrant: w,
+        worktree: None,
+        repo: None,
+        branch: None,
+        base_commit: None,
+        staged_chain: None,
+    };
+    let mut agent =
+        agent_endpoint_for(&stored, dir.join("q.jsonl"), ProxyMode::Enforce, now).expect("endpoint");
+    let spec = agent
+        .tools()
+        .into_iter()
+        .find(|t| t.name == TOOL)
+        .expect("http.call is published");
+    assert_eq!(spec.input_schema["additionalProperties"], Value::Bool(false));
+    assert_eq!(
+        spec.input_schema["properties"][ARG_CAPABILITY]["enum"],
+        serde_json::json!([capability_for("api.github.com")])
+    );
+}
