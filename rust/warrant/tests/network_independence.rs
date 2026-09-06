@@ -32,6 +32,11 @@ fn bounds(egress: &[&str]) -> WarrantBounds {
         expires_at: 4_000_000_000,
         budget_cents_observed: None,
         delegation_depth: 0,
+        // No horizon: these drills measure the egress path, and a horizon would add a
+        // ceiling on duration and effect count that has nothing to do with whether a
+        // destination is refused. Absent, not zero -- an absent horizon is bounded only by
+        // `expires_at`, which is what every drill here assumes.
+        horizon: None,
     }
 }
 

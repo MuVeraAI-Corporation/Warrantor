@@ -50,6 +50,11 @@ fn seed_tools(dir: &Path, id: &str, tools: &[&str]) -> StoredWarrant {
         expires_at: NOW + 3600,
         budget_cents_observed: None,
         delegation_depth: 1,
+        // No horizon: this endpoint test is about which effects a warrant's tools may stage,
+        // not about ceilings on duration or effect count. Absent rather than a large number,
+        // because an absent horizon leaves `expires_at` as the only ceiling and so cannot make
+        // one of these assertions pass for a reason the test never stated.
+        horizon: None,
     };
     let issuer = SigningKey::from_bytes(&[1; 32]);
     let settle = SigningKey::from_bytes(&[2; 32]);
