@@ -59,7 +59,8 @@ use warrantor_warrant::settle::{
 };
 use warrantor_warrant::spend::{self, SpendStore, SpendVerdict};
 use warrantor_warrant::staging::{
-    EffectRegistry, FileRecorder, StagedChainMark, StagedEffect, StagingQueue,
+    verify_receipt_log, EffectRegistry, FileRecorder, StagedChainMark, StagedEffect, StagingQueue,
+    STAGED_RECEIPT_FORMAT,
 };
 use warrantor_warrant::stop::{self, HaltContext, HaltScope, OsProcessControl, StopStore};
 use warrantor_warrant::store::{StoredWarrant, WarrantStore};
@@ -1297,6 +1298,17 @@ fn cmd_verify(args: &Args, root: &Path) -> ExitCode {
         Ok(b) => b,
         Err(e) => return fail(&format!("read {path}: {e}")),
     };
+    // A staged-receipt log is JSONL — one document per line — so it is recognized by its first
+    // line's format field, before the whole-file JSON parse below could refuse it.
+    if body.starts_with(format!("{{\"format\":\"{STAGED_RECEIPT_FORMAT}\"").as_bytes()) {
+        return match verify_receipt_log(Path::new(path)) {
+            Ok(pairs) => {
+                println!("{path}: {pairs} staged effect(s) verify as pre-commit/post-commit pairs under {STAGED_RECEIPT_FORMAT}");
+                ExitCode::SUCCESS
+            }
+            Err(e) => fail(&format!("{path}: {e}")),
+        };
+    }
     let declared: serde_json::Value = match serde_json::from_slice(&body) {
         Ok(v) => v,
         Err(e) => return fail(&format!("{path} is not a warrantor evidence file: {e}")),
@@ -1318,7 +1330,8 @@ fn cmd_verify(args: &Args, root: &Path) -> ExitCode {
              `warrantor mcp --upstream-effects-file {path}`."
         )),
         Some(other) => fail(&format!(
-            "{path} declares format {other:?}. warrantor verify reads {}, {}, {}, {} and {}.",
+            "{path} declares format {other:?}. warrantor verify reads {}, {}, {}, {}, {} and the \
+             {STAGED_RECEIPT_FORMAT} receipt log.",
             report::REPORT_EXPORT_FORMAT,
             stop::STOP_EXPORT_FORMAT,
             spend::LEDGER_EXPORT_FORMAT,
@@ -3224,11 +3237,18 @@ fn cmd_settle(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     let mut performer = EvidencedPerformer::new(inner.as_mut(), witness, &mut receipt_log);
     let mut recorder = match FileRecorder::open(store.staged_receipts_path(id)) {
         Ok(r) => r,
-        Err(e) => return fail(&format!(
-            "the receipt log for {id} cannot be opened, so nothing is settled: {e}"
-        )),
+        Err(e) => {
+            return fail(&format!(
+                "the receipt log for {id} cannot be opened, so nothing is settled: {e}"
+            ))
+        }
     };
-    let mut gate = CommitGate { recorder: &mut recorder, signer: &settle_key, key_id: "settle", now: now() };
+    let mut gate = CommitGate {
+        recorder: &mut recorder,
+        signer: &settle_key,
+        key_id: "settle",
+        now: now(),
+    };
     let outcome = settle(
         &mut stored.warrant,
         &queue,

@@ -101,7 +101,11 @@ pub trait Recorder {
     ///
     /// # Errors
     /// Why the record could not be made durable. The caller treats any error as "not recorded".
-    fn record(&mut self, idempotency_key: &str, receipt: &WarReceipt) -> Result<RecorderAck, String>;
+    fn record(
+        &mut self,
+        idempotency_key: &str,
+        receipt: &WarReceipt,
+    ) -> Result<RecorderAck, String>;
 
     /// The real id of a performance already recorded under this key, if any.
     fn performed(&self, idempotency_key: &str) -> Option<String>;
@@ -216,7 +220,11 @@ impl FileRecorder {
 }
 
 impl Recorder for FileRecorder {
-    fn record(&mut self, idempotency_key: &str, receipt: &WarReceipt) -> Result<RecorderAck, String> {
+    fn record(
+        &mut self,
+        idempotency_key: &str,
+        receipt: &WarReceipt,
+    ) -> Result<RecorderAck, String> {
         let record = RecordedReceipt {
             format: STAGED_RECEIPT_FORMAT.to_string(),
             sequence: self.records.len() as u64 + 1,
@@ -240,7 +248,9 @@ impl Recorder for FileRecorder {
             // forbids.
             .and_then(|()| file.sync_all())
             .map_err(|e| format!("append receipt: {e}"))?;
-        let ack = RecorderAck { sequence: record.sequence };
+        let ack = RecorderAck {
+            sequence: record.sequence,
+        };
         self.index(&record);
         self.records.push(record);
         Ok(ack)
@@ -253,6 +263,55 @@ impl Recorder for FileRecorder {
     fn unresolved(&self, idempotency_key: &str) -> bool {
         self.in_flight.contains(idempotency_key)
     }
+}
+
+/// Verify a receipt log offline: every line parses under [`STAGED_RECEIPT_FORMAT`], sequences are
+/// gapless, and every post-commit chains to the pre-commit before it under the same key
+/// (`warrantor_evidence::verify_chain`, which checks both signatures and the I-07 gate).
+///
+/// Returns the number of verified pre/post pairs. A trailing pre-commit with no post-commit is
+/// not an error — it is the open-effect state `settle` refuses to repeat — and is left uncounted.
+///
+/// # Errors
+/// [`WarrantError::Invalid`] naming the first line that fails, with the evidence crate's reason.
+pub fn verify_receipt_log(path: &Path) -> Result<usize, WarrantError> {
+    let recorder = FileRecorder::open(path)?;
+    let mut open: BTreeMap<&str, &RecordedReceipt> = BTreeMap::new();
+    let mut pairs = 0;
+    for record in recorder.records() {
+        match record.receipt.predicate.binding.phase {
+            Phase::PreCommit => {
+                warrantor_evidence::verify_receipt(&record.receipt).map_err(|e| {
+                    WarrantError::Invalid(format!("receipt {}: {e}", record.sequence))
+                })?;
+                open.insert(record.idempotency_key.as_str(), record);
+            }
+            Phase::PostCommit => {
+                let pre = open
+                    .remove(record.idempotency_key.as_str())
+                    .ok_or_else(|| {
+                        WarrantError::Invalid(format!(
+                            "receipt {} is a post-commit with no pre-commit before it",
+                            record.sequence
+                        ))
+                    })?;
+                warrantor_evidence::verify_chain(&pre.receipt, &record.receipt).map_err(|e| {
+                    WarrantError::Invalid(format!(
+                        "receipts {}/{}: {e}",
+                        pre.sequence, record.sequence
+                    ))
+                })?;
+                pairs += 1;
+            }
+            Phase::Atomic => {
+                return Err(WarrantError::Invalid(format!(
+                    "receipt {} is atomic; a staged effect is never routine and reversible",
+                    record.sequence
+                )))
+            }
+        }
+    }
+    Ok(pairs)
 }
 
 /// What the store last saw of a warrant's staged-effect chain, recorded outside the log itself.
