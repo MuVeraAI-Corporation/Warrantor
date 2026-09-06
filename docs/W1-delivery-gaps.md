@@ -742,6 +742,47 @@ enforce mode; `--egress H,H` compiles into `host:<H>` entries; each broker decis
 names no destination and is not decided; `warrantor_egress::transitive::check_closure` (L4-02's
 closure) is still uncalled and belongs to Phase 5's prover.
 
+### 3.1c The metadata and link-local floor, and the adapter conformance kit (Task 7.1, L4-25 and L4-20) — **the bound strength, stated in the product**
+
+**The floor.** The metadata and link-local deny is refused at the egress broker and cannot be
+amended by any warrant, policy field or serialized config. It binds the tool calls that reach the
+broker. It does **not** bind a socket the agent opens with its own shell or file tools, it does
+**not** bind a hostname that resolves into the metadata range, and it is **not** an OS or
+network-tier control: nothing outside this process enforces it. L4-25's admission-controller half —
+privileged pods, host mounts, broad service accounts, unrestricted cluster APIs — is not shipped in
+this repository.
+
+That makes it **Tier B, chokepoint.** A specific line refuses the action at the moment it is
+attempted, `hard_deny::refuse` returning `Refused` before any allow path is considered, so it is a
+refusal rather than a settle-time observation. It is not Tier A: a Tier A version would be a network
+policy or an admission controller enforcing it out of process, and neither exists here. The DNS
+limit is not new and is stated in the code at `rust/warrant/src/egress.rs`: a hostname that resolves
+into a metadata or private range is not caught by a range check, and only a literal address in the
+bound is. Adding `metadata.google.internal` and its siblings to a name list narrows that gap by one
+list and closes nothing.
+
+**L4-25 and L2-04 both remain `status="none"` after this task.** The master document requires that
+*"every metadata and link-local request fails at the network tier and every privileged-pod request
+fails at admission"*, and this task delivers neither tier.
+
+**The conformance kit** (`rust/warrant/src/effect_sdk.rs`, Task 7.1 Steps 6 to 9) is **Tier C,
+observed.** `run_conformance` proves that an adapter, under vectors the harness constructs, declares
+every tool it offers, declares each tool's decomposition exactly as the registry declares it, and
+writes no planted sentinel into anything it returns. It cannot prove a shipped adapter does either
+at runtime, and it cannot prove an adapter holds no credential of its own: `EffectGrant` has no
+credential accessor, but an adapter may hold a token in its own struct and the kit would not see it.
+The report renders that limit in its own text — *"this report describes the adapter surface under
+test vectors, not the adapter's runtime behavior or its private state."*
+
+**No new trust root, and no shipping caller yet.** A conformance report is a local JSON document. It
+establishes that the adapter passed these vectors on the machine that ran them, and nothing about
+who wrote the adapter, whether the binary shown is the binary run, or whether the upstream changed
+underneath; it carries the upstream version the caller observed and claims coverage for no other.
+Nothing in the shipping binary calls `run_conformance` today — the only caller is
+`rust/warrant/tests/effect_sdk_conformance.rs`. The trait exists so that Task 7.3's first adapter is
+transcribed from a contract instead of invented, and until an adapter ships, the kit constrains no
+running code.
+
 ### 3.1b The stop verb reaches the tree and the task state — **built, drilled on Windows; Linux numbers come from CI**
 
 **What the extraction removed.** The warrant crate refused to link `warrantor-kill-switch` because
