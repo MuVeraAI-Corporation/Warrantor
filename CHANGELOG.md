@@ -9,6 +9,13 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 
 ## [Unreleased]
 
+### Added — the trust bundle has been carried and verified on a second machine
+
+- **Trust bundle verified on a second machine.** A pin inherited by `issuer import` carries
+  structured provenance and `verify` says so; every anchored verdict states revocation is not
+  established; `verify` reads `warrantor.trust-bundle/1`; `issuer export` refuses to mint a key.
+  (`tests/trust_bundle.rs`)
+
 ### Added — the proxy can forward, and the harnesses that can now be pointed at it
 
 - **Every settled effect is decided, signed before and signed after.** `EvidencedPerformer`

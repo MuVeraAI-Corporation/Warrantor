@@ -457,8 +457,8 @@ refuses without an explicit `--replace` that prints both keys, because two keys 
 exactly what an attacker who cannot forge signatures wants instead. This is deliberately **local,
 TOFU-with-pinning, no network**: a directory that hands out keys over the network is a new trust
 root, and that design decision has not been made. What remains open is everything beyond one
-machine — a signed or shared directory, rotation, and who vouches for a name the first time in an
-organization.
+machine — rotation with history and signed snapshots anchored in a log (L10-01's extensions), and
+who vouches for a name the first time in an organization.
 
 What is still missing here: TLS.
 
@@ -484,6 +484,17 @@ What is still missing here: TLS.
   root stays an Ed25519 key a human checked, and only the fan-out improves. A local pin is never
   overwritten by a bundle, imports are not transitive, and there is no revocation channel — because
   a channel is a service, which is the thing being refused. Every import says all three.
+
+  **Run on three stores 2026-09-05:** a stranger with only the exporter's key pinned verified the
+  issuer's report by an inherited name; a bundle from an unpinned signer was refused with nothing
+  written; `verify` reads the bundle format.
+
+  ```
+  $ warrantor verify M:/wt-1.6-live/a-report.json --issuer ana      # on the stranger's store
+  verified  6891b6dddd5975923cefd262ed766a388ce8f1ccf782474f4a0830f27f9c9272
+    anchor        pinned as `ana` — the signature is bound to 438ea861858cf9bd836aa5c150e91d55b9e05ddd8df5badb726550694c37e417, INHERITED from a bundle signed by `team-b` (label "team-b", issued at 1788674359, bundle dafaed9fda622d0007ec01c439b957675fdac088ae75deba681f666d25f01719); first pinned at 1788674358 on the exporting machine. Nobody checked this key here: it is trusted on the authority of `team-b`, the key that WAS checked out of band on this machine
+    - Revocation is NOT established. A pin is a snapshot of a key somebody checked at one moment; there is no revocation channel and there will not be one, because a channel is a service, and a service everyone consults sits above the signatures. If this key was compromised after it was pinned, nothing here knows. Unpinning is a local act: warrantor issuer remove <name>.
+  ```
 
 What is still missing here: **TLS**, and a second person on another machine still cannot reach a
 loopback bind — see §2.3, where the bind is now fail-closed rather than merely warned about.
