@@ -1,5 +1,8 @@
 # Task 5.4: common-mode independence analysis for double network isolation
 
+> **Rebased 2026-09-06** onto `main` at `92b6018`; the merged-tree gate and the three conflict
+> resolutions are in the last section, *Review lane, phase 1*.
+
 Branch `feat/task-5.4-network-common-mode`, based on **local `main` at `f9c3523`** — not
 `origin/main` at `e4b5f10`, which is 45 commits stale. Every number in the plan's Step 0 was measured
 against `e4b5f10` and most of them are wrong for this base; the deviations are listed in full below.
@@ -653,3 +656,187 @@ the task, and three for the adversarial-review correction -- the fix, the record
 and this capture. A human merges. Per [[merging parallel PRs safely]], rebase on the then-current `main` and re-run this gate
 before merging — Task 1.2 is editing `rust/warrant/src/egress.rs`, which this branch also edits, and
 PR CI tests the branch against the *old* main.
+
+---
+
+## Review lane, phase 1: rebased onto `main` at `92b6018` (2026-09-06)
+
+Everything above this line was measured on the branch as built, from local `main` at `f9c3523`.
+This section is the review lane's own record: the branch brought onto today's `main`, the three
+conflicts and how each was settled, and the full gate re-run on the rebased tree in worktree
+`M:/wt-w3-5.4` with the shared target `M:/wt-review-shared-target`. Where a number below disagrees
+with one above, the one below is the merged tree's and the one above is the branch's, and both are
+correct for the tree they were read from.
+
+**Branch:** `feat/task-5.4-network-common-mode` · **Was:** `289cc88` on `main` @ `f9c3523` ·
+**Now:** rebased onto `main` @ `92b6018` (38 commits ahead of the old base)
+**Worktree:** `M:/wt-w3-5.4` · **Target dir:** `M:/wt-review-shared-target` (shared, `CARGO_BUILD_JOBS=2`)
+
+**Commits, in order, after the rebase:**
+
+| commit | was | what |
+|---|---|---|
+| `9e1ebc8` | `2905bd6` | the measurement, the second engine, the gate, the record, the analysis document |
+| `57950c8` | `4aee0b5` | US-English on this branch's added lines |
+| `86487dd` | `6864ec1` | the two egress notes asserted by value, because CRLF broke the source match |
+| `1f77981` | `82118f8` | the first fresh-worktree gate capture |
+| `c72e7b3` | `50ef8b9` | the review fix: label each count with the number it is true of |
+| `d0d710b` | `950ab00` | the record of the twelve-finding refutation |
+| `5302b6a` | `7281d93` | the second fresh-worktree gate capture |
+| `05e8f9d` | `289cc88` | the fifteenth mutation row |
+| `0c342ab` | (new) | the four `proxy.rs` anchors the rebase moved, re-derived; the merged loop quoted |
+| `a7cabad` | (new) | the wiring record re-measured on the rebased tree: `edges` 22 → 23 |
+| (this file) | (new) | this section |
+
+### The exit gate, quoted verbatim from the plan
+
+`### Task 5.4`, the **Exit gate** paragraph:
+
+> **Exit gate.** `python tools/ci/network_independence.py && cargo test -p warrantor-warrant --test network_independence -j 2 && python tools/ci/check_invariant_ratchet.py && python tools/ci/wiring_census.py` exits 0, with the ratchet line reading `invariant ratchet: ok (67 passing at floor 67, 19 recorded findings at ceiling 19)` and the census line reading `wiring census: 10 of 39 crates reachable`; any rendered independence count that does not match `evidence/network-independence.json` fails the first command by name.
+
+**RUN.** The chain was run verbatim on the rebased tree at `a7cabad`, from the repository root
+with the census invoked from `rust/` as CI does; the transcript is the block below, captured with
+the exit code taken before any pipe. The first clause holds: the chain exits 0. The two literal
+lines the plan predicts do **not** appear and cannot on any base after `e4b5f10`, because the plan
+measured them on `origin/main` at `e4b5f10` and both numbers were overtaken before this branch was
+cut (Deviations 1 and 2 above). The lines that do appear are the merged tree's own, read from the
+output rather than predicted:
+
+```text
+$ python tools/ci/network_independence.py \
+    && (cd rust && cargo test -p warrantor-warrant --test network_independence -j 2) \
+    && python tools/ci/check_invariant_ratchet.py \
+    && (cd rust && python ../tools/ci/wiring_census.py); echo "EXITGATE_EXIT=$?"
+network independence: 1 independent intercept on a permitted destination; 6 shared axes of 8;
+  1 policy engine decides in the product, 2 once an operator wires the second
+network independence: ok
+     Running tests\network_independence.rs
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 85 passed; 0 failed; 15 ignored; 0 measured; 0 filtered out; finished in 0.41s
+invariant ratchet: ok (85 passing at floor 85, 15 recorded findings at ceiling 15)
+wiring census: 13 of 41 crates reachable from warrantor-warrant over 23 path edges
+EXITGATE_EXIT=0
+```
+
+The third clause — a rendered count that disagrees with the record fails the first command by name
+— was exercised on this tree by the rebase itself: `network_independence.py` exited 1 with four
+`does not cite ... line N` errors the moment `main`'s `proxy.rs` changes moved the anchors, and went
+green only after `0c342ab` re-derived them. That is the gate refusing a stale derivation, which is
+the behavior the branch claims for it.
+
+So: the plan's run is performed and its exit condition is met; its two predicted numbers are stale
+predictions, not unmet conditions, and a ledger entry that cites this task should cite the lines
+above, not the plan's.
+
+### The rebase: three conflicts, each settled by the rule for its kind
+
+| file | kind | settled how |
+|---|---|---|
+| `.gitignore` | union | `main`'s two new un-ignore lines (`stop-*.json`, `conformance-*.json`) kept, and this branch's `network-independence.json` un-ignore appended after them |
+| `README.md` | census artifact | `main`'s numbers taken for the census row (`13 of 41`, `28` orphaned) at each of the three commits that touched the row; this branch's prose tail on that row and its new "Independent network intercepts" row kept; then the record re-measured by `wiring_census.py --write` (`a7cabad`) |
+| `rust/warrant/src/proxy.rs` | code, three hunks | **both behaviors kept.** `main`'s Task 2.1 fields (`vocabulary`, `pending`, `resolved_names`) and methods (`with_vocabulary`, `resolve_destinations`, `take_egress_decisions`) stand beside this branch's `secondary_refusals` field and `deny_secondary`. In `decide`, `main`'s `pending.push` of the broker's verdict runs first, the broker's `Deny` returns, and this branch's second engine runs after — the same order both sides had on their own |
+
+Every test on both sides passes on the merged tree: `main`'s `egress_broker_wiring` (which drains
+`take_egress_decisions`) and this branch's `network_independence` (15) and the three `i09` tests are
+all in the 1565 below with `0 failed`.
+
+**One interaction the merge creates, stated rather than left to be found.** `EgressDecision` is
+defined as *"One broker decision"* and its `verdict` is *"The broker's verdict"*. On the merged tree
+a call the second engine refuses therefore leaves an `Allow` row in `egress/<warrant>.jsonl` (the
+broker allowed) beside its row in `Proxy::secondary_refusals` (the filter refused), and the endpoint
+that drains one holds the other. That is consistent with the record's own definition and it does not
+mislabel a tier, but a reader of the log alone would see a permitted destination that was not
+forwarded. It cannot occur in a shipped run, because the shipped binary wires no secondary filter.
+Recording the filter's reason in the log would mean putting a `warrantor_egress::DenyReason` on a
+decision the broker did not make (Deviation 6), so nothing was changed; it is added to the
+not-established list below and to `docs/05` beside the merged loop.
+
+### A hazard of the shared target directory, and how it was kept out of this record
+
+The first `cargo clippy` on the rebased tree failed with `missing fields causality and
+predicate_version in initializer of warrantor_evidence::WarPredicate` — fields that exist in **no**
+file of this worktree (`grep -rn predicate_version rust` finds nothing). Cargo hashes a path
+dependency relative to the workspace root, so every `M:/wt-*` worktree shares one metadata hash for
+`warrantor-evidence` in `M:/wt-review-shared-target`, and freshness is decided by mtime: a checkout
+older than another lane's build looks fresh, and the other lane's rlib is linked. Every source file
+under `rust/` was touched before each cargo step so that all 41 workspace crates were rebuilt from
+this worktree; the clippy log shows 41 `Checking`/`Compiling` lines and no reuse. A green result
+from an rlib compiled elsewhere would have been a false pass, and a red one from it — which is what
+happened — is the only reason it was noticed.
+
+### The full gate on the rebased tree, exactly as measured
+
+Guard before every cargo invocation: `disk guard: 292.4 GB free on M:\, require 60 GB -> OK` and
+`15.4–16.2 GB of commit charge available, require 6 GB -> OK`. Every exit code was captured before
+any pipe. `git status --porcelain` was empty before the gate and after every command.
+
+```text
+cargo fmt --all -- --check                                  FMT=0
+cargo clippy --workspace --all-targets -- -D warnings       CLIPPY=0   (41 crates rebuilt here)
+cargo test --workspace --all-targets                        CARGO=0
+  120 suites, 1565 passed, 0 failed, 20 ignored             (summed over every `test result:` line)
+cargo test --workspace --doc                                DOC=0
+  40 suites, 1 passed, 0 failed, 0 ignored
+  => 160 suites, 1566 passed, 0 failed, 20 ignored
+  network_independence: 15 passed          invariants corpus: 85 passed, 15 ignored
+(cd rust && python ../tools/ci/wiring_census.py)            CENSUS=0
+  wiring census: 13 of 41 crates reachable from warrantor-warrant over 23 path edges
+python tools/ci/check_invariant_ratchet.py --show-findings  RATCHET=0
+  invariant ratchet: ok (85 passing at floor 85, 15 recorded findings at ceiling 15)
+  (its findings run prints `test result: FAILED. 1 passed; 14 failed` by design)
+python tools/ci/check_invariants.py                         LEDGER=0
+  invariant ledger: 12 invariants; enforced=2, orphaned=1, partial=8, unimplemented=1
+python tools/ci/check_docs.py                               DOCS=0
+  RESULT: PASS - 300 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
+python tools/ci/check_us_english.py main                    USEN=0
+  us-english: ok
+python tools/ci/network_independence.py                     NETIND=0
+  1 independent intercept on a permitted destination; 6 shared axes of 8;
+  1 policy engine decides in the product, 2 once an operator wires the second
+(cd rust && python -m pytest ../tools/ci/test_network_independence.py \
+    ../tools/ci/test_wiring_census.py -q)                   PYTEST=0   42 passed
+```
+
+**Numbers that moved from the branch's own capture, and why.** Suites `145 → 160` and passing
+`1525 → 1566`: `main` gained 38 commits (Task 2.1's decision log among them) and this gate ran `--all-targets`
+plus `--doc` separately, so the two captures are not the same command; neither is wrong. Census
+`12 of 40 → 13 of 41` and edges `21 → 23`: `main` added a crate and an edge; this branch's edge is
+still exactly one of the 23, and orphans are `28` on both, so the count did not rise. Ratchet
+`85 / 15`: unchanged, read from the merged corpus's own line — `main` is at `82`, this branch raises
+it to `85`, and the merged corpus really has 85 passing. `docs` `268 → 300` files: `main`'s.
+
+### The tier of every bound, on the merged tree
+
+Unchanged from the "Bound strength" table above, and re-read against the merged `proxy.rs` rather
+than carried forward. Each row states what escapes it, because a Tier B row without that sentence is
+the defect this repository has shipped three times.
+
+| bound | tier | what escapes it |
+|---|---|---|
+| `egress_hosts`, the broker | **Mediated** (Tier B) | any call that does not traverse the Warrantor MCP proxy: a shell command, a harness built-in, a socket the agent opens itself; and any hostname that resolves into a private or metadata range, because the broker does not resolve DNS |
+| `egress_hosts`, the second engine | **Mediated** (Tier B), same point | exactly the same set — it runs inside the same `Proxy::decide` loop, after the broker, deny-only; it adds a policy domain and no place of refusal. In a shipped run it is not wired at all |
+| the address floor (`hard_deny`) through either engine | **Mediated** (Tier B) | the same set again, plus: a defect in `hard_deny` escapes both engines at once, because both consult the one matcher |
+| `--unshare-net` for an empty `egress_hosts` | **Enforced** (Tier A) — not created here, not observable here | nothing at the socket layer, if the operator launched the printed profile; everything, if they did not, and this process cannot tell which. Never present for a warrant that permits any host |
+| the independence count | **Observed** | it refuses nothing; it is a measurement of the configuration |
+| the egress decision log (`main`'s, now beside this branch's maps) | **Observed** | it records the broker's verdict after the fact; a secondary refusal is not in it, and no call is stopped by it |
+
+### What this task does NOT establish (additions from the review lane)
+
+Items 1–12 above stand. Added on the merged tree:
+
+13. **The decision log does not record the second engine.** See the interaction paragraph above: an
+    `Allow` row can stand in `egress/<warrant>.jsonl` for a call `secondary_refusals` shows refused.
+    Cannot occur in a shipped run; can occur the day an operator wires the filter.
+14. **This gate ran in the lane's worktree, on Windows, once.** Not a fresh detached checkout as the
+    two captures above were, and not on Linux where CI runs. The tree was clean before and after every
+    command, every path the tests open is tracked, and the CRLF fragility was retired at `86487dd`;
+    but the `#[cfg(windows)]` blind spot memory records cuts the other way too — nothing here proves
+    the Linux run.
+15. **`edges: 23` is a count of manifest edges, not of calls.** The census reads `Cargo.toml`; it
+    cannot see that the edge this branch adds is exercised only when a filter is present.
+
+### Not pushed, not merged
+
+Eleven commits on `feat/task-5.4-network-common-mode`, now on `main` @ `92b6018`. Nothing was
+pushed, nothing was merged, and no other worktree was written to. A human merges, one branch at a
+time, per [[merging parallel PRs safely]].
