@@ -1473,7 +1473,7 @@ Each finding carries its own honest tier inline.
 
 ### 5.1 What the corpus found
 
-82 checks pass and 15 are recorded findings that fail when run. 9 of the 12 invariant suites hold at
+85 checks pass and 15 are recorded findings that fail when run. 9 of the 12 invariant suites hold at
 least one recorded finding; I-02, I-05 and I-07 hold none — I-02 because two independent
 implementations recompute the intersection, the receipt verifier rejects a forged capability set by
 name, and every attack the corpus threw at it was refused; I-05 and I-07 because Task 9.1 and Task

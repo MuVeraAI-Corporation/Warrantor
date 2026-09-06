@@ -3,7 +3,7 @@
 
 *Labels in English. Claim bodies and quotations are in the source language and are not translated.*
 
-`head_digest` sha256:61cd4be558b07b3e1cc99482c44f4e0ce599b6aab3e0a5e1f1d090df3345174f
+`head_digest` sha256:66545e055368496d5c136598295ef30cf4686b55347c26c987d77b037a3b0cc6
 
 ## What this ledger does not cover
 
@@ -17,24 +17,32 @@
 
 <!-- source language: en; not translated -->
 
-> 13 of 41 Rust workspace crates are reachable from the warrantor binary over 22 path edges; the other 28 compile and pass their tests and nothing a user runs calls them.
+> 13 of 41 Rust workspace crates are reachable from the warrantor binary over 23 path edges; the other 28 compile and pass their tests and nothing a user runs calls them.
 
 - Who could show this false, and how: anyone with a clone and Python
   > python tools/ci/wiring_census.py prints a different triple, or evidence/wiring-coverage.json disagrees with it
+
+**Correction history. Superseded entries are retained, never deleted.**
+
+- Superseded v1 (2026-09-06): Rebasing this branch onto main moved evidence/wiring-coverage.json: Task 5.4's common-mode independence work added a path edge, taking the census from 22 edges to 23 while leaving 13 reachable of 41 and 28 orphaned unchanged. The rendered sentence was recomputed by tools/ci/check_claims.py and refused as stale on the rebased tree, which is the defect this ledger exists to catch, caught on its own first rebase. The count is corrected by appending this entry rather than by editing the published text.
+  > 13 of 41 Rust workspace crates are reachable from the warrantor binary over 22 path edges; the other 28 compile and pass their tests and nothing a user runs calls them.
 
 ### CL-002 — fact (recomputed from a named record in this repository)
 
 <!-- source language: en; not translated -->
 
-> In the invariant attack corpus, 82 checks pass and 15 are recorded findings that fail when run.
+> In the invariant attack corpus, 85 checks pass and 15 are recorded findings that fail when run.
 
 - Who could show this false, and how: anyone who can run cargo
-  > python tools/ci/check_invariant_ratchet.py prints counts other than 82 passing and 15 ignored
+  > python tools/ci/check_invariant_ratchet.py prints counts other than 85 passing and 15 ignored
 
 **Correction history. Superseded entries are retained, never deleted.**
 
 - Superseded v1 (2026-09-05): docs/W1-delivery-gaps.md section 5.1 rendered a count that was correct when written and was never re-derived. The ratchet record moved to 82/15 as Task 9.1 and Task 1.1 converted findings and Task 5.3 added the adversary, and the prose did not move with it. The line carried no assertion tying it to tools/ci/invariant-ratchet.json; it does now.
   > Sixty-one checks pass. Nineteen fail, across eleven invariants.
+
+- Superseded v2 (2026-09-06): Rebasing this branch onto main moved tools/ci/invariant-ratchet.json: Task 5.4 added three passing tests to the i09 suite, taking passing_floor from 82 to 85 with ignored_ceiling unchanged at 15. The rendered count in docs/W1-delivery-gaps.md section 5.1 was recomputed from the record and refused, exactly as this entry's own version 1 correction describes happening once before. The falsifier moved with it, because a falsifier naming the old counts would tell a reader to look for the wrong number; the superseded one is retained here for that reason.
+  > In the invariant attack corpus, 82 checks pass and 15 are recorded findings that fail when run.
 
 ### CL-003 — fact (recomputed from a named record in this repository)
 
