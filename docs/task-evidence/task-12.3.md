@@ -1,6 +1,7 @@
 # Task 12.3 — Continuous promotion with an enforced parity gate; deployment-configuration parity
 
-Branch `feat/deployment-configuration-parity-w6`, based on local `main` at `5d3e44d`.
+Branch `feat/deployment-configuration-parity-w6`, written on local `main` at `5d3e44d` and rebased onto
+`main` at `065961b` on 2026-09-06 (section 9, which re-measures every gate on the rebased tip).
 Items addressed: continuous promotion with an enforced parity gate (L9-03) and
 deployment-configuration parity (L9-08).
 
@@ -548,3 +549,169 @@ task, and the workspace `cargo test` above covers the Rust side of that binding.
 
 The gate is wired into `.github/workflows/ci.yml` — `Check deployment-configuration parity` and
 `Test the deployment-parity gate` — so it runs rather than merely existing.
+
+---
+
+## 9. Rebased onto `main` at `065961b` — the gate re-measured on `ff8a6ac`
+
+Review lane, 2026-09-06. Everything in this section was measured on the rebased tip `ff8a6ac`
+in `M:/wt-w6-12.3` with the lane's own build directory `M:/wt-rv-12.3-target`. Nothing in §1–§8
+was re-numbered: those figures describe the tips they name.
+
+**Commits on the branch after the rebase:**
+
+| commit | was | what |
+|---|---|---|
+| `ff8a6ac` | `96f54ed` | the whole task, replayed onto `065961b` |
+| (this section) | — | evidence only; no file a cargo target reads |
+
+**The rebase.** `git rebase main` replayed one commit and stopped once, on
+`.github/workflows/ci.yml`: `main` had inserted `Test the disk guard` directly after `Test the
+US-English gate`, the same anchor this branch inserted `Check deployment-configuration parity` and
+`Test the deployment-parity gate` after. Both were kept, `main`'s step first, this branch's two
+after it; nothing else in the file moved. No Rust, Python, census artifact or ratchet record
+conflicted — `git diff 065961b ff8a6ac --stat -- rust/` is `guard_parity.rs` alone, and
+`README.md`, `evidence/wiring-coverage.json` and `tools/ci/invariant-ratchet.json` are untouched
+by the branch. `git status --porcelain` was empty before the rebase and after it.
+
+**The full gate, each exit code captured before any pipe.** Disk guard first, every time:
+`disk_guard.py --require 100` → 231–252 GB free; `--require-commit 6` → 7.4–18.1 GB available.
+
+```
+$ cd rust && cargo fmt --all -- --check;                              echo FMT=$?
+FMT=0
+$ cargo clippy --workspace --all-targets -- -D warnings;              echo CLIPPY=$?
+CLIPPY=0                      # fresh build in M:/wt-rv-12.3-target, 5m 52s
+$ cargo test --workspace --all-targets;                               echo CARGO=$?
+CARGO=0                       # the fourth full run; the first three exited 101 on one live-drill suite -- section 9.1
+$ cargo test --workspace --doc;                                       echo DOC=$?
+DOC=0
+```
+
+**Every `test result:` line summed, not the last one read** — on `ff8a6ac`:
+
+| run | suites | passed | failed | ignored |
+|---|---|---|---|---|
+| `cargo test --workspace --all-targets`, the green run the gate is reported on | 119 | 1549 | 0 | 20 |
+| the same command, third run, fail-fast stopped at the drill | 79 | 927 | 1 | 4 |
+| the same with `--no-fail-fast`, red, so every suite was enumerated while the drill was red | 119 | 1546 | 3 | 20 |
+| `cargo test --workspace --doc` | 40 | 1 | 0 | 0 |
+
+The three rows of the workspace command differ in exactly one binary,
+`rust/warrant/tests/conformance_receipt.rs` (3 tests); the other 118 suites are 1546 passed, 0
+failed, 20 ignored in both enumerated rows. `ignored` is 20 on this tip as it was in §8: no
+`#[ignore]` was added or removed by the branch or by the rebase.
+
+```
+$ (cd rust && python ../tools/ci/wiring_census.py)
+wiring census: 13 of 41 crates reachable from warrantor-warrant over 22 path edges
+$ python tools/ci/check_invariant_ratchet.py --show-findings          # read the "invariant ratchet:" line
+invariant ratchet: ok (82 passing at floor 82, 15 recorded findings at ceiling 15)
+$ python tools/ci/check_invariants.py
+invariant ledger: 12 invariants; enforced=2, orphaned=1, partial=8, unimplemented=1
+$ python tools/ci/check_docs.py
+RESULT: PASS 300 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
+$ python tools/ci/check_us_english.py main
+us-english: 2330 added line(s) across 16 file(s), since main; matcher = vendored verify-us-english.mjs
+us-english: ok
+```
+
+The orphan count did not rise: `orphaned=1` in §1, in §8, and here. The census line is
+byte-identical to the pre-rebase one, as it must be for a branch that adds no crate and no edge.
+`check_docs.py` counts 300 Markdown files where §8 counted 269: `main` added thirty-one documents
+between `5d3e44d` and `065961b`, none of them this branch's.
+
+**The task's own exit gate, on this tip**, with the editable-install check first because §1 says
+why:
+
+```
+$ PYTHONPATH=M:/wt-w6-12.3/python/warrantor_ml/src python -c "import warrantor_ml.parity as p; print(p.__file__)"
+M:/wt-w6-12.3/python/warrantor_ml/src/warrantor_ml/parity.py      (printed with backslashes)
+
+$ python tools/ci/check_deployment_parity.py;  echo EXIT=$?
+deployment parity: 7 documents scanned; 2 parity, 5 refused (quantisation is absent from the recorded configuration); deployed digest sha256:823ab30e9a648515bb5fd66aa6bb50330bbb0aeaed30a06351318d0788f30350 matches record; MEASURED_NUM_CTX 8192 == DEPLOYED num_ctx 8192
+  [1/4] ok: counts match the record (7/2/5)
+  [2/4] ok: a divergent quantization is refused and receipted; the matching control promotes
+  [3/4] ok: registration without a promote receipt writes no document and no adapter; the promote control writes both
+  [4/4] ok: the deployed digest matches its record and the Rust constant agrees
+deployment parity: PASS. This compares RECORDS, not processes -- ...
+EXIT=0
+
+$ python -m pytest python/warrantor_ml/tests tools/ci/test_check_deployment_parity.py -q --ignore=python/warrantor_ml/tests/test_bounds_interop.py
+647 passed in 12.11s
+$ python -m pytest tools/ci/test_disk_guard.py tools/ci/test_check_us_english.py tools/ci/test_check_invariants.py -q
+27 passed in 48.91s
+```
+
+Same seven documents, same 2/5 split, same digest, same five refusals for the same one reason as
+§4. The `guard_parity` suite this branch extends is inside the 1549: `8 passed; 0 failed`.
+
+### 9.1 The suite that was red on eight runs and green on the ninth, and why it is the box
+
+`conformance_receipt.rs` holds three tests, all of which begin by running
+`warrantor_warrant::conformance::drill` — a **live kill drill**: spawn `powershell`, which starts
+a hidden `ping -n 60`; wait up to 10 s for the descendant's pid to land in a file; `taskkill` the
+root; then poll `tasklist` for both pids for at most `2 × STOP_BUDGET` = 10 s. It carries no
+`#[ignore]`, and it is `#[cfg(windows)]`-pathed: CI runs it on ubuntu through `sh`/`ps`, so this
+Windows path is one the repository's gate has never exercised (the memory note "Windows Rust
+paths are ungated" records the same gap).
+
+On this tip the binary was run ten times in a row. The first exited 101 with a log another lane
+overwrote (§9.2), so only its exit code is cited. Seven more were red — three inside full
+workspace runs, four standalone — in two shapes:
+
+```
+drill: Encode("the drill's descendant never reported its pid")          # pid not written within 10 s
+DrillObservation { ..., trigger_to_root_gone_ms: 18446744073709551615,
+  trigger_to_descendant_gone_ms: 18446744073709551615, root_gone: false,
+  descendant_gone: false, within_budget: false, refusal: None }          # pid written; nothing observed in 10 s
+```
+
+The ninth, standalone, was `3 passed; 0 failed`, and the tenth — the full workspace run started
+immediately after it — exited 0 with the drill green inside it: the first row of the table above.
+
+`refusal: None` means `taskkill` reported success; `u64::MAX` on both timestamps means the poll
+loop never once saw either pid absent before its deadline. Whether that is a tree that survived
+or a tree the loop could not look at in time is decided by measuring the two spawns the loop is
+made of, on this box, in the same hour:
+
+```
+$ powershell -NoProfile -Command "1"      x3     4926 ms   5121 ms   12663 ms     (drill's pid deadline: 10 000 ms)
+$ tasklist /FI "PID eq 4" /NH /FO CSV     x3     4125 ms   3559 ms    3228 ms     (drill's observation window: 10 000 ms, two spawns per poll)
+```
+
+A PowerShell start that takes 5–12.7 s against a 10 s deadline is the first shape. A `tasklist`
+that takes 3.2–4.1 s per spawn, two per poll iteration, after `terminate`'s own confirmation has
+already spent part of the same window, is the second: the loop gets at most one look, and "not
+seen gone" is recorded as `false`. The source comment in `drill` names exactly this hazard
+(*"tasklist measured at ~2.2s/spawn under real-time AV"*); during the red runs it was nearly
+double that.
+
+Three facts fix the attribution:
+
+1. **The code is byte-identical to `main`.** `git diff 065961b ff8a6ac --stat -- rust/warrant/src/conformance.rs rust/warrant/src/stop.rs rust/warrant/tests/conformance_receipt.rs rust/kill-switch-core` is empty, and the only Rust file this branch changes (`guard_parity.rs`) is a different test binary that links nothing the drill runs.
+2. **This suite was green on this box before.** §8 recorded 150 suites, 0 failed at `00addca`, and `conformance_receipt.rs` (`8606790`, 2026-09-05) is an ancestor of that tip's base `5d3e44d` — so it ran and passed here, on the same kernel, the day before.
+3. **The red runs track the machine's spawn latency, not the tree.** 297 `node.exe` processes and three other lanes' `cargo` were resident during the red runs; the green run came after they had thinned. Nothing in the worktree changed between the eighth run and the ninth.
+
+**What this does and does not license.** The gate as written exited 0 on this tip, with every
+suite enumerated and the drill green inside the run, so the workspace gate is reported green and
+the ledger may cite it. What is also true, and stays in this file rather than being smoothed
+over: on this box the drill is a load-dependent test, eight red runs preceded the green one, and
+a reviewer re-running the gate here under a parallel wave should expect exit 101 from this one
+binary and should read the failure shape before concluding anything about the tree.
+
+One observation on `main`'s test, recorded rather than acted on because it is not this task's
+file: the drill's own contract says a slow kernel *"honestly earns Advisory — and the receipt
+verifies either way"*, but the first assertion in the test (`root_gone && descendant_gone`)
+fires before that derivation, so a box that cannot observe within budget fails the test instead
+of earning the Advisory receipt the code was written to produce. Whether that is the intended
+strictness or a gap in the Windows path is a question for the lane that owns `conformance.rs`.
+
+### 9.2 A process hazard found here, so the next lane does not repeat it
+
+The scratchpad directory this session was given is shared by every lane of the wave. The first
+`cargo test` log written to `<scratchpad>/test.log` was overwritten mid-run by another lane's run
+of the same command from `M:/wt-w6-10.1` into `M:/wt-rv-10.1-target`; only the per-task exit code
+file was private. Every number above comes from runs into a lane-private subdirectory, each log
+checked for this worktree's path before it was read. No number from the clobbered log appears in
+this file.
