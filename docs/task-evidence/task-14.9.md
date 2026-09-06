@@ -403,6 +403,137 @@ with the falsifier narrowed from *mentioning* to *launching*, and version 1 reta
 including its falsifier. The claim did not become false; it was published in a form its own falsifier
 could not resolve, and that is worth a version.
 
+### Fresh detached worktree at `fb6e45c` — every gate, exit code captured before any pipe
+
+`git worktree add --detach M:/wt-g6-14.9 feat/public-claim-ledger`, one target directory
+(`M:/wt-w6-14.9-target`), 363 GB free at the start and 342 GB at the end. This is the check that
+catches a `.gitignore`-excluded evidence file, which is how a green implementer's run has shipped a
+red branch in this repository before.
+
+```
+$ git status --porcelain
+(empty)
+
+$ git ls-files evidence/claims.json tools/ci/check_claims.py tools/ci/test_check_claims.py \
+               tools/ci/claim_locales.json docs/public-claims.md docs/public-claims.ar.md
+docs/public-claims.ar.md
+docs/public-claims.md
+evidence/claims.json
+tools/ci/check_claims.py
+tools/ci/claim_locales.json
+tools/ci/test_check_claims.py
+
+$ git check-ignore -v <each of those six>
+not ignored: evidence/claims.json
+not ignored: tools/ci/check_claims.py
+not ignored: tools/ci/test_check_claims.py
+not ignored: tools/ci/claim_locales.json
+not ignored: docs/public-claims.md
+not ignored: docs/public-claims.ar.md
+```
+
+```
+$ python -m pytest tools/ci/test_check_claims.py -q -p no:cacheprovider
+52 passed in 0.53s
+PYTEST=0
+
+$ python tools/ci/check_claims.py
+claim ledger: 17 claims; claim=9, fact=6, unknown=2; 11 retained corrections; head sha256:61cd4be558b07b3e1cc99482c44f4e0ce599b6aab3e0a5e1f1d090df3345174f
+CLAIMS_DEFAULT=0
+
+$ python tools/ci/check_claims.py --parent-ref HEAD~1
+claim ledger: 17 claims; claim=9, fact=6, unknown=2; 11 retained corrections; head sha256:61cd4be558b07b3e1cc99482c44f4e0ce599b6aab3e0a5e1f1d090df3345174f
+CLAIMS_VS_PARENT=0
+
+$ python tools/ci/check_docs.py
+RESULT: PASS - 271 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
+DOCS=0
+
+$ python tools/ci/check_invariants.py
+invariant ledger: 12 invariants; enforced=2, orphaned=1, partial=8, unimplemented=1
+INV=0
+
+$ python tools/ci/wiring_census.py
+wiring census: 13 of 41 crates reachable from warrantor-warrant over 22 path edges
+CENSUS=0
+
+$ python tools/ci/check_us_english.py main
+us-english: 2723 added line(s) across 8 file(s), since main; matcher = vendored verify-us-english.mjs
+us-english: ok
+USEN=0
+
+$ python -m pytest tools/ci/test_check_invariants.py tools/ci/test_check_us_english.py -q -p no:cacheprovider
+16 passed in 18.59s
+PYTEST2=0
+```
+
+```
+$ cd rust && cargo fmt --check
+FMT=0
+
+$ cargo clippy --all-targets -- -D warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2m 01s
+CLIPPY=0
+(0 lines in the log begin with `warning` or `error`)
+
+$ cargo test --workspace -j 2
+CARGO=0
+```
+
+Summed across every `test result:` line rather than read from the last one — a lane in this program
+reported six failures when eight were failing by reading the final `FAILED` line:
+
+```
+suites: 150
+{'passed': 1528, 'failed': 0, 'ignored': 20, 'measured': 0, 'filtered out': 0}
+FAILED lines: 0
+```
+
+```
+$ python tools/ci/check_invariant_ratchet.py
+     Running tests\invariants\main.rs (M:/wt-w6-14.9-target\debug\deps\invariants-8c3a7ff0748e70ff.exe)
+invariant ratchet: ok (82 passing at floor 82, 15 recorded findings at ceiling 15)
+RATCHET=0
+```
+
+**Identical to the baseline this lane was given: 150 suites, 1528 passing, 0 failed, 20 ignored;
+census 13 of 41 over 22 path edges; ratchet 82 at floor 82 and 15 at ceiling 15.** Nothing moved,
+which is the correct outcome for a task that adds no crate and earns no invariant. `passing_floor`
+was not raised and `ignored_ceiling` was not lowered.
+
+### The correction ratchet, proved against this commit's own real history
+
+Not a fixture. `check_append_only` was handed the ledger as it exists at `fb6e45c` through
+`git show`, and an in-memory copy with `CL-014`'s retained correction deleted and `CL-017` removed
+outright:
+
+```
+REFUSED CL-014: version fell; a claim version may only rise
+REFUSED CL-014: correction 1 was removed or altered; a retraction is retained, never deleted
+REFUSED CL-017: removed from the ledger; entries are append-only
+```
+
+And the allowed control is the run above it: `--parent-ref HEAD~1` exits 0 against `3c2baa9`, which
+is the same comparison saying that `CL-014`'s new correction retains what `3c2baa9` actually
+published and that adding `CL-017` is growth rather than a rewrite. A ratchet that refused both
+would be a freeze.
+
+### Every rendered number re-derived from its record, independently of the gate
+
+The reductions were called directly rather than through `check_claim`, so this is a second reader
+agreeing with the first:
+
+```
+wiring_reachability(evidence/wiring-coverage.json)   -> [13, 41, 28, 22]
+invariant_status_census(evidence/invariants.json)    -> [2, 8, 1, 1]
+corpus_finding_census(rust/warrant/tests/invariants) -> [9, 12, 'I-02, I-05 and I-07']
+
+CL-001 -> 13 of 41 Rust workspace crates are reachable from the warrantor binary over 22 path edges
+CL-002 -> 82 checks pass and 15 are recorded findings
+CL-003 -> enforced=2, partial=8, orphaned=1, unimplemented=1
+CL-005 -> 9 of the 12 invariant suites hold at least one recorded finding; I-02, I-05 and I-07 hold none
+CL-016 -> 13 of 41 crates link into the warrantor binary and 28 do not
+```
 ---
 
 ## Deviations from the plan
