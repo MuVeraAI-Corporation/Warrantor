@@ -408,3 +408,76 @@ def test_the_registered_serving_block_is_the_receipts_and_not_the_declared_recor
     ).to_dict()
     assert body["serving"] == receipt["recorded_serving_configuration"]
     assert body["serving"] == dict(serving.DEPLOYED)
+
+
+def _bare_registration(**overrides: Any) -> dm.ScannerRegistration:
+    """A ``ScannerRegistration`` built directly, which is the path ``build_registration`` guards."""
+
+    fields: dict[str, Any] = {
+        "scanner_id": "x",
+        "model_digest": "sha256:" + "ab" * 32,
+        "model_ref": "x:1",
+        "endpoint": _ENDPOINT,
+        "request_timeout_ms": 5_000,
+        "failure_mode": "deny",
+        "harm_category_map": {},
+        "gating_categories": (),
+        "operating_threshold": 0.5,
+        "svid": "svid",
+        "consequential_outputs": (),
+        "card_digest": "sha256:" + "cd" * 32,
+        "advisory_declaration": "advises",
+        "registry_owner": "owner",
+    }
+    fields.update(overrides)
+    return dm.ScannerRegistration(**fields)
+
+
+def test_the_adapters_served_constants_are_the_receipts_and_not_the_declared_record() -> None:
+    """Rule 2 again, in the adapter this time: derived from the record, not written beside it.
+
+    ``to_dict`` was fixed to render the receipt and ``render_rust_adapter`` was left reading
+    :data:`serving.DEPLOYED`, so one object published two different answers to the same question:
+    the registration document said ``Q8_0`` / 4096 and the adapter said ``Q4_K_M`` / 8192, under a
+    comment asserting these are what it was promoted at. ``build_registration`` refuses this
+    receipt, so only the direct construction path can reach it -- the same path that made the
+    ``serving`` block a derived value.
+    """
+
+    promoted_elsewhere = dict(serving.DEPLOYED, quantisation="Q8_0", num_ctx=4096)
+    registration = _bare_registration(
+        parity_receipt={
+            "verdict": "promote",
+            "decision_digest": "sha256:" + "a" * 64,
+            "recorded_serving_configuration": promoted_elsewhere,
+        }
+    )
+    source = dm.render_rust_adapter(registration)
+    assert 'SERVED_QUANTIZATION: &\'static str = "Q8_0";' in source
+    assert "SERVED_NUM_CTX: u32 = 4096;" in source
+    assert f'SERVED_QUANTIZATION: &\'static str = "{serving.QUANTIZATION}";' not in source
+    assert f"SERVED_NUM_CTX: u32 = {serving.NUM_CTX};" not in source
+    assert registration.to_dict()["serving"] == promoted_elsewhere, (
+        "the document and the adapter must answer the same question the same way, or one of "
+        "them is decoration"
+    )
+
+
+def test_an_adapter_is_refused_when_no_receipt_names_a_promoted_configuration() -> None:
+    """A registration with no receipt has no promoted configuration, so it gets no adapter."""
+
+    with pytest.raises(dm.RegistrationError) as refusal:
+        dm.render_rust_adapter(_bare_registration())
+    assert "no parity receipt" in str(refusal.value)
+
+    with pytest.raises(dm.RegistrationError) as partial:
+        dm.render_rust_adapter(
+            _bare_registration(
+                parity_receipt={
+                    "verdict": "promote",
+                    "decision_digest": "sha256:" + "a" * 64,
+                    "recorded_serving_configuration": {"quantisation": serving.QUANTIZATION},
+                }
+            )
+        )
+    assert "num_ctx" in str(partial.value)

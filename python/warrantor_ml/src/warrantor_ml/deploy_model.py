@@ -38,7 +38,7 @@ import sys
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 from . import serving
 from ._canonical import canonical_json, is_wellformed_digest, sha256_text
@@ -440,12 +440,73 @@ def _struct_name(scanner_id: str) -> str:
     return f"{name}Scanner"
 
 
+#: The four ``SERVED_*`` constants the adapter declares, with the Rust type each is rendered into.
+#: ``str`` becomes a string literal; the other three become integers, so a receipt carrying a
+#: float or a bool there would emit a file that does not compile. A ``bool`` is rejected even
+#: though ``True == 1`` in Python, for the same reason :func:`serving._values_agree` rejects it.
+_SERVED_FIELDS: Final[tuple[tuple[str, type], ...]] = (
+    ("quantisation", str),
+    ("num_ctx", int),
+    ("seed", int),
+    ("num_predict", int),
+)
+
+
+def _promoted_configuration(registration: ScannerRegistration) -> dict[str, Any]:
+    """The configuration the receipt records, or a refusal naming what is missing.
+
+    Rule 2, the same rule :meth:`ScannerRegistration.to_dict` follows: a rendered value is
+    DERIVED from the record it describes. The generated file states in its own comment that the
+    ``SERVED_*`` constants are "the serving configuration this scanner was PROMOTED at", so they
+    have to come from the promotion receipt. Reading :data:`serving.DEPLOYED` here instead put
+    that sentence over values written *beside* the record: a ``ScannerRegistration`` carrying a
+    receipt at ``Q8_0`` / ``num_ctx 4096`` published a registration document saying so and, from
+    the same object, an adapter claiming ``Q4_K_M`` / ``8192``.
+
+    ``build_registration`` refuses a receipt this build does not serve, so it cannot produce that
+    pair -- but ``render_rust_adapter`` takes any ``ScannerRegistration``, which is the direct
+    construction path that made ``to_dict`` render the receipt in the first place. A registration
+    with no receipt has no promoted configuration to name, and an adapter is refused rather than
+    filled in from the declared record.
+
+    Raises:
+        RegistrationError: the receipt records no configuration, or omits or malforms one of the
+            four fields the adapter declares.
+    """
+
+    promoted = registration.parity_receipt.get("recorded_serving_configuration")
+    if not isinstance(promoted, Mapping):
+        raise RegistrationError(
+            "this registration carries no parity receipt recording a serving configuration, so "
+            "there is no configuration it was promoted at. The adapter's SERVED_* constants say "
+            "they are that configuration; rendering serving.DEPLOYED there would publish a "
+            "configuration nothing was promoted at, in a file whose comment says otherwise."
+        )
+    resolved: dict[str, Any] = {}
+    for field_name, expected_type in _SERVED_FIELDS:
+        value = promoted.get(field_name)
+        if isinstance(value, bool) or not isinstance(value, expected_type):
+            raise RegistrationError(
+                f"the parity receipt records {field_name}={value!r}, which is not a "
+                f"{expected_type.__name__} the adapter can declare. The SERVED_* constants are "
+                "read out of the receipt, so a receipt that does not record this field cannot "
+                "produce an adapter that names it."
+            )
+        resolved[field_name] = value
+    return resolved
+
+
 def render_rust_adapter(registration: ScannerRegistration) -> str:
     """Render a ``ContentScanner`` implementation for this registration.
 
     The output is an additive module. It never touches ``decide()`` or the receipt path.
+
+    The ``SERVED_*`` constants are derived from the registration's parity receipt, never from
+    :data:`serving.DEPLOYED`; see :func:`_promoted_configuration`. A registration with no receipt
+    is refused rather than rendered.
     """
 
+    promoted = _promoted_configuration(registration)
     arms = "\n".join(
         f'            "{label}" => Some({_rust_category_expression(target)}),'
         for label, target in sorted(registration.harm_category_map.items())
@@ -462,10 +523,10 @@ def render_rust_adapter(registration: ScannerRegistration) -> str:
         operating_threshold=registration.operating_threshold,
         category_arms=arms,
         gating_literals=gating,
-        served_quantisation=serving.QUANTIZATION,
-        served_num_ctx=serving.NUM_CTX,
-        served_seed=serving.SEED,
-        served_num_predict=serving.NUM_PREDICT,
+        served_quantisation=promoted["quantisation"],
+        served_num_ctx=promoted["num_ctx"],
+        served_seed=promoted["seed"],
+        served_num_predict=promoted["num_predict"],
     )
 
 
