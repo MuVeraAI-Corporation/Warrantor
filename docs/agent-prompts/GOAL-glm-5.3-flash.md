@@ -55,9 +55,18 @@ git var GIT_AUTHOR_IDENT && git var GIT_COMMITTER_IDENT
 task's own Step 1 names** — the board reads the branch from that line, so it is authoritative:
 
 ```bash
-git worktree add M:/wt-<task> -b <the branch Step 1 names> origin/main
+python tools/ci/disk_guard.py --require 60   # exit 1 = STOP; do not create the worktree
+git worktree add M:/wt-<task> -b <the branch Step 1 names> main
 export CARGO_TARGET_DIR=M:/wt-<task>-target      # always -j 2
 ```
+
+**Disk (hard rule, 2026-09-06).** On 2026-09-05 sixty build directories filled the drive to 100% and
+killed seven lanes, this one included. Branch from `main`, never `origin/main` (origin is far behind).
+Before EVERY `cargo` invocation, not just the first: `python tools/ci/disk_guard.py --require 60`.
+If it prints REFUSE, stop and report; never delete another lane's directory to make room. When a
+task's evidence is committed, delete your own build tree before starting the next task:
+`cmd /c rmdir /s /q M:\wt-<task>-target` (PowerShell `Remove-Item -Recurse` fails on cargo's deep paths).
+One target dir per task, never one per step. `--list` shows what is holding the disk if you need it.
 
 Never run `git checkout`, `rebase`, `reset` or `push` in the main tree.
 
