@@ -244,6 +244,70 @@ pub fn manifest_digest(manifest: &SignedManifest) -> String {
     sha256_hex(&body)
 }
 
+/// SHA-256 hex of a tool's `inputSchema`. `serde_json` in this workspace has no `preserve_order`,
+/// so `Value::Object` is a `BTreeMap` and the bytes are key-sorted without a canonicalizer.
+#[must_use]
+pub fn schema_digest(schema: &Value) -> String {
+    sha256_hex(&serde_json::to_vec(schema).expect("a Value is always serializable"))
+}
+
+/// Does what the server PUBLISHES agree with its manifest?
+///
+/// `published` carries `<server>.<tool>` names as [`crate::upstream::UpstreamSet::published_tools`]
+/// returns them; other servers' tools are ignored. A tool not named, or a pinned schema whose
+/// digest differs, is the server's own behavior disagreeing with its manifest.
+///
+/// # Errors
+/// [`AdmissionError::Publication`] naming every disagreement, in name order.
+pub fn check_publication(
+    manifest: &SignedManifest,
+    published: &[ToolSpec],
+) -> Result<(), AdmissionError> {
+    let server = &manifest.claims.server;
+    let prefix = format!("{server}.");
+    let mut faults = Vec::new();
+    for tool in published {
+        let Some(bare) = tool.name.strip_prefix(&prefix) else {
+            continue;
+        };
+        match manifest.claims.tools.get(bare) {
+            None => faults.push(format!("publishes {bare:?}, which the manifest does not name")),
+            Some(entry) => {
+                if let Some(pinned) = &entry.schema_digest {
+                    let actual = schema_digest(&tool.input_schema);
+                    if &actual != pinned {
+                        faults.push(format!(
+                            "publishes {bare:?} with schema {actual}, manifest pins {pinned}"
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    if faults.is_empty() {
+        return Ok(());
+    }
+    Err(AdmissionError::Publication {
+        server: server.clone(),
+        detail: faults.join("; "),
+    })
+}
+
+/// The manifest as declarations for the effect registry, under `<server>.<tool>` names, so a
+/// manifest classifies on the same path an operator's `--upstream-effects` does.
+///
+/// # Errors
+/// The registry's own sentence for a tool that decomposes to nothing or is named twice; neither
+/// is reachable for a manifest [`verify_manifest`] accepted.
+pub fn decompositions_of(manifest: &SignedManifest) -> Result<DecompositionRegistry, String> {
+    let mut registry = DecompositionRegistry::new();
+    for (bare, entry) in &manifest.claims.tools {
+        let published = format!("{}.{bare}", manifest.claims.server);
+        registry.insert(Decomposition::new(&published, entry.effects.clone())?)?;
+    }
+    Ok(registry)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -324,5 +388,70 @@ mod tests {
         let err = verify_manifest(&sign_manifest(skill, &key(7)), &key(7).verifying_key(), 1_786_000_100)
             .expect_err("skill without digest");
         assert!(matches!(&err, AdmissionError::Format(m) if m.contains("subject_digest")), "{err}");
+    }
+
+    #[test]
+    fn a_server_publishing_beyond_its_manifest_is_a_publication_fault() {
+        let signed = sign_manifest(claims(), &key(7));
+        let echo = ToolSpec {
+            name: "selftest.echo".to_string(),
+            description: String::new(),
+            input_schema: serde_json::json!({"type": "object"}),
+        };
+        check_publication(&signed, std::slice::from_ref(&echo)).expect("echo is named");
+
+        let extra = ToolSpec {
+            name: "selftest.delete_everything".to_string(),
+            description: String::new(),
+            input_schema: serde_json::json!({"type": "object"}),
+        };
+        let err = check_publication(&signed, &[echo.clone(), extra]).expect_err("not named");
+        assert!(
+            matches!(&err, AdmissionError::Publication { server, detail }
+                if server == "selftest" && detail.contains("delete_everything")),
+            "{err}"
+        );
+        // Another server's tools are not this manifest's business.
+        let foreign = ToolSpec {
+            name: "other.delete_everything".to_string(),
+            description: String::new(),
+            input_schema: serde_json::json!({"type": "object"}),
+        };
+        check_publication(&signed, &[echo, foreign]).expect("other servers are ignored");
+    }
+
+    #[test]
+    fn a_pinned_schema_that_changed_is_a_publication_fault() {
+        let mut pinned = claims();
+        let schema = serde_json::json!({"type": "object", "properties": {"text": {"type": "string"}}});
+        pinned.tools.get_mut("echo").expect("echo").schema_digest = Some(schema_digest(&schema));
+        let signed = sign_manifest(pinned, &key(7));
+
+        let same = ToolSpec {
+            name: "selftest.echo".into(),
+            description: String::new(),
+            input_schema: schema.clone(),
+        };
+        check_publication(&signed, std::slice::from_ref(&same)).expect("same schema");
+
+        let changed = ToolSpec {
+            name: "selftest.echo".into(),
+            description: String::new(),
+            input_schema: serde_json::json!({"type": "object", "properties": {"url": {"type": "string"}}}),
+        };
+        assert!(matches!(
+            check_publication(&signed, &[changed]),
+            Err(AdmissionError::Publication { .. })
+        ));
+    }
+
+    #[test]
+    fn a_manifest_becomes_declarations_under_its_published_names() {
+        let registry = decompositions_of(&sign_manifest(claims(), &key(7))).expect("decomposes");
+        assert_eq!(registry.len(), 2);
+        let fetch = registry.get("selftest.fetch").expect("published name");
+        assert_eq!(fetch.render(), "net");
+        assert_eq!(fetch.class(), crate::SideEffectClass::Read);
+        assert!(registry.get("fetch").is_none(), "bare names are never declared");
     }
 }
