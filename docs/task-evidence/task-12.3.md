@@ -81,15 +81,34 @@ corpus contains, adds no training row, and re-examines no specialization result.
 
 ### Finding 5 — "severity instability was the dominant failure mode" — RECORDED NOWHERE
 
+Measured at `5d3e44d`, the base this branch was written on:
+
 ```
-$ grep -rn "severity instab" --include=*.md --include=*.py --include=*.rs --include=*.html --include=*.json .
+$ git grep -l -e "severity instab" 5d3e44d -- "*.md" "*.py" "*.rs" "*.html" "*.json"
 $ echo $?
 1
 ```
 
-**Not one match anywhere in the tree.** An unrecorded measurement cannot be an exit gate, so it is
-not one here, and no test or gate in this branch asserts anything about any severity field. The
-dominant failure mode `main` *does* record is corpus composition —
+Re-measured on the rebase base and on this tip, because a claim about the tree is a claim about a
+tip:
+
+```
+$ git grep -l -e "severity instab" main -- "*.md" "*.py" "*.rs" "*.html" "*.json"
+main:docs/superpowers/plans/2026-09-02-native-ai-platform-os-implementation.md
+main:docs/superpowers/plans/2026-09-05-phases-7-14-scope.md
+main:docs/superpowers/plans/expansions/task-12.3.md
+main:docs/superpowers/plans/expansions/task-12.4.md
+$ git grep -l -e "severity instab" HEAD -- "*.md" "*.py" "*.rs" "*.html" "*.json"
+... the same four, plus docs/task-evidence/task-12.3.md
+```
+
+**No MEASUREMENT of it exists anywhere in the tree.** The five matches are plan prose and this
+file: the plan quoting the seed finding, and the two expansions repeating it. The first version of
+this section said "not one match anywhere in the tree", which was true at `5d3e44d` and false on
+the base this branch now sits on — the plan files arrived with `main`. What holds unchanged is the
+substance: an unrecorded measurement cannot be an exit gate, so it is not one here, and no test or
+gate in this branch asserts anything about any severity field. The dominant failure mode `main`
+*does* record is corpus composition —
 `docs/warrantor-pending-items-2026-08-22.html` Finding 1, the weak-category recipe going 0-for-3
 and trading targeted-category recall for overall recall. Task 12.4 owns severity stability; its own
 anchor states that its record lives on an unmerged branch.
@@ -283,7 +302,12 @@ control. They are the mechanism, not noise.
 measured effect was never recorded for any of them. **Whether their 0.50 GB / 2.78 GB inventory
 size against the baselines' 0.48 GB / 2.72 GB is a merged adapter's extra tensors or a different
 quantization cannot be determined from anything in the pipeline** — that is the defect, stated
-without overclaiming what the sizes prove.
+without overclaiming what the sizes prove. Those four figures come from
+`docs/model-inventory-reconciliation-2026-09-01.md` lines 23-30 on the branch
+`docs/content-program-p9-fold`, which is **not on `main`** — the same document §0 Finding 3 says a
+task branching from `main` may not cite as a landed record. They are quoted here because the
+sentence they support is a statement about what the pipeline cannot determine, which holds without
+them; nothing in this branch's code, tests or gate reads a model size.
 
 ## Baselines re-measured after the change
 
@@ -309,7 +333,7 @@ Unchanged, as required: no crate is added, no recorded invariant violation is co
 | A registration without a `promote` parity receipt | **Tier B, chokepoint** | `deploy_model.build_registration`: `if verdict != "promote": raise RegistrationError(...)`, before any write. Same shape, same limit — it binds only registrations built through this function. |
 | A registration whose receipt records a configuration this build does not serve | **Tier B, chokepoint** | Same function, third check: `if configuration_problems := serving.configuration_mismatch(receipt_configuration): raise RegistrationError(...)`. |
 | An operator-declared `--precision` contradicting the artifact | **Tier B, chokepoint** | `parity_gate`'s `if declared_precision is not None and declared_precision != candidate.precision` → blocking precondition, receipted. Composed with the other preconditions rather than short-circuiting them, so it cannot mask a second defect. |
-| Rust constants agreeing with the Python record | **Tier B, at build** | `guard_parity.rs` fails `cargo test` when they diverge. A refused **build** is a real refusal at a real chokepoint (CI); it says nothing about what a deployed binary is doing. |
+| Rust constants agreeing with the Python record | **Tier C, observed at build** | `rust/warrant/tests/guard_parity.rs` is eight `#[test]` functions and no runtime code path: it reads `serving.py` with `include_str!` and fails `cargo test` when the two records disagree. It was labeled Tier B here, and that is one notch too strong. Under Task 0.4's vocabulary a Mediated bound is a decision taken at the moment of attempt; this one is taken at the moment of *building a checkout that holds both files*, and it bounds no promotion, registration or request. It is an **observed agreement between two records**. **What escapes:** a binary built from a checkout without the Python file, anything a running process does, and every path in the previous rows -- the product code in `guard.rs` does not read `serving.py`. |
 | What a serving process actually runs | **Tier C, observed** | Nothing here measures a running process. The gate compares a configuration an evaluator *wrote into a document* against a configuration this repository *declares* it serves. **What escapes:** a different Ollama client, a `num_ctx` or `temperature` override on the individual request, a re-quantized GGUF pushed under an unchanged tag, and any scanner reached by a path other than the generated adapter. |
 | The registration document's `serving` block | **Derived from the receipt, not declared** | `to_dict` renders `self.parity_receipt["recorded_serving_configuration"]`, and `null` when there is no receipt. Rendering `serving.DEPLOYED` there would let a `ScannerRegistration` constructed directly — with the defaulted empty receipt — publish a configuration nothing was promoted at. `build_registration` cannot produce that, but the dataclass can; the last two tests in `test_deploy_model.py` are the refusal and its control. |
 | The generated adapter's `SERVED_*` constants | **Tier C, observed** | They are `pub const` declarations. `GuardTransport` is the caller's boxed closure, so the adapter *cannot* send them. The generated file says so in its own comment — *"these are values the caller MUST send -- this adapter cannot enforce them"* — and a test asserts that sentence is present, which is what keeps the claim labeled Tier C. |
@@ -450,7 +474,8 @@ Specific, not modest.
   passing either.
 - **It does not determine what the five 2026-08-22 candidates were actually served at.** It
   determines that the pipeline never recorded it. The 0.50 GB / 2.78 GB versus 0.48 GB / 2.72 GB
-  inventory gap is *consistent with* a merged adapter's extra tensors and *consistent with* a
+  inventory gap — from the unlanded `docs/content-program-p9-fold` document cited in §4, not from
+  anything on `main` — is *consistent with* a merged adapter's extra tensors and *consistent with* a
   different quantization, and nothing in the pipeline can separate the two.
 - **It does not decide the disposition of those five candidates.** That is Task 12.6's graduation
   ladder. This task produces the configuration verdict that ladder consumes; it builds no rung and
@@ -541,8 +566,14 @@ $ python tools/ci/check_docs.py
 RESULT: PASS 269 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
 ```
 
-**The orphan count did not rise** — read from `wiring_census.py`, not computed: `orphaned=1` before
-and after. Census, ratchet and ledger are all identical to the pre-change baselines in §1.
+**Nothing that these three instruments count moved**, and each figure belongs to the instrument
+that prints it. `wiring_census.py` prints one line and no orphan figure: `13 of 41 crates
+reachable ... over 22 path edges`. Its artifact `evidence/wiring-coverage.json` records `orphaned`
+as a **list of 28 crates** (41 − 13), unchanged here. The `orphaned=1` above is
+`check_invariants.py`'s invariant-ledger line, which counts *invariants* with no implementation
+behind them, not crates — a different instrument counting a different population, and attributing
+it to the census was wrong. Census, ratchet and ledger are all identical to the pre-change
+baselines in §1.
 
 `python/warrantor_ml/tests/test_bounds_interop.py` is excluded from the pytest line above and only
 from that line: it fails collection without `.bounds_interop.json`, which
@@ -618,8 +649,9 @@ us-english: 2330 added line(s) across 16 file(s), since main; matcher = vendored
 us-english: ok
 ```
 
-The orphan count did not rise: `orphaned=1` in §1, in §8, and here. The census line is
-byte-identical to the pre-rebase one, as it must be for a branch that adds no crate and no edge.
+The ledger's `orphaned=1` is unchanged in §1, in §8, and here, and the census's own orphan list
+stays at 28 crates in `evidence/wiring-coverage.json`. The census line is byte-identical to the
+pre-rebase one, as it must be for a branch that adds no crate and no edge.
 `check_docs.py` counts 300 Markdown files where §8 counted 269: `main` added thirty-one documents
 between `5d3e44d` and `065961b`, none of them this branch's.
 
