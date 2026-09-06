@@ -1441,8 +1441,13 @@ struct Anchor {
 }
 
 enum AnchorOrigin {
-    /// Resolved from `trusted/issuers.json` under this name, pinned at this moment.
-    Pinned { name: String, pinned_at: u64 },
+    /// Resolved from `trusted/issuers.json` under this name, pinned at this moment. `imported_from`
+    /// says whether a human checked the key HERE (`None`) or the pin arrived by bundle import.
+    Pinned {
+        name: String,
+        pinned_at: u64,
+        imported_from: Option<trust::ImportProvenance>,
+    },
     /// 64 hex characters given on the command line.
     GivenOnTheCommandLine,
 }
@@ -1477,6 +1482,7 @@ fn resolve_anchor(root: &Path, text: &str) -> Result<Anchor, String> {
             origin: AnchorOrigin::Pinned {
                 name: text.to_string(),
                 pinned_at: pin.pinned_at,
+                imported_from: pin.imported_from.clone(),
             },
         }),
         None => Err(format!(
@@ -1780,9 +1786,7 @@ fn verify_report_export(path: &str, body: &[u8], anchor: Option<&Anchor>) -> Exi
     for limitation in &signed.bundle.limitations {
         println!("  - {limitation}");
     }
-    if anchor.is_none() {
-        println!("  - {NO_ANCHOR_LIMITATION}");
-    }
+    print_anchor_limitations(anchor);
     ExitCode::SUCCESS
 }
 
@@ -1798,21 +1802,56 @@ const NO_ANCHOR_LIMITATION: &str =
      matters most for a file that came from somewhere -- an evidence archive, an email, a shared \
      drive -- rather than off the machine that produced it.";
 
-/// How the anchor line reads on each path.
-fn anchor_line(anchor: Option<&Anchor>) -> String {
+/// Said under every anchored verdict. A pin can establish which key signed; it cannot establish
+/// that the key is still the right one, and no rendering here may imply otherwise.
+const PIN_REVOCATION_LIMITATION: &str =
+    "Revocation is NOT established. A pin is a snapshot of a key somebody checked at one moment; \
+     there is no revocation channel and there will not be one, because a channel is a service, \
+     and a service everyone consults sits above the signatures. If this key was compromised after \
+     it was pinned, nothing here knows. Unpinning is a local act: warrantor issuer remove <name>.";
+
+/// The limitation the anchor adds to any verdict — the no-anchor sentence, or the no-revocation one.
+fn print_anchor_limitations(anchor: Option<&Anchor>) {
     match anchor {
-        Some(anchor) => {
-            let bound = hex::encode(anchor.key.to_bytes());
-            match &anchor.origin {
-                AnchorOrigin::Pinned { name, pinned_at } => format!(
-                    "pinned as `{name}` — the signature is bound to {bound}, pinned at                      {pinned_at} by whoever ran `issuer add` on this machine (trust on first                      use, checked out of band at pinning time)"
-                ),
-                AnchorOrigin::GivenOnTheCommandLine => format!(
-                    "given on this command line — the signature is bound to {bound}. A name                      pinned with `warrantor issuer add` is the form that outlives the shell                      history it was pasted into"
-                ),
-            }
-        }
-        None => "NONE pinned — self-consistency only; see the limitations below".to_string(),
+        None => println!("  - {NO_ANCHOR_LIMITATION}"),
+        Some(_) => println!("  - {PIN_REVOCATION_LIMITATION}"),
+    }
+}
+
+/// How the anchor line reads on each path.
+/// How the anchor line reads on each path. Three sentences for three different claims: a key a
+/// human checked here, a key inherited on the authority of one they checked here, a key pasted
+/// onto the command line.
+fn anchor_line(anchor: Option<&Anchor>) -> String {
+    let Some(anchor) = anchor else {
+        return "NONE pinned — self-consistency only; see the limitations below".to_string();
+    };
+    let bound = hex::encode(anchor.key.to_bytes());
+    match &anchor.origin {
+        AnchorOrigin::Pinned {
+            name,
+            pinned_at,
+            imported_from: None,
+        } => format!(
+            "pinned as `{name}` — the signature is bound to {bound}, pinned at {pinned_at} by \
+             whoever ran `issuer add` on this machine (trust on first use, checked out of band at \
+             pinning time)"
+        ),
+        AnchorOrigin::Pinned {
+            name,
+            pinned_at,
+            imported_from: Some(from),
+        } => format!(
+            "pinned as `{name}` — the signature is bound to {bound}, INHERITED from a bundle \
+             signed by `{}` (label {:?}, issued at {}, bundle {}); first pinned at {pinned_at} on \
+             the exporting machine. Nobody checked this key here: it is trusted on the authority \
+             of `{}`, the key that WAS checked out of band on this machine",
+            from.signer_name, from.issued_by, from.issued_at, from.bundle_digest, from.signer_name
+        ),
+        AnchorOrigin::GivenOnTheCommandLine => format!(
+            "given on this command line — the signature is bound to {bound}. A name pinned with \
+             `warrantor issuer add` is the form that outlives the shell history it was pasted into"
+        ),
     }
 }
 
@@ -1859,9 +1898,7 @@ fn verify_spend_export(path: &str, body: &[u8], anchor: Option<&Anchor>) -> Exit
     for limitation in &signed.limitations {
         println!("  - {limitation}");
     }
-    if anchor.is_none() {
-        println!("  - {NO_ANCHOR_LIMITATION}");
-    }
+    print_anchor_limitations(anchor);
     ExitCode::SUCCESS
 }
 
@@ -1912,9 +1949,7 @@ fn verify_stop_export(path: &str, body: &[u8], anchor: Option<&Anchor>) -> ExitC
         );
     }
     print!("{}", stop::render_limitations(&signed));
-    if anchor.is_none() {
-        println!("  - {NO_ANCHOR_LIMITATION}");
-    }
+    print_anchor_limitations(anchor);
     if stop::contained(&signed) {
         ExitCode::SUCCESS
     } else {
@@ -3505,11 +3540,25 @@ fn cmd_issuer_export(args: &Args, root: &Path) -> ExitCode {
     };
     if directory.issuers.is_empty() {
         return fail(
-            "this machine has no pinned issuers, so a bundle would carry nothing. Pin some first              with `warrantor issuer add <name> <hex> --note \"how you checked it\"`.",
+            "this machine has no pinned issuers, so a bundle would carry nothing. Pin some first \
+             with `warrantor issuer add <name> <hex> --note \"how you checked it\"`.",
         );
     }
-    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
-        Ok(k) => k,
+    // Read-only on purpose. `show-hex` refuses to mint on the argument that a key created by the
+    // act of looking for it has signed nothing; export has the stronger case — a key minted here
+    // signs a bundle other machines import, checked by nobody — so it refuses too.
+    let key_path = root.join("keys/issuer.key");
+    let issuer = match load_key(&key_path, KeyKind::Issuer) {
+        Ok(Some(key)) => key,
+        Ok(None) => {
+            return fail(&format!(
+                "there is no issuer key on this machine yet, and this command will not mint one: \
+                 a bundle signed by a key created by the act of exporting has been checked by \
+                 nobody and is importable nowhere. `warrantor grant` creates the issuer key at {} \
+                 alongside the first warrant.",
+                key_path.display()
+            ));
+        }
         Err(e) => return fail(&e),
     };
     // A label, not an identity. The key that signs is the authenticated part.
@@ -3519,7 +3568,8 @@ fn cmd_issuer_export(args: &Args, root: &Path) -> ExitCode {
         .cloned()
         .unwrap_or_else(|| "this-machine".to_string());
 
-    let bundle_value = bundle::export(&directory, &issued_by, now(), &issuer);
+    let exported_at = now();
+    let bundle_value = bundle::export(&directory, &issued_by, exported_at, &issuer);
     let bytes = match bundle::write(&bundle_value, Path::new(out)) {
         Ok(bytes) => bytes,
         Err(e) => return fail(&e.to_string()),
@@ -3531,17 +3581,21 @@ fn cmd_issuer_export(args: &Args, root: &Path) -> ExitCode {
     println!("digest    {}", report::sha256_hex(&bytes));
     println!();
     println!(
-        "Hand this to whoever needs your pins. They can import it ONLY if they have already pinned
-         the key above, out of band -- which is the point: one out-of-band check buys everything
-         this machine trusts, and the trust root is still a key a human checked rather than a host
+        "Hand this to whoever needs your pins. They can import it ONLY if they have already pinned \
+         the key above, out of band -- which is the point: one out-of-band check buys everything \
+         this machine trusts, and the trust root is still a key a human checked rather than a host \
          somebody configured. Nothing is fetched, by anybody, ever."
     );
     println!();
     println!(
-        "They run:
-  warrantor issuer add <a-name-they-choose> {} --note \"how they checked it\"
-           warrantor issuer import {out}",
+        "They run:\n  warrantor issuer add <a-name-they-choose> {} --note \"how they checked it\"\n  \
+         warrantor issuer import {out}",
         bundle_value.signed_by
+    );
+    println!(
+        "\nA bundle is a SNAPSHOT dated {exported_at}. Revocation is NOT established by it: if a \
+         key in it is compromised later, nothing tells the importer, and there is no channel that \
+         could. Unpinning is a local act on each machine."
     );
     ExitCode::SUCCESS
 }
@@ -3599,9 +3653,9 @@ fn cmd_issuer_import(args: &Args, root: &Path) -> ExitCode {
     let conflicts = report.conflicts();
     if !conflicts.is_empty() {
         println!(
-            "{} name(s) conflict and were NOT changed. A local pin is something a human checked out
-             of band on THIS machine; a bundle silently redefining it is exactly the substitution a
-             signed bundle otherwise prevents. There is no --replace here on purpose: resolve each
+            "{} name(s) conflict and were NOT changed. A local pin is something a human checked out \
+             of band on THIS machine; a bundle silently redefining it is exactly the substitution a \
+             signed bundle otherwise prevents. There is no --replace here on purpose: resolve each \
              one by hand, having decided which key is right.",
             conflicts.len()
         );
