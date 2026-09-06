@@ -202,3 +202,179 @@ fn the_product_links_the_preflight_that_refuses_an_unmeasured_boundary() {
          is refused for starting against an unmeasured boundary.",
     );
 }
+
+/// FINDING (I-09, common mode). Task 5.4, L2-03 / L0-10.
+///
+/// The independence property belongs to I-09 — *"if any plane fails open, the action fails closed"* —
+/// because the anti-correlation is exactly the case where plane A failing open leaves nothing closed.
+/// A permitted destination is guarded by one enforcement point, so there is no second plane to fail
+/// closed behind the first.
+///
+/// The attack here is the concrete exploit that anti-correlation opens. **Neither engine resolves
+/// DNS**, so a hostname is judged only as a string; and the one layer that would stop a name
+/// regardless of what it resolves to — the network namespace, which removes the network outright — is
+/// deliberately **not** emitted for any warrant that permits a host
+/// (`rust/warrant/src/sandbox.rs` lines 333-346). So a name that encodes the cloud metadata address
+/// and is not on `hard_deny`'s hostname list passes both policy engines. Task 7.1's own evidence
+/// records this exact string as reaching Allow — see the table in
+/// `docs/task-evidence/task-7.1.md`, row `169.254.169.254.nip.io`.
+///
+/// Written with [`harness::reached_the_boundary_unrefused`] so that it starts **failing** the day
+/// either half is fixed: a resolver on the egress path, or a second enforcement point that acts on a
+/// permitted host. Whoever lands it converts this to `refused_at_the_boundary`, closes `### 3.8` in
+/// `docs/W1-delivery-gaps.md`, and raises the ratchet. A finding that silently goes stale is a
+/// finding nobody will ever close.
+///
+/// Fixed by: no task in the 2026-09-02 implementation plan builds a second enforcement point or adds
+/// a resolver; Phase 5's governing rule forbids the first. Recorded 2026-09-05.
+#[test]
+fn a_name_that_encodes_the_metadata_address_passes_both_engines_because_neither_resolves_dns() {
+    // The operator's own policy allowlists both names, and the warrant permits both. This is the
+    // configuration in which the two engines are supposed to be doing their job.
+    let permitted_name = "api.github.com";
+    let metadata_name = "169.254.169.254.nip.io";
+
+    let bounds = WarrantBounds {
+        egress_hosts: BTreeSet::from([permitted_name.to_string(), metadata_name.to_string()]),
+        ..bounds_with_budget(None)
+    };
+    let broker = warrantor_warrant::egress::EgressBroker::for_bounds(&bounds);
+    let secondary = warrantor_warrant::egress::SecondaryFilter::from_policy(
+        warrantor_egress_filter::PolicyBuilder::with_defaults()
+            .allow_domain(permitted_name)
+            .allow_domain(metadata_name)
+            .build()
+            .expect("the operator policy builds"),
+    );
+
+    // `allowed` means "no engine refused this destination". Both engines are consulted, so the
+    // predicate covers the whole policy surface the product has.
+    let verdict = |host: &&str| {
+        let broker_allows = matches!(
+            broker.decide(host),
+            warrantor_warrant::egress::EgressVerdict::Allow { .. }
+        );
+        let filter_allows = secondary.decide(host).action == warrantor_egress_filter::Action::Allow;
+        broker_allows && filter_allows
+    };
+
+    // Control: the attack backed out. An ordinary permitted host is allowed, which proves the
+    // predicate can say "refused" for a reason other than refusing everything.
+    harness::reached_the_boundary_unrefused(
+        "a hostname encoding 169.254.169.254, which neither engine resolves and no netns stops",
+        &permitted_name,
+        &metadata_name,
+        verdict,
+    );
+
+    // And the same machinery DOES refuse the literal address, so the gap is specifically the
+    // resolver and not a missing floor. This is the allowed/refused pair that makes the finding
+    // precise rather than alarming.
+    assert_eq!(
+        secondary.decide("169.254.169.254").action,
+        warrantor_egress_filter::Action::Deny,
+        "the literal address is refused by the non-amendable floor; only the NAME gets through",
+    );
+
+    // The measured count agrees with the mechanism just demonstrated. Reading it from the same
+    // function the record and the drills read is what stops the prose and the code diverging.
+    let measured = warrantor_warrant::egress::independence(&bounds, None);
+    assert_eq!(
+        measured.intercepts, 1,
+        "one enforcement point stands over a permitted destination",
+    );
+    assert!(
+        measured.shared_axes.contains(&"dns_resolution"),
+        "the shared blind spot this test just exercised must be named as a shared axis",
+    );
+    assert!(
+        measured.shared_axes.contains(&"configuration_source"),
+        "the shared field must be named as a shared axis, not merely demonstrated",
+    );
+
+    // Wiring the second policy engine does not change the count: two evaluators, one boundary.
+    let paired = warrantor_warrant::egress::independence(&bounds, Some(&secondary));
+    assert_eq!(paired.engines, 2);
+    assert_eq!(
+        paired.intercepts, 1,
+        "a second policy domain is not a second enforcement point",
+    );
+    assert!(
+        paired.shared_axes.contains(&"address_floor"),
+        "both evaluators consult one hard_deny matcher, so a defect there fails both at once",
+    );
+}
+
+/// The other half of the anti-correlation, asserted directly: the netns is switched off by the very
+/// field that opens the catalogue.
+///
+/// Separate from the finding above because this one is not a finding — it is a deliberate, documented
+/// decision (`rust/warrant/src/sandbox.rs` lines 333-346: a namespace has no host allowlist, so
+/// emitting it would deny egress the warrant granted). It is asserted so that the decision cannot be
+/// quietly reversed, and paired with its control so it cannot pass vacuously.
+#[test]
+fn the_only_second_layer_is_emitted_exactly_when_no_destination_is_permitted() {
+    let denying = bounds_with_budget(None);
+    let permitting = WarrantBounds {
+        egress_hosts: BTreeSet::from(["api.github.com".to_string()]),
+        ..bounds_with_budget(None)
+    };
+    let netns = |bounds: &WarrantBounds| {
+        warrantor_warrant::sandbox::profile(
+            bounds,
+            "/home/u/wt",
+            warrantor_warrant::sandbox::Confinement::Bubblewrap,
+        )
+        .argv
+        .iter()
+        .any(|a| a == "--unshare-net")
+    };
+
+    // The control: an empty egress bound DOES emit the namespace, so its absence below is caused by
+    // the grant and not by a profile builder that never emits one.
+    assert!(
+        netns(&denying),
+        "control: a warrant granting no egress must unshare the network namespace",
+    );
+    assert!(
+        !netns(&permitting),
+        "and a warrant permitting one host must not, or sandbox.rs lines 333-346 have been reversed",
+    );
+
+    // Which is the whole anti-correlation: two layers stand only where nothing is permitted.
+    assert_eq!(
+        warrantor_warrant::egress::independence(&denying, None).intercepts,
+        2
+    );
+    assert!(
+        !warrantor_warrant::egress::independence(&denying, None).guards_a_permitted_destination,
+        "and those two layers guard nothing, because there is no permitted destination",
+    );
+    assert_eq!(
+        warrantor_warrant::egress::independence(&permitting, None).intercepts,
+        1
+    );
+}
+
+/// I-09's static half for the finding above.
+///
+/// The two sentences that state where egress holds must keep naming the things that are absent. A
+/// surface that drops either clause is how a Tier B bound gets read as Tier A, and how a count of
+/// policy domains gets read as a count of enforcement points.
+#[test]
+fn the_notes_refuse_to_imply_a_second_boundary() {
+    harness::source_contains(
+        "rust/warrant/src/egress.rs",
+        "There is no network \\\n     namespace, seccomp filter or firewall: an agent that opens a \
+         socket itself is not bound by \\\n     them.",
+        "ENFORCEMENT_NOTE is the only place the product says where egress holds; if it stops \
+         naming what is absent, the independence count reads as an enforcement count.",
+    );
+    harness::source_contains(
+        "rust/warrant/src/egress.rs",
+        "is a count of policy domains, not a count of enforcement points",
+        "INDEPENDENCE_NOTE must keep refusing the enforcement-point reading in those words: \
+         tools/ci/network_independence.py requires the clause on every surface that prints the \
+         count, and this is the one place it is authored.",
+    );
+}

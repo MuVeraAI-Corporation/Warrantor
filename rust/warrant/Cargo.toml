@@ -35,6 +35,23 @@ warrantor-notary = { path = "../notary", version = "1.0.0" }
 # external crate and no new version to Cargo.lock. It decides; it does not enforce: enforcement
 # still terminates at the MCP proxy, exactly where it did before.
 warrantor-egress = { path = "../egress", version = "1.0.0" }
+# THE SECOND POLICY ENGINE, and nothing more than that. `Policy` / `PolicyBuilder` reach the product
+# here as `egress::SecondaryFilter`: a second evaluator, with a different default (DefaultDeny on an
+# empty allowlist) and a different configuration source (an operator file, not the signed warrant
+# claims), consulted deny-only inside the SAME `Proxy::decide` loop as the broker.
+#
+# WHAT THE EDGE DOES NOT BUY. It is not a second enforcement point, so it does not raise the
+# independent-intercept count -- see `egress::independence` and
+# `docs/05-network-common-mode-analysis.md`. And it does not make the two evaluators independent:
+# both consult `warrantor_egress_filter::hard_deny`, because Task 7.1 deliberately put ONE address
+# matcher there and made `warrantor-egress` delegate to it. That is right for drift and wrong for
+# independence, which is why `address_floor` is a permanently shared axis.
+#
+# The crate was already reachable via `warrantor-egress` before this edge, so the wiring census's
+# `reachable` count does not move: this adds a path edge, not a crate. Its dependency set
+# {thiserror, serde, serde_json} is a strict subset of this crate's, so no external crate and no new
+# package enters `rust/Cargo.lock`.
+warrantor-egress-filter = { path = "../egress-filter", version = "1.0.0" }
 # The containment conformance suite, behind `warrantor stop`. It is a report VALIDATOR, not a
 # conformance runner: it cannot measure quiescence and cannot elicit, so what it buys is the
 # anti-sandbagging gate -- a stop record can never claim a passing containment grade, because

@@ -3118,6 +3118,7 @@ dependencies = [
  "warrantor-containment-conformance",
  "warrantor-credential-vault",
  "warrantor-egress",
+ "warrantor-egress-filter",
  "warrantor-evidence",
  "warrantor-kill-switch-core",
  "warrantor-notary",

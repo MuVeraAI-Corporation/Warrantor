@@ -970,6 +970,62 @@ What this does **not** establish, so it is not read as more than it is:
 taken by the Windows-CI entry that landed on `main` after this task was written; numbering skips
 both so the three can merge without renumbering.)
 
+### 3.8 The double network path does not exist — **measured, published and gated; still one control**
+
+Found by Task 5.4 (2026-09-05) while trying to satisfy L2-03's proof gate D-03, *"Common-mode
+analysis proving the two layers do not share a failure domain."* The analysis was run and it proves
+the opposite. Full working: [`docs/05-network-common-mode-analysis.md`](05-network-common-mode-analysis.md);
+machine-readable record: [`evidence/network-independence.json`](../evidence/network-independence.json).
+
+A permitted destination is guarded by **one independent intercept, not two**. The two layers the
+product describes are not merely coupled, they are **anti-correlated by one config field**:
+
+- `WarrantBounds::egress_hosts` non-empty → the proxy decides per destination, and
+  `--unshare-net` is **deliberately not emitted** (`rust/warrant/src/sandbox.rs` lines 333-346),
+  because a network namespace has no host allowlist and emitting it would deny egress the warrant
+  granted.
+- `egress_hosts` empty → the namespace *is* emitted, and the proxy has already denied every
+  destination as `CatalogUnavailable` (`rust/warrant/src/egress.rs` lines 196-201). Two layers stand
+  and there is no permitted destination for either of them to be independent about.
+
+So exactly when one layer has a decision to make, the other is switched off. This is a single point
+of **configuration**, which is worse than a shared dependency.
+
+Six of the eight modeled axes are shared: `enforcement_point`, `address_floor`,
+`configuration_source`, `telemetry_path`, `clock`, `dns_resolution`. Only `credential` is not, and it
+is independent by *absence* — neither layer holds a key — rather than by design. The DNS row is the
+live exploit: neither layer resolves, so a hostname that resolves into `169.254.169.254` is caught
+only if the *name* is on `hard_deny`'s hostname list, and the layer that would catch it regardless is
+off whenever any host is permitted.
+
+**`address_floor` is newly shared and it is nobody's mistake.** Task 7.1 put the single
+non-amendable address matcher in `rust/egress-filter/src/hard_deny.rs` and made `warrantor-egress`
+delegate to it, so that "is this the metadata service" could not drift between two crates. Correct
+for drift; a shared failure domain for independence. A defect in `hard_deny` now fails both
+evaluators at once. Both statements are true and the analysis records the second one.
+
+What this task changed, precisely: `warrantor-egress-filter`'s `Policy` decision surface had no
+caller in the product and now has one — `egress::SecondaryFilter`, a second policy engine consulted
+deny-only inside the same `Proxy::decide` loop. That buys a second evaluator with a different
+default and a different configuration source, which matters because Task 1.2 is making destination
+catalogs machine-generated. It buys **no** second enforcement point, so the intercept count is
+unchanged at one.
+
+What it does **not** establish:
+- **L2-03 and L0-10 stay `status="none"`.** Neither is closed and neither may be softened.
+- The cluster layer L2-03 names does not exist. There is no `deploy/k8s`; the one `NetworkPolicy` in
+  the tree is `policyTypes: ["Ingress"]` on trust-core and cannot hold an egress bound.
+- **Tier B, chokepoint, both engines.** Two policy domains at one enforcement point, so the count is
+  a count of policy domains, not a count of enforcement points. A shell command, a harness built-in,
+  or any socket the agent opens itself passes neither. No netns, seccomp filter or firewall is added
+  or enforced by this work.
+- The one Tier A case is not created here: `--unshare-net` for an empty egress bound, which the OS
+  enforces — and only if the operator launched the printed profile, which this process cannot observe
+  (`sandbox::PROFILE_CAVEAT`).
+- The finding is recorded with `harness::reached_the_boundary_unrefused`, so it goes **red** the day a
+  real second enforcement point lands rather than going stale. Whoever lands it converts the test and
+  raises the ratchet.
+
 ---
 
 ## Tier 4 — model intelligence

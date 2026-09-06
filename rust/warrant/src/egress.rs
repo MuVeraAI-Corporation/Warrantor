@@ -262,6 +262,299 @@ impl EgressBroker {
     }
 }
 
+// ── the second policy engine ──────────────────────────────────────────────────────────
+//
+// A SECOND POLICY ENGINE AT THE SAME ENFORCEMENT POINT. Read that sentence before the code.
+//
+// This lowers common mode on the policy-engine axis: a different evaluator, a different default, a
+// different configuration source. It does NOT add an enforcement point. Both engines run inside the
+// MCP proxy; a socket the agent opens itself passes neither. See [`independence`] and
+// `docs/05-network-common-mode-analysis.md`.
+
+/// Where a [`SecondaryFilter`]'s policy came from.
+///
+/// Recorded rather than inferred, because "which configuration source decided this" is one of the
+/// axes the independence analysis counts, and an unattributed policy cannot be counted.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SecondarySource {
+    /// An operator-authored file, read from disk. The second configuration source.
+    OperatorFile {
+        /// The path it was read from, for the record.
+        path: String,
+    },
+    /// [`warrantor_egress_filter::Policy::try_new_default`] — the compiled-in fallback used when no
+    /// operator file exists. Its terminal branch is `DefaultDeny`.
+    CompiledDefault,
+    /// A policy handed over in process. Used by tests and by callers that build one themselves.
+    InlinePolicy,
+}
+
+impl SecondarySource {
+    /// The word used in [`Independence`] and in the machine-readable record.
+    #[must_use]
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::OperatorFile { .. } => "operator_file",
+            Self::CompiledDefault => "compiled_default",
+            Self::InlinePolicy => "inline_policy",
+        }
+    }
+}
+
+/// Why an operator's secondary-filter configuration could not be used.
+///
+/// Every variant is a refusal to build a filter, never a silent fallback to one that permits more.
+/// Absence of the file is [`SecondaryFilter::default_deny`]; a file that is present and *wrong* is
+/// this error, and the caller must decide loudly rather than guess.
+#[derive(Debug, thiserror::Error)]
+pub enum SecondaryConfigError {
+    /// The file exists and could not be read.
+    #[error("the secondary egress filter config at {path} could not be read: {source}")]
+    Unreadable {
+        /// The path.
+        path: String,
+        /// The I/O error.
+        source: std::io::Error,
+    },
+    /// The file is not the JSON a [`warrantor_egress_filter::Policy`] deserializes from.
+    #[error("the secondary egress filter config at {path} is not a valid policy: {source}")]
+    Malformed {
+        /// The path.
+        path: String,
+        /// The parse error.
+        source: serde_json::Error,
+    },
+}
+
+/// A second policy evaluator, consulted at the same enforcement point as [`EgressBroker`].
+///
+/// # What this is
+///
+/// [`warrantor_egress_filter::Policy`], reached from the product for the first time. It answers the
+/// same question as the broker — may this destination be reached? — from a different configuration
+/// source, with a different default, using different code.
+///
+/// # What this is not
+///
+/// It is **not** a second boundary. [`crate::proxy::Proxy::decide`] consults both engines, so both
+/// bind exactly the calls that traverse the MCP proxy and neither binds anything else. It is also
+/// **not** fully independent of the broker: both consult
+/// [`warrantor_egress_filter::hard_deny`], which is the single non-amendable address matcher Task
+/// 7.1 deliberately placed in one crate so the two could not drift apart. One matcher is right for
+/// drift and is a shared failure domain for independence; [`independence`] names it `address_floor`
+/// and reports it shared in every configuration.
+#[derive(Debug, Clone)]
+pub struct SecondaryFilter {
+    policy: warrantor_egress_filter::Policy,
+    source: SecondarySource,
+}
+
+impl SecondaryFilter {
+    /// Read the operator's own policy file.
+    ///
+    /// This is the second configuration source, and the reason wiring this engine buys anything at
+    /// all: it did not read the warrant's signed claims, so an over-broad destination catalogue
+    /// derived from those claims does not widen it.
+    ///
+    /// # Errors
+    /// [`SecondaryConfigError::Unreadable`] or [`SecondaryConfigError::Malformed`]. A missing file
+    /// is **not** an error to be swallowed here — the caller chooses [`Self::default_deny`]
+    /// explicitly, so that falling back is a visible decision rather than an implicit one.
+    pub fn from_operator_config(path: &std::path::Path) -> Result<Self, SecondaryConfigError> {
+        let display = path.display().to_string();
+        let text =
+            std::fs::read_to_string(path).map_err(|source| SecondaryConfigError::Unreadable {
+                path: display.clone(),
+                source,
+            })?;
+        let policy: warrantor_egress_filter::Policy =
+            serde_json::from_str(&text).map_err(|source| SecondaryConfigError::Malformed {
+                path: display.clone(),
+                source,
+            })?;
+        Ok(Self {
+            policy,
+            source: SecondarySource::OperatorFile { path: display },
+        })
+    }
+
+    /// The fallback: [`warrantor_egress_filter::Policy::try_new_default`], whose terminal branch is
+    /// `DefaultDeny` and whose allowlist is empty.
+    ///
+    /// Absent configuration is default-**deny**, never default-allow. That is the same reading the
+    /// rest of the warrant takes: an absent limit means none.
+    ///
+    /// # Panics
+    /// Panics only if `DEFAULT_CANARY_IPS` in `warrantor-egress-filter` contains an unparseable
+    /// literal, which is a compile-time constant in that crate and therefore a programmer error
+    /// there rather than a runtime condition here.
+    #[must_use]
+    pub fn default_deny() -> Self {
+        Self {
+            policy: warrantor_egress_filter::Policy::try_new_default()
+                .expect("DEFAULT_CANARY_IPS are compile-time constants in warrantor-egress-filter"),
+            source: SecondarySource::CompiledDefault,
+        }
+    }
+
+    /// Wrap a policy built in process.
+    #[must_use]
+    pub fn from_policy(policy: warrantor_egress_filter::Policy) -> Self {
+        Self {
+            policy,
+            source: SecondarySource::InlinePolicy,
+        }
+    }
+
+    /// Decide one destination.
+    ///
+    /// Deny-only by contract: the caller may use this to turn a `Forward` into a `Deny` and may
+    /// **never** use it to turn the broker's `Deny` into a `Forward`. The call site in
+    /// [`crate::proxy::Proxy::decide`] runs the broker first and returns on its refusal, so an
+    /// `Allow` here is structurally unable to overturn one.
+    #[must_use]
+    pub fn decide(&self, destination: &str) -> warrantor_egress_filter::Decision {
+        self.policy.decide_destination(destination)
+    }
+
+    /// Where this filter's policy came from.
+    #[must_use]
+    pub fn source(&self) -> &SecondarySource {
+        &self.source
+    }
+}
+
+// ── the independence count ────────────────────────────────────────────────────────────
+
+/// What the independence count does NOT cover. Printed under the count on every surface.
+///
+/// One constant, one place, for the same reason as [`ENFORCEMENT_NOTE`]: a count of policy domains
+/// rendered without this paragraph is read as a count of enforcement points, which is the single
+/// most damaging misreading this repository can ship.
+pub const INDEPENDENCE_NOTE: &str =
+    "Two policy engines decide this destination and one boundary enforces them. The count above \
+     is a count of policy domains, not a count of enforcement points: both engines run inside the \
+     Warrantor MCP proxy, so a shell command, a harness built-in, or any socket the agent opens \
+     itself passes neither of them. There is no network namespace, seccomp filter or firewall \
+     behind this count unless you launched the confinement profile yourself, and this process \
+     cannot tell whether you did. A hostname that resolves into a private or metadata range is \
+     not caught: neither engine resolves DNS.";
+
+/// Every axis the independence analysis models, in the order the analysis document tables them.
+///
+/// The blueprint's residual names three (`policy_engine`, `credential`, `telemetry_path`); L0-10's
+/// residual adds a resolver and a clock; `enforcement_point` is the one a reader assumes and neither
+/// residual lists; `address_floor` is the one that did not exist until Task 7.1 gave both evaluators
+/// a single shared matcher.
+pub const INDEPENDENCE_AXES: [&str; 8] = [
+    "enforcement_point",
+    "policy_engine",
+    "address_floor",
+    "configuration_source",
+    "credential",
+    "telemetry_path",
+    "clock",
+    "dns_resolution",
+];
+
+/// The measured independence of the egress path, for one warrant's bounds.
+///
+/// `engines` and `intercepts` are separate fields on purpose. Conflating them is the misreading this
+/// whole analysis exists to prevent: wiring a second evaluator raises `engines` and leaves
+/// `intercepts` alone, because a policy domain is not a boundary.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Independence {
+    /// Enforcement points that could refuse a destination under these bounds.
+    ///
+    /// One for any warrant that permits egress: the MCP proxy. Two only for a warrant that permits
+    /// none, where the netns is also emitted — and see [`Self::guards_a_permitted_destination`]
+    /// before reading that two as a double path.
+    pub intercepts: usize,
+    /// Policy evaluators consulted at those points. Two once a [`SecondaryFilter`] is wired.
+    pub engines: usize,
+    /// True only when at least one intercept acts on a destination the warrant permits.
+    ///
+    /// False for an empty `egress_hosts`, which is the one configuration with two layers standing
+    /// and no permitted destination for either of them to be independent about.
+    pub guards_a_permitted_destination: bool,
+    /// Which of [`INDEPENDENCE_AXES`] the layers share, in that order.
+    pub shared_axes: Vec<&'static str>,
+    /// The enforcement layers standing under these bounds.
+    pub layers: Vec<&'static str>,
+}
+
+/// Measure the independence of the egress path.
+///
+/// This is the function the machine-readable record and the drills both read, so the prose and the
+/// tests cannot diverge. Every answer it gives is derived from the two conditions that drive the
+/// two layers — `rust/warrant/src/egress.rs` line 196 and `rust/warrant/src/sandbox.rs` line 318 —
+/// which are the same field read with opposite senses.
+#[must_use]
+pub fn independence(bounds: &WarrantBounds, secondary: Option<&SecondaryFilter>) -> Independence {
+    let permits_egress = !bounds.egress_hosts.is_empty();
+
+    // The layers, from the conditions themselves rather than from a list someone maintains.
+    //
+    // The proxy is always an intercept: it decides per destination when the catalogue exists and
+    // refuses everything as `CatalogUnavailable` when it does not. The netns is an intercept only
+    // when `egress_hosts` is empty, which is exactly when the proxy has nothing left to permit.
+    let mut layers = vec!["mcp_proxy"];
+    if !permits_egress {
+        layers.push("network_namespace");
+    }
+    let intercepts = layers.len();
+
+    let engines = if secondary.is_some() { 2 } else { 1 };
+
+    let mut shared_axes = Vec::new();
+    for axis in INDEPENDENCE_AXES {
+        let shared = match axis {
+            // Both engines decide inside `Proxy::decide`. The netns is enforced by the kernel, but
+            // only in the configuration where it guards nothing, and only if an operator launched
+            // the printed profile -- which this process cannot observe (`sandbox::PROFILE_CAVEAT`).
+            "enforcement_point" => true,
+            // The one axis a second evaluator moves.
+            "policy_engine" => secondary.is_none(),
+            // Never moves. Both `warrantor_egress::decide` and
+            // `warrantor_egress_filter::Policy::decide_*` consult `hard_deny::refuse`/`refuse_ip`.
+            // One matcher, two callers: a defect there fails both at once.
+            "address_floor" => true,
+            // `WarrantBounds::egress_hosts` opens the proxy's catalogue and suppresses the netns.
+            // One field, both layers, opposite directions. A shared config field IS a common mode,
+            // and this one is not merely shared -- it is inverted. A secondary filter adds a second
+            // source for the pair of ENGINES; the pair of LAYERS still hangs off this one field.
+            "configuration_source" => true,
+            // Neither holds a key. Independent by absence, not by design: `egress.rs` lines 53-56
+            // say the process serving a supervised agent deliberately holds none.
+            "credential" => false,
+            // Both refusals land in `Proxy::egress_refusals` / `Proxy::requests`, in one process,
+            // with no independent sink. The netns produces no telemetry at all: its refusal is a
+            // `connect()` failure inside the agent that never reaches Warrantor.
+            "telemetry_path" => true,
+            // `bounds.expires_at` is copied into every `CatalogEntry` and is the supervisor's
+            // deadline. One clock, every layer.
+            "clock" => true,
+            // Neither resolves. A hostname that resolves into a metadata range is caught only if
+            // the NAME is on `hard_deny`'s hostname list. A shared blind spot is a common mode.
+            "dns_resolution" => true,
+            // `INDEPENDENCE_AXES` is exhaustive and this arm is unreachable; it exists so that
+            // adding an axis without deciding its answer cannot silently report "not shared".
+            other => unreachable!("axis {other} has no independence answer"),
+        };
+        if shared {
+            shared_axes.push(axis);
+        }
+    }
+
+    Independence {
+        intercepts,
+        engines,
+        guards_a_permitted_destination: permits_egress,
+        shared_axes,
+        layers,
+    }
+}
+
 // ── finding the destinations a call names ─────────────────────────────────────────────
 
 /// A destination found in a tool call's arguments.
@@ -432,6 +725,73 @@ impl EgressRefusal {
             self.destination,
             reason_phrase(self.reason.clone()),
             self.argument
+        )
+    }
+}
+
+/// One refusal by the **second** policy engine, kept as its own record.
+///
+/// A separate type from [`EgressRefusal`] on purpose. The two evaluators are different engines with
+/// different configuration sources, and a refusal that cannot say which one refused cannot be
+/// attributed — so this carries the filter's own structured rule rather than being folded into the
+/// broker's coarser [`DenyReason`], which would report a decision the broker did not make.
+///
+/// Being a second *record* is not being a second *telemetry path*: both maps live in the same
+/// [`crate::proxy::Proxy`], in the same process, with no independent sink. [`independence`] reports
+/// `telemetry_path` as shared for exactly that reason.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SecondaryRefusal {
+    /// The tool whose call named the destination.
+    pub tool: String,
+    /// The argument the destination was named in.
+    pub argument: String,
+    /// The destination, as the proxy resolved it.
+    pub destination: String,
+    /// The form the filter actually decided against, which makes a normalization bypass visible.
+    pub normalized: String,
+    /// The filter's own reason, from `warrantor_egress_filter::DecisionReason`.
+    pub rule: String,
+    /// How many times this exact refusal happened.
+    pub count: u32,
+}
+
+impl SecondaryRefusal {
+    /// Build a refusal from the second engine's decision.
+    ///
+    /// # Panics
+    /// Never. The rule string is taken from the decision's own serialization and falls back to its
+    /// `Debug` form if that ever fails, so a refusal is never dropped for want of a label.
+    #[must_use]
+    pub fn new(
+        tool: &str,
+        destination: &Destination,
+        decision: &warrantor_egress_filter::Decision,
+    ) -> Self {
+        // Derived from the decision, not written beside it: the rule this renders is the one the
+        // engine actually returned.
+        let rule = serde_json::to_string(&decision.reason)
+            .unwrap_or_else(|_| format!("{:?}", decision.reason));
+        Self {
+            tool: tool.to_string(),
+            argument: destination.argument.clone(),
+            destination: destination.host.clone(),
+            normalized: decision.normalized.clone(),
+            rule,
+            count: 1,
+        }
+    }
+
+    /// Why, in terms the agent can act on, and naming which engine refused.
+    ///
+    /// Every clause is read off this record. The engine is named because a refusal attributed to the
+    /// wrong evaluator sends an operator to the wrong configuration file.
+    #[must_use]
+    pub fn sentence(&self) -> String {
+        format!(
+            "egress to {} is refused by the second policy engine: {}. It was named in the {:?} \
+             argument. This is a second policy domain at the same enforcement point, not a second \
+             boundary. The request is recorded for review.",
+            self.destination, self.rule, self.argument
         )
     }
 }
