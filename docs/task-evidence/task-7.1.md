@@ -1,13 +1,24 @@
-# Task 7.1 (partial — Steps 1 to 5 only): the non-amendable deny floor, L4-25
+# Task 7.1: the non-amendable deny floor (L4-25) and the effect adapter SDK (L4-20)
+
+Two increments. Steps 1 to 5 landed first and are recorded immediately below; Steps 6 to 9 and
+Step 11 landed after Task 2.1 merged and are recorded in the second increment at the end of this
+file. The scope sentence in the first increment's header is preserved as it was written.
 
 Branch `feat/effect-sdk-and-deny-floor`, based on **local `main` at `f99af94`** — not
 `origin/main` at `e4b5f10`. Local `main` carries four unpushed merges, including the egress
 metadata-floor fix `c6cb1bb` that this task builds on.
 
-**Scope actually delivered: Steps 1 through 5.** Steps 6 to 9 (the effect-class SDK and the
-conformance kit, L4-20) require `rust/warrant/src/effects.rs` from Task 2.1, which has not landed.
-Nothing in this branch touches L4-20, and neither L4-20 nor L4-25 may have `status="none"` softened
-by it — see *What this task does NOT establish*.
+## First increment (2026-09-05): Steps 1 through 5
+
+**Scope delivered by this increment: Steps 1 through 5.** Steps 6 to 9 (the effect-class SDK and the
+conformance kit, L4-20) require `rust/warrant/src/effects.rs` from Task 2.1, which had not landed
+when this was written. Nothing in this increment touches L4-20, and neither L4-20 nor L4-25 may have
+`status="none"` softened by it — see *What this task does NOT establish*.
+
+**SUPERSEDED IN PART, 2026-09-06.** Task 2.1 merged at `371037d`, so Steps 6 to 9 were done in the
+second increment at the end of this file. Every sentence below saying the SDK does not exist was true
+when written and is now historical; the second increment states what is delivered and what still is
+not. L4-25 is unchanged either way.
 
 ---
 
@@ -300,8 +311,9 @@ adds any.
    `#[cfg(test)]` block before scanning (with an assertion that the trim actually happened), because
    otherwise the gate reads its own test prose as shipping code; that false positive was hit and
    fixed during this run.
-6. **Steps 6 to 9 not attempted.** `rust/warrant/src/effects.rs` does not exist; Task 2.1 has not
-   landed. `rust/warrant/src/effect_sdk.rs`, `rust/warrant/tests/effect_sdk_conformance.rs`, the
+6. **Steps 6 to 9 not attempted in this increment** (done in the second increment, 2026-09-06,
+   after Task 2.1 merged). At the time of writing `rust/warrant/src/effects.rs` did not exist; Task
+   2.1 had not landed. `rust/warrant/src/effect_sdk.rs`, `rust/warrant/tests/effect_sdk_conformance.rs`, the
    `i11` corpus edit and the `passing_floor` raise in `tools/ci/invariant-ratchet.json` are all
    untouched. The ratchet is therefore unchanged rather than raised, which is correct: no invariant
    test moved from ignored to passing.
@@ -478,9 +490,11 @@ than a modified source file.
 
 Specifically, not modestly.
 
-1. **It does not deliver L4-20 at all.** No effect-class SDK, no conformance kit, no reference
-   adapter, no `Syscall` decomposition, no `EffectGrant`. `L4-20` stays `status="none"`. Steps 6
-   to 9 were not attempted because `rust/warrant/src/effects.rs` does not exist on this branch.
+1. **This increment does not deliver L4-20 at all.** No effect-class SDK, no conformance kit, no
+   reference adapter, no `Syscall` decomposition, no `EffectGrant`. Steps 6 to 9 were not attempted
+   because `rust/warrant/src/effects.rs` did not exist on this branch at the time. The second
+   increment delivers the SDK and the kit; `L4-20` still is not closed by them, for the reasons that
+   increment states.
 2. **It does not move L4-25 off `status="none"` either.** L4-25's verification sentence requires
    that *"from inside a workload with a deliberately over-broad warrant, every metadata and
    link-local request fails at the network tier and every privileged-pod request fails at
@@ -769,3 +783,144 @@ warrant through `EgressBroker::decide` to `render_decision` output. So the two l
 the CLI and proxy paths are real. Part **(2)** of that finding — the 14-space literal — reproduced and
 is fixed (Correction 3), and the "no test" half is now also false: the sentence gate covers all eleven
 variants.
+
+---
+
+# Task 7.1, second increment: Steps 6 to 9 and Step 11 — the effect adapter SDK and its conformance kit (L4-20)
+
+Written 2026-09-06, after Task 2.1 merged to `main` at `371037d`. The first increment above landed
+Steps 1 to 5 and recorded, correctly, that Steps 6 to 9 could not be attempted because
+`rust/warrant/src/effects.rs` did not exist. It exists now, so this increment does them. Worktree
+`M:/wt-w2-7.1`, branch `feat/effect-sdk-and-deny-floor`, fast-forwarded onto `main` at `065961b`
+before any file was written; the branch's first increment is already merged, so `main..HEAD` was
+empty at the start of this work.
+
+## What was written
+
+| Path | What |
+|---|---|
+| `rust/warrant/src/effect_sdk.rs` | new, 400 lines. `EffectGrant`, `AdapterOutcome`, `EffectAdapter`, `VectorResult`, `ConformanceReport`, `run_conformance`, and the three vectors |
+| `rust/warrant/src/lib.rs` | `pub mod effect_sdk;` after `pub mod effects;` |
+| `rust/warrant/tests/effect_sdk_conformance.rs` | new, 10 tests. The reference adapter plus five adapters each built to fail one condition |
+| `docs/W1-delivery-gaps.md` | Step 11: section 3.1c, the bound strength of both halves, in the product's own text |
+
+## The exit gate, quoted verbatim from the plan
+
+> **Exit gate.** `cargo test -p warrantor-egress --test hard_deny_floor && cargo test -p
+> warrantor-warrant --test effect_sdk_conformance && cargo test -p warrantor-warrant --test
+> invariants && python tools/ci/check_invariant_ratchet.py && python tools/ci/wiring_census.py`
+> exits 0, with the census line reading exactly `wiring census: 10 of 39 crates reachable from
+> warrantor-warrant over 18 path edges` and **no** `::error::` or `::notice::` line in its output — a
+> `::notice::` means the floor record and README were not updated in this commit, and is a failure.
+
+## Status of that gate: RUN, with two clauses that cannot be satisfied as written
+
+Every exit code was captured before any pipe.
+
+| Clause, as the plan writes it | Result |
+|---|---|
+| `cargo test -p warrantor-egress --test hard_deny_floor` | **package name is wrong in the plan.** cargo answers `available test in warrantor-egress-filter package: hard_deny_floor`. The floor shipped in `egress-filter`, a deviation the first increment recorded and defended. Run as `-p warrantor-egress-filter`: exit 0, `16 passed; 0 failed` |
+| `cargo test -p warrantor-warrant --test effect_sdk_conformance` | exit 0, `10 passed; 0 failed; 0 ignored` |
+| `cargo test -p warrantor-warrant --test invariants` | exit 0, `82 passed; 0 failed; 15 ignored` |
+| `python tools/ci/check_invariant_ratchet.py` | exit 0, `invariant ratchet: ok (82 passing at floor 82, 15 recorded findings at ceiling 15)` |
+| `python tools/ci/wiring_census.py` | exit 0, `wiring census: 13 of 41 crates reachable from warrantor-warrant over 22 path edges`, no `::error::` and no `::notice::` |
+| census line reads exactly `10 of 39 ... over 18 path edges` | **cannot hold, and its failure is not this task's.** The workspace had 39 crates when the plan was written and has 41 on `main` today; the reachable count is 13 over 22 edges, which is where the first increment and every task since left it. The clause's *substance* — no `::notice::`, no `::error::`, so the floor record and the README agree with the tool — holds and is the half that means something. A literal match would require this task to remove two crates it never added |
+
+Also run, because a green annotation on a partial run is not evidence:
+
+| Check | Result |
+|---|---|
+| `cargo fmt --all -- --check` | 0 |
+| `cargo clippy -p warrantor-warrant --all-targets -- -D warnings` | 0 |
+| `cargo doc -p warrantor-warrant --no-deps` | 0. The crate carries `#![deny(missing_docs)]`, so every `pub` item in the new module is documented or the build fails |
+| `python tools/ci/check_docs.py` | PASS, 299 Markdown files, 58 RFCs, 81 catalogue rows, all local links validated |
+| `python tools/ci/check_us_english.py --files` on all three touched files | ok |
+
+## What the ten tests establish
+
+- **The kit fails a leaky adapter and passes the reference one.** Both directions, in one file. V1
+  plants a sentinel in the environment, invokes every registry-known tool the adapter offers under a
+  grant, and reads back every key and value the adapter returns. `LeakyAdapter` reads that sentinel
+  itself and writes it into `receipt_fields`, and V1 names the tool and the field. A kit that failed
+  every adapter would not be a kit, so `the_reference_adapter_passes_every_vector` is the paired
+  control, and it also asserts the adapter was invoked exactly twice — once per known tool.
+- **A vector that did not run does not pass.** With `WARRANTOR_CONFORMANCE_SENTINEL` unset or empty,
+  V1 returns `passed: false` with the reason, rather than reporting a clean run against nothing. The
+  same holds when no tool the adapter offers is in the registry: there is no grant to hand it, so
+  there is nothing observed and nothing to pass. `an_empty_report_does_not_pass` covers the report
+  level: zero vectors is not `all_passed`.
+- **The grant carries the registry's decomposition and nothing else.** A recording adapter reports
+  what it was handed: `net+exec+mutate`, no destination, the kit's fixed deadline. The verb order is
+  the declaration order of the nine in `effects.rs`, not alphabetical, because `BTreeSet` orders by
+  `Syscall`'s derived `Ord`; the test says so, since the first version of it asserted alphabetical
+  order and was wrong.
+- **Omitting and over-declaring are distinct failures.** `OmittingAdapter` declares `{net}` for a
+  tool the registry decomposes as `{exec, net, mutate}` and V3 says `omits exec+mutate`.
+  `OverDeclaringAdapter` declares a strict superset and V3 says `over-declares cred (widening what
+  the kernel would authorize)`. Each test asserts the *other* word is absent, so the two cannot be
+  reported interchangeably. Over-declaring is not the safe direction.
+- **An undeclared tool fails V2 alone.** `UndeclaredAdapter` offers one known and one unknown tool;
+  V2 names only the unknown one, and V1 and V3 still pass on the known one. A failure is attributed,
+  not smeared across the report.
+- **The vocabulary is the registry's.** `const _: () = assert!(Syscall::ALL.len() == 9)` in both the
+  module and the test file: reintroducing a five-value list is a build error, not a wrong answer.
+  There is no list literal of verbs anywhere in either file.
+- **The reference adapter is not in the shipping build.** The last test walks `src/` and asserts zero
+  occurrences of `ReferenceAdapter`, with two controls so a zero cannot come from a walk that read
+  nothing: it asserts the walk saw more than twenty files, and it asserts the same walk finds
+  `pub struct EffectGrant` in `effect_sdk.rs`. It then asserts `EffectGrant` has grown none of
+  `credential(`, `token(`, `secret(`, `header(`, `env(`.
+- **The report cannot be read as covering a version it never saw.** `to_json` round-trips through
+  `serde_json` and the parsed document carries `CONFORMANCE_FORMAT`, the adapter name, the upstream
+  version the caller passed, and the scope sentence.
+
+## The honest tier of what this increment adds
+
+| what it adds | tier | why not a stronger word, and what escapes |
+|---|---|---|
+| the conformance kit (`run_conformance`, three vectors) | **Observed** | it observes an adapter's declarations and returns under vectors the harness builds. It is not Mediated: no call is refused at a chokepoint, because nothing calls it in the shipping path. An adapter's own credential, its runtime behavior, and any tool it offers that the registry does not know all escape it |
+| `EffectGrant`'s absent credential accessors | **not a bound on the adapter** | the type denies one *route* to a credential. It does not deny the adapter reading the environment, a file, or its own struct — `LeakyAdapter` demonstrates exactly that, and passes the compiler |
+| the nine-verb static assertion | a build-time refusal, not a runtime bound | it stops a wrong vocabulary from compiling. It constrains this repository's authors, not an agent |
+
+Nothing in this increment is **Enforced**, and nothing in it is **Mediated**.
+
+## What this increment does NOT establish
+
+1. **No adapter exists.** Tasks 7.3 through 7.6 write them. This increment ships the trait and the
+   kit and one reference adapter that lives in a test file.
+2. **The kit has no shipping caller.** `grep -rn run_conformance rust/ --include=*.rs` finds the
+   definition, the test file, and nothing else. The module is inside `warrantor-warrant`, which the
+   census already counts as reachable, so no orphan was added and the census did not move — but a
+   reachable crate containing an uncalled API is not the same as a wired capability. This is the same
+   shape as Correction 6 in the first increment, recorded here before a reviewer has to find it.
+3. **L4-20 is not closed by this.** What L4-20 asks for beyond the kit — an unknown upstream version
+   downgrading a coverage claim rather than inheriting it — is L11-05's, and the report's
+   `upstream_version` field is the hook for it, not the mechanism.
+4. **L4-25 is unchanged.** Section 3.1c of `docs/W1-delivery-gaps.md` says so in the product text.
+
+## Steps 10 and 12: what was deliberately not done, and why
+
+**Step 10's `DenyReason::PrivateRange` conversion is refused as a false claim.** The step instructs
+moving `"PrivateRange"` into the control list of
+`rust/warrant/tests/invariants/i11_self_change_is_governed.rs` because *"Step 3 constructs it."*
+Step 3 did not construct it, deliberately, and the first increment's section *`DenyReason::PrivateRange`
+— the pin is left alone, deliberately* gives the reasons and names the four tests that constructing it
+would contradict. `grep -rn "DenyReason::PrivateRange" rust/egress/src` returns nothing. The control
+list asserts `constructed(reason) > 0` for every entry, so adding `"PrivateRange"` would make a
+control assert something false and the test would fail — correctly. Following Step 10 here would
+require either breaking the invariant corpus or constructing a refusal for a reason nobody decided.
+The step was written against an assumption the implementation refuted; the refutation stands.
+
+**Step 10's ratchet raise is therefore not earned by this increment, and no ratchet file is touched.**
+No invariant test moved from ignored to passing. The new i11 passing case Step 10 also asks for — a
+warrant bound naming any Step-2 spelling still cannot reach the metadata service — would raise
+`passing_floor`, and two review lanes in flight are already moving that file to 83/14. The rule this
+repository learned the hard way is that a merge of two floor-raising branches must be re-measured on
+the merged corpus and never computed from the increments, so this case is deferred until the ratchet
+settles rather than adding a third number to reconcile. Recorded as owed work, not as done.
+
+**Step 12's workspace-wide `cargo test --workspace` is not in this increment's gate.** Two review
+lanes were building in other worktrees while this ran, and the machine's commit ceiling is about
+16 GB; the gate above covers every package this increment touches, plus fmt, clippy, doc, docs and
+US English. The workspace run belongs to the merge, on the merged tree, where its numbers mean
+something.
