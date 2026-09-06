@@ -207,3 +207,67 @@ fn strict_mode_refuses_an_undeclared_tool_and_permissive_mode_names_the_guess() 
         "permissive mode guesses, and says it is a guess"
     );
 }
+
+/// One row of the corpus. `expected` is a verb list for a declared tool or the word `refuse`.
+#[derive(serde::Deserialize)]
+struct CorpusRow {
+    tool: String,
+    #[allow(dead_code)]
+    input_schema: serde_json::Value,
+    expected: serde_json::Value,
+}
+
+/// The B-04 gate: present the registry with a corpus of tool schemas it has never seen the
+/// schemas of; every declared tool classifies to exactly its declared verbs, every undeclared
+/// tool is refused under strict mode, and nothing is defaulted. There is no classifier under
+/// test: the schema column exists to prove that nothing in it is consulted, which is the point.
+#[test]
+fn the_corpus_classifies_by_declaration_and_refuses_every_unseen_tool_under_strict_mode() {
+    let registry = DecompositionRegistry::from_json(include_str!("fixtures/effect-registry.json"))
+        .expect("the fixture registry reads");
+    let corpus = include_str!("fixtures/tool-schemas.jsonl");
+    let mut declared = 0usize;
+    let mut refused = 0usize;
+    for line in corpus.lines().filter(|l| !l.trim().is_empty()) {
+        let row: CorpusRow = serde_json::from_str(line).expect(line);
+        let verdict = registry.classify(&row.tool, UnclassifiedPolicy::Refuse);
+        match row.expected {
+            serde_json::Value::String(ref word) if word == "refuse" => {
+                let refusal = verdict.expect_err(&row.tool);
+                assert_eq!(refusal.tool, row.tool);
+                refused += 1;
+            }
+            serde_json::Value::Array(ref verbs) => {
+                let expected: BTreeSet<Syscall> = verbs
+                    .iter()
+                    .map(|v| Syscall::parse(v.as_str().expect("verb")).expect("a known verb"))
+                    .collect();
+                match verdict {
+                    Ok(Classified::Declared(d)) => {
+                        assert_eq!(d.syscalls(), &expected, "{}", row.tool)
+                    }
+                    other => panic!("{} should be declared: {other:?}", row.tool),
+                }
+                declared += 1;
+            }
+            other => panic!("{}: bad expectation {other}", row.tool),
+        }
+    }
+    assert_eq!(
+        (declared, refused),
+        (20, 6),
+        "the corpus shape is part of the test"
+    );
+    // Under the shipped policy the same six are guesses, and every guess is visible as one.
+    let guessed = corpus
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| serde_json::from_str::<CorpusRow>(l).expect(l).tool)
+        .filter(|t| registry.classify(t, UnclassifiedPolicy::GuessRead) == Ok(Classified::Guessed))
+        .count();
+    assert_eq!(guessed, 6);
+    eprintln!(
+        "effect-registry corpus: {declared} declared, {refused} refused under strict mode, 0 \
+         defaulted"
+    );
+}
