@@ -113,9 +113,9 @@ and the third was already repaired:
 
 | Path | New? | What it is |
 |---|---|---|
-| `evidence/claims.json` | new | The ledger. Format `warrantor.claim-ledger/1`, 16 entries, 9 retained corrections |
-| `tools/ci/check_claims.py` | new | The gate: falsifier required, renderings recomputed, corrections append-only, two views compared |
-| `tools/ci/test_check_claims.py` | new | 42 pytest cases; every refusal paired with an allowed control |
+| `evidence/claims.json` | new | The ledger. Format `warrantor.claim-ledger/1`, 17 entries, 11 retained corrections |
+| `tools/ci/check_claims.py` | new | The gate: falsifier required, renderings recomputed, the parent revision's published state compared, corrections append-only, two views compared |
+| `tools/ci/test_check_claims.py` | new | 52 pytest cases; every refusal paired with an allowed control |
 | `tools/ci/claim_locales.json` | new | The reviewed label vocabulary. Labels only, and the file says so about itself |
 | `docs/public-claims.md` | new, generated | The rendered English view |
 | `docs/public-claims.ar.md` | new, generated | The rendered Arabic view, same digest, same quotations |
@@ -135,7 +135,8 @@ and only where it runs.
 | Bound | Word | Why not a stronger one |
 |---|---|---|
 | A `fact` entry's rendering matches the record it cites, on every surface it names | **Tier B — chokepoint** | `tools/ci/check_claims.py` recomputes and compares, and CI fails. It is a chokepoint, not enforcement: the edit lands in a working tree first, and a clone from that tree carries it. What escapes: a branch with checks disabled, a direct push to a repository without the workflow, and any fork |
-| A published entry's text or status cannot change without a retained correction | **Tier B — chokepoint** | Same gate, same escapes. `check_corrections` refuses `version == n` with fewer than `n - 1` corrections |
+| A published entry's status, text or falsifier cannot change without a retained correction | **Tier B — chokepoint, by comparison against the parent revision** | Same gate, same escapes, and this row was itself an overclaim until 2026-09-06 — see *Continuation* below. `check_corrections` refuses `version == n` with fewer than `n - 1` corrections, which is arithmetic inside one revision and does not compare anything to what was published. `check_published_state` is what earns the row: it refuses a same-version change of status, text or falsifier, and refuses a correction whose retained text is not what the parent revision published. Weaker than the digest rows above it, because it holds only while the parent revision is reachable |
+| A retained superseded **falsifier** cannot be dropped or replaced | **Tier B — chokepoint, by comparison, NOT hash-bound** | `superseded_falsifier` is compared against the parent revision and is **not** covered by `supersedes_digest`: widening `state_digest` would have changed every digest already retained in the ledger, which is rewriting retained history to close a hole about rewriting retained history. So this bound is strictly weaker than the row below it — it fails open in a checkout with no parent revision, which is why `--parent-ref` must resolve or the gate exits 1 |
 | A retained superseded text cannot be softened | **Tier B — chokepoint, hash-bound** | `supersedes_digest` is a hash over the retained text, so an edited retraction no longer matches. Not Tier A: the digest is unsigned, and anyone may recompute it after editing the text. What it buys is that softening a retraction requires touching two fields, and the second one moves `head_digest` |
 | A correction present in the parent revision cannot be removed | **Tier B — chokepoint, by comparison** | `check_append_only` reads the parent revision through `git show`. Detection by comparison, never prevention. Rewriting the revision compared against, by force-push or rebase, defeats it |
 | Two parties comparing `head_digest` disagree after any history mutation | **Tier C — Observed** | A hash fold over content. It establishes only that two copies differ. It does not establish which is the honest one, that the head is the latest, or that nothing was rewritten before you cloned |
@@ -245,9 +246,168 @@ all mutations caught
 
 ---
 
+## Continuation, 2026-09-06 — the gate published a refusal it did not perform
+
+The first commit on this branch, `3c2baa9`, published this sentence in `README.md`:
+
+```
+tools/ci/check_claims.py refuses a commit that changes a published entry without retaining the
+previous text, and refuses one that removes a retained correction.
+```
+
+The second half was true. **The first half was not.** `check_append_only` compared three things
+across revisions — that every entry is still present, that no version fell, and that every retained
+correction is byte-identical — and never compared the one thing a reader reads. Two holes followed
+from that, and neither was visible from the code: both were found by building the rewrite by hand and
+running the gate on it.
+
+### Hole 1 — a same-version rewrite passes once `--write` has been run
+
+`check_corrections` ties an entry's `version` to the number of corrections it carries. Leave the
+version at 1 and replace the text and that arithmetic is satisfied; the version did not fall and no
+correction was dropped, so `check_append_only` saw nothing either. The first run does fail — on a
+stale `head_digest` and on two views that no longer match — and its error message tells the author
+exactly how to clear it:
+
+```
+$ python tools/ci/check_claims.py --parent-ref HEAD          # CL-014 text replaced, version left at 1
+::error::evidence/claims.json: ledger: head_digest is stale: recorded sha256:ed08e01f..., recomputed
+  sha256:07261b9a...; run `python tools/ci/check_claims.py --write`
+::error::evidence/claims.json: CL-014: does not render in docs/public-claims.md: expected 'Warrantor
+  applies a network namespace, a seccomp filter and a firewall rule to every agent, so every bound is
+  Enforced.' verbatim
+[3 more]
+claim ledger: 5 issue(s); refusing
+
+$ python tools/ci/check_claims.py --write >/dev/null && python tools/ci/check_claims.py --parent-ref HEAD
+claim ledger: 16 claims; claim=8, fact=6, unknown=2; 9 retained corrections; head sha256:07261b9a...
+GATE_EXIT=0
+```
+
+A rewrite that inverts the repository's most carefully hedged claim into `every bound is Enforced`,
+landing green, with the ledger's own error message as the instructions. **That is content rule 2
+committed inside the artifact built to refuse content rule 2.**
+
+### Hole 2 — a retained text the parent never published, self-consistent
+
+`supersedes_digest` is computed over the `superseded_text` sitting beside it, so a fabricated pair
+validates against itself. Only the parent revision knows what version 1 said.
+
+```
+$ python tools/ci/check_claims.py --write >/dev/null && python tools/ci/check_claims.py --parent-ref HEAD
+claim ledger: 16 claims; claim=8, fact=6, unknown=2; 10 retained corrections; head sha256:88dd54b1...
+GATE_EXIT=0
+```
+
+The correction retained `Warrantor never claimed anything about namespaces.` as version 1 of `CL-014`.
+Version 1 of `CL-014` said no such thing. The mutation battery above did not catch either hole,
+because a mutation battery proves the assertions you have are load-bearing and says nothing about the
+assertion you never wrote.
+
+### The failing tests, red before the fix
+
+Five, written against the unfixed checker:
+
+```
+$ python -m pytest tools/ci/test_check_claims.py -q -p no:cacheprovider
+FAILED tools/ci/test_check_claims.py::test_rewriting_a_published_text_at_the_same_version_is_refused
+FAILED tools/ci/test_check_claims.py::test_rewriting_a_published_status_at_the_same_version_is_refused
+FAILED tools/ci/test_check_claims.py::test_weakening_a_falsifier_at_the_same_version_is_refused
+FAILED tools/ci/test_check_claims.py::test_a_correction_that_retains_a_text_the_parent_never_published_is_refused
+FAILED tools/ci/test_check_claims.py::test_a_version_that_rises_with_no_correction_for_the_parent_is_refused
+5 failed, 44 passed in 0.82s
+```
+
+Then two more, for the field the first five exposed — a falsifier can be replaced with one nobody
+could act on without a single word of the claim moving, and the correction schema had nowhere to
+retain the old one:
+
+```
+FAILED tools/ci/test_check_claims.py::test_changing_a_falsifier_with_no_retained_falsifier_is_refused
+FAILED tools/ci/test_check_claims.py::test_retaining_a_falsifier_the_parent_never_published_is_refused
+2 failed, 50 passed in 0.62s
+```
+
+### After the fix
+
+`check_published_state` compares `(status, text, falsifier)` between the parent revision and this
+one. Same version and any of the three moved is refused; version raised and the correction that
+retains the parent's own version is selected **by its `version` field, not by its position** — a
+positional lookup would read the parent's version out of whatever correction happened to sit at that
+index, which the fifth failing test above is what caught. Both hand-built rewrites are now refused:
+
+```
+$ python tools/ci/check_claims.py --write >/dev/null && python tools/ci/check_claims.py --parent-ref HEAD
+::error::evidence/claims.json: CL-014: status, text or falsifier changed at version 1 with no
+  correction appended: a published entry changes by raising the version and retaining what the parent
+  revision published, which was 'No netns, seccomp or firewall enforcement exists in this repository.
+  [...]' as claim
+claim ledger: 1 issue(s); refusing
+GATE_EXIT=1
+
+$ python tools/ci/check_claims.py --write >/dev/null && python tools/ci/check_claims.py --parent-ref HEAD
+::error::evidence/claims.json: CL-014: correction 1 does not retain what the parent revision
+  published: it retains 'Warrantor never claimed anything about namespaces.' as claim, and the parent
+  published 'No netns, seccomp or firewall enforcement exists in this repository. [...]' as claim
+claim ledger: 1 issue(s); refusing
+GATE_EXIT=1
+
+$ python -m pytest tools/ci/test_check_claims.py -q -p no:cacheprovider
+52 passed in 0.42s
+```
+
+### The defect went into the ledger, by its own rules
+
+`CL-017` is the gate's own property, at version 2, retaining the `README.md` sentence commit
+`3c2baa9` published as version 1. Its falsifier is the experiment above: leave a version alone,
+rewrite the text, run `--write`, run the gate, and an exit code of 0 falsifies the entry. The gate was
+red on the unrendered `README.md` row before the row was written, which is the same order Step 8 used:
+
+```
+$ python tools/ci/check_claims.py --parent-ref HEAD
+::error::evidence/claims.json: CL-017: does not render in README.md: expected "tools/ci/
+  check_claims.py refuses a commit that changes a published entry's status, text or falsifier
+  without raising the version and appending a correction [...]" verbatim
+claim ledger: 1 issue(s); refusing
+GATE_EXIT=1
+
+$ python tools/ci/check_claims.py --parent-ref HEAD          # after README.md carries it
+claim ledger: 17 claims; claim=9, fact=6, unknown=2; 11 retained corrections; head sha256:61cd4be5...
+GATE_EXIT=0
+```
+
+**No assertion was weakened and no test was deleted to reach that.** One fixture changed:
+`test_the_allowed_control_appending_a_correction_passes` built a parent whose text was
+`9 of 39 crates reachable` and appended a correction retaining `I-07 ... is orphaned.` That fixture
+did not have to be consistent while nothing read the parent's text, which is the hole restated. The
+parent's text is now what the correction retains; the assertion — `== []` — is untouched.
+
+### One claim sharpened rather than left to mislead: `CL-014`
+
+`CL-014` published *"No netns, seccomp or firewall enforcement exists in this repository"* with a
+falsifier reading *"a network namespace, seccomp filter or firewall rule is found being applied by
+code under rust/"*. The sentence is true. The falsifier invites a grep that appears to fire:
+
+```
+$ grep -rn "unshare-net|net=none" rust/warrant/src/sandbox.rs | head -3
+320:            Confinement::Bubblewrap => argv.push("--unshare-net".to_string()),
+321:            Confinement::Firejail => argv.push("--net=none".to_string()),
+539:            assert_eq!(jail.argv.iter().any(|a| a == "--net=none"), expect_netns);
+```
+
+`sandbox.rs` **derives** a confinement command line and launches nothing — its own header says
+*"This module emits a command line. It enforces nothing."* — so no namespace is applied anywhere in
+this repository and the entry stands. But a reader running the entry's own falsifier finds those two
+lines and cannot tell that from the entry. `CL-014` is now at version 2, naming the emitting module,
+with the falsifier narrowed from *mentioning* to *launching*, and version 1 retained verbatim
+including its falsifier. The claim did not become false; it was published in a form its own falsifier
+could not resolve, and that is worth a version.
+
+---
+
 ## Deviations from the plan
 
-Twelve, in the order they were found. The code won over the plan in every one.
+Fifteen, in the order they were found. The code won over the plan in every one.
 
 1. **The plan's base is wrong for this lane, and every number in its Step 0 with it.** It says
    `refs/remotes/origin/main` in the worktree command and quotes `e4b5f10`'s output. The dispatch bases
@@ -316,13 +476,42 @@ Twelve, in the order they were found. The code won over the plan in every one.
     `tools/ci/` is outside `run_python_checks.py`'s scope — it discovers `python/*/pyproject.toml` only
     — so no CI job formats it, and `check_invariants.py` and `wiring_census.py` would both be
     reformatted at width 88. The two new files are formatted at the house width of 100 to match their
-    neighbours, and `ruff check` passes at the default ruleset. **The scope gap is not fixed here**: no
+    neighbors, and `ruff check` passes at the default ruleset. **The scope gap is not fixed here**: no
     CI job lints or formats `tools/ci/`, and closing that is a change to the Python job that belongs to
     whoever owns it.
 
 12. **The plan's Step 5 arithmetic is right that the seed undercounted and wrong about the total.** It
-    predicts eight corrections. There are nine retained, across sixteen entries, because deviations 3
-    and 4 each added one the plan did not know about.
+    predicts eight corrections. There were nine retained across sixteen entries at
+    `3c2baa9`, because deviations 3 and 4 each added one the plan did not know about, and eleven across
+    seventeen after deviation 13.
+
+13. **The plan's own `check_append_only` body is incomplete in exactly the way that matters, and
+    implementing it verbatim produced a gate that passed a silent rewrite.** Step 6 quotes a function
+    that compares presence, version direction and retained corrections. Every line of it is right and
+    the set is not sufficient: nothing in it reads the parent revision's `text`. The plan's Bound
+    strength section then states the property that body does not deliver — *"a commit that changes a
+    published claim's text or status without appending a correction that retains the previous text is
+    refused"* — so the plan asserts the bound and specifies a body that does not earn it. The first
+    commit on this branch implemented the body and published the assertion. See *Continuation* above;
+    `check_published_state` is the missing comparison and it is not in the plan.
+
+14. **The dispatched worktree path could not be used, because the branch was already checked out.**
+    `git worktree add M:/wt-w6-14.9 feat/public-claim-ledger` is refused — `fatal: 'feat/public-claim-ledger'
+    is already used by worktree at 'M:/wt-w5-14.9'`, the checkout of the lane that produced `3c2baa9`.
+    The branch was moved with `git worktree move M:/wt-w5-14.9 M:/wt-w6-14.9` rather than creating a
+    second checkout of one branch, which preserved an uncommitted edit to this evidence file (a single
+    US-English fix, `neighbours` to `neighbors`, plus the two environment hazards at the end). No other
+    lane's worktree was touched and `git config user.name` was never run.
+
+15. **One correction fixture the dispatch named is not available on this base and was NOT
+    reconstructed.** The dispatch lists Task 2.1's retraction of a module header claiming the kernel
+    *"authorizes, checks and receipts syscalls"* among the real corrections to seed. It is not in this
+    tree: `docs/task-evidence/task-2.1.md` does not exist at `2ec0638`, and
+    `grep -rn "authorizes, checks and receipts" .` over every `.md` and `.rs` file returns nothing —
+    Task 2.1 lives on the unlanded `feat/effect-decomposition-registry`. Quoting it from the dispatch
+    message would have produced a retained text whose only source is a chat message, which is the
+    invented fixture this task forbids. It is left for whichever lane merges Task 2.1, which will hold
+    the bytes.
 
 ---
 
@@ -440,3 +629,64 @@ public claim ledger with versioned corrections".
     anticipation of 14.3 reading it. No ledger entry carries an owner, a retirement path or a review
     cadence, because those are 13.8's fields and two registers that disagree about who owns a control
     are worse than one.
+
+14. **A retained falsifier is compared, never hashed, and that is strictly weaker.**
+    `superseded_falsifier` is checked against the parent revision only. `state_digest` covers an
+    entry's id, version, status and text — widening it to cover the falsifier would have changed every
+    `supersedes_digest` already retained in `evidence/claims.json`, which is rewriting retained history
+    in order to close a hole about rewriting retained history. The consequence: a holder of an earlier
+    copy still sees `head_digest` move if the current falsifier changes, but a softened
+    *retained* falsifier inside a correction is caught only while the parent revision is reachable.
+
+15. **A new entry's history is unattested, and so is any intermediate version.** `CL-017` arrives at
+    version 2 carrying a version 1 that no earlier revision of this file contains, because the entry
+    itself is new — the append-only comparison has nothing to compare a new id against, by
+    construction. The same holds for a version that rises by more than one in a single revision: only
+    the parent's own version is compared, and any version between it and the new one is retained on the
+    author's word plus its own self-consistent digest. `CL-017`'s text says this about itself.
+
+16. **The append-only comparison is only as good as the revision it is pointed at.** `--parent-ref`
+    defaults to `HEAD`, which is right for an uncommitted working tree and a no-op in a clean checkout,
+    where `HEAD` *is* the commit under test. CI passes the branch base for that reason and the checker
+    exits 1 rather than skipping when the ref cannot be resolved — but nothing prevents a future caller
+    from passing a ref that makes the comparison trivially pass. The ratchet is a convention enforced at
+    one call site, not a property of the file.
+
+---
+
+## Two environment hazards this run hit, recorded because they corrupt evidence rather than code
+
+**1. `/tmp` is shared across concurrent lanes on this machine, and a second lane truncated this
+lane's captured cargo output.** Gate output was first written to `/tmp/ws.log`. Partway through the
+run that file contained *only* lines from `M:\wt-w3-13.7`, another worktree — a concurrent session's
+`> /tmp/ws.log` had replaced it. The capture was unrecoverable and the run was repeated with output
+under this session's own scratchpad directory.
+
+```
+$ grep -o "M:.wt-[a-z0-9.-]*" /tmp/ws.log | sort -u
+M:\wt-w3-13.7
+```
+
+Nothing about the branch was wrong; the *evidence* was. A lane that had read the tail of that file
+and reported it would have published another lane's numbers as its own — the precise failure mode
+this task exists to gate, arriving through the toolchain instead of through prose. **Every gate log
+in this file was captured under
+`<session scratchpad>/w5-149/`, never `/tmp`.** Concurrent lanes on this box should do the same.
+
+**2. The disk filled during the run.** `M:` reached 100% with 33 MB free while `cargo clippy` was
+linking, and both clippy and the workspace test aborted with `os error 112`:
+
+```
+Caused by:
+  There is not enough space on the disk. (os error 112)
+CLIPPY=101
+CARGO=101
+```
+
+`cargo clean -p warrantor-warrant` inside this lane's own target directory reclaimed 623.7 MiB and
+the gates were re-run. Space then continued to fall as other lanes built — from 11 GB to under 500 MB
+over the following half hour — so the cargo results below were obtained in a race with them. Two
+requests to remove reclaimable directories elsewhere on the disk (including
+`M:/wt-x-149-target`, which the dispatch identified as an orphaned target directory with no worktree)
+were **denied by the permission system, and no attempt was made to work around that**. Nothing outside
+this lane's own target directory was deleted.

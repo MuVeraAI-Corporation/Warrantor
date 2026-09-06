@@ -272,9 +272,16 @@ def test_rewriting_a_retained_reason_is_refused() -> None:
 
 
 def test_the_allowed_control_appending_a_correction_passes() -> None:
-    """The control: growth is allowed, which is the whole point of an append-only ledger."""
+    """The control: growth is allowed, which is the whole point of an append-only ledger.
 
-    before = {"claims": [a_fact(id="CL-004")]}
+    The parent's `text` is set to what `a_corrected`'s one correction retains. Before the
+    published-state comparison below existed this fixture did not have to be consistent, because
+    nothing read the parent's text -- which is precisely the hole the comparison closes. The
+    assertion is unchanged; only the fixture was made honest.
+    """
+
+    published = "I-07 (evidence precedes commitment) is orphaned."
+    before = {"claims": [a_fact(id="CL-004", text=published)]}
     assert check_append_only(before, {"claims": [a_corrected()]}) == []
 
 
@@ -305,6 +312,146 @@ def test_the_allowed_control_an_unchanged_ledger_keeps_its_head_digest() -> None
 
     ledger = {"format": LEDGER_FORMAT, "claims": [a_fact(), a_corrected()]}
     assert head_digest(ledger) == head_digest(ledger)
+
+
+# --- the published state itself, compared across revisions --------------------------------------
+#
+# The block above compares versions and retained corrections. It does not compare the one thing a
+# reader actually reads: the entry's current text. Both tests below passed against a checker that
+# permitted the rewrite, which is how they were found -- by running the gate on a hand-built
+# rewrite rather than by reading the code.
+
+
+def test_rewriting_a_published_text_at_the_same_version_is_refused() -> None:
+    """The defect this checker was built to refuse, performed on the checker's own ledger.
+
+    Version left at 1, corrections left empty, text replaced. Every earlier assertion in this file
+    is satisfied by that edit: the version did not fall, no correction was dropped, and the new
+    text hashes to a new head that `--write` will happily record.
+    """
+
+    before = {"claims": [a_fact()]}
+    after = {"claims": [a_fact(text="41 of 41 crates reachable")]}
+    messages = [issue.message for issue in check_append_only(before, after)]
+    assert any("with no correction appended" in message for message in messages), messages
+    assert any("9 of 39 crates reachable" in message for message in messages), messages
+
+
+def test_rewriting_a_published_status_at_the_same_version_is_refused() -> None:
+    """`claim` promoted to `fact` is a strengthening, and it is still a rewrite."""
+
+    before = {"claims": [a_fact(status="claim")]}
+    after = {"claims": [a_fact(status="fact")]}
+    assert any(
+        "with no correction appended" in issue.message for issue in check_append_only(before, after)
+    ), check_append_only(before, after)
+
+
+def test_weakening_a_falsifier_at_the_same_version_is_refused() -> None:
+    """A falsifier nobody could act on turns a claim back into a slogan without touching its text."""
+
+    before = {"claims": [a_fact()]}
+    after = {"claims": [a_fact(falsifier={"who": "the maintainers", "how": "they disagree"})]}
+    assert any(
+        "with no correction appended" in issue.message for issue in check_append_only(before, after)
+    ), check_append_only(before, after)
+
+
+def test_a_correction_that_retains_a_text_the_parent_never_published_is_refused() -> None:
+    """The second hole: the retained text hashes to itself and to nothing that was ever published.
+
+    `check_claim` verifies `supersedes_digest` against the text sitting beside it, so a fabricated
+    pair is internally consistent. Only the parent revision knows what version 1 actually said.
+    """
+
+    published = "I-07 (evidence precedes commitment) is orphaned."
+    before = {"claims": [a_fact(id="CL-004", text=published)]}
+    fabricated = "I-07 (evidence precedes commitment) was always described as partial."
+    after = a_corrected()
+    retained = cast(list[dict[str, object]], after["corrections"])[0]
+    retained["superseded_text"] = fabricated
+    retained["supersedes_digest"] = state_digest("CL-004", 1, "fact", fabricated)
+    messages = [issue.message for issue in check_append_only(before, {"claims": [after]})]
+    assert any("does not retain what the parent revision published" in m for m in messages), (
+        messages
+    )
+    assert any(published in m for m in messages), messages
+
+
+def test_a_version_that_rises_with_no_correction_for_the_parent_is_refused() -> None:
+    """Version 1 to version 3 with one correction: no entry retains what version 1 said."""
+
+    before = {
+        "claims": [a_fact(id="CL-004", text="I-07 (evidence precedes commitment) is orphaned.")]
+    }
+    only_second = cast(list[dict[str, object]], a_corrected()["corrections"])[0]
+    only_second["version"] = 2
+    only_second["supersedes_digest"] = state_digest(
+        "CL-004", 2, "fact", str(only_second["superseded_text"])
+    )
+    after = a_corrected(version=3, corrections=[only_second])
+    messages = [issue.message for issue in check_append_only(before, {"claims": [after]})]
+    assert any("no correction retains version 1" in message for message in messages), messages
+
+
+def test_changing_a_falsifier_with_no_retained_falsifier_is_refused() -> None:
+    """Raising the version is not enough: the superseded falsifier has to be retained too.
+
+    `state_digest` covers the id, version, status and text of a version -- not its falsifier -- and
+    extending it would change every `supersedes_digest` already retained in `evidence/claims.json`,
+    which is a rewrite of history to close a hole about rewriting history. So the retained falsifier
+    is compared against the parent revision instead of hashed, and this test is what makes that
+    comparison load-bearing.
+    """
+
+    published = "I-07 (evidence precedes commitment) is orphaned."
+    before = {"claims": [a_fact(id="CL-004", text=published)]}
+    after = a_corrected(falsifier={"who": "the maintainers", "how": "they disagree"})
+    messages = [issue.message for issue in check_append_only(before, {"claims": [after]})]
+    assert any("superseded_falsifier" in message for message in messages), messages
+
+
+def test_retaining_a_falsifier_the_parent_never_published_is_refused() -> None:
+    published = "I-07 (evidence precedes commitment) is orphaned."
+    before = {"claims": [a_fact(id="CL-004", text=published)]}
+    after = a_corrected(falsifier={"who": "the maintainers", "how": "they disagree"})
+    cast(list[dict[str, object]], after["corrections"])[0]["superseded_falsifier"] = {
+        "who": "anyone with a clone",
+        "how": "something the parent revision never said",
+    }
+    messages = [issue.message for issue in check_append_only(before, {"claims": [after]})]
+    assert any("does not retain the falsifier" in message for message in messages), messages
+
+
+def test_the_allowed_control_a_retained_falsifier_passes() -> None:
+    """The control: sharpening a falsifier is allowed, and it is allowed exactly one way."""
+
+    published = "I-07 (evidence precedes commitment) is orphaned."
+    parent = a_fact(id="CL-004", text=published)
+    after = a_corrected(falsifier={"who": "a reviewer", "how": "a sharper check than the old one"})
+    cast(list[dict[str, object]], after["corrections"])[0]["superseded_falsifier"] = parent[
+        "falsifier"
+    ]
+    assert check_append_only({"claims": [parent]}, {"claims": [after]}) == []
+
+
+def test_the_allowed_control_an_unchanged_claim_passes() -> None:
+    """The control: a revision that changes nothing is not an edit and must not be refused."""
+
+    assert check_append_only({"claims": [a_fact()]}, {"claims": [a_fact()]}) == []
+
+
+def test_the_allowed_control_a_correction_retaining_the_parents_text_passes() -> None:
+    """The control that makes the two refusals above mean something.
+
+    The same version bump, the same correction shape -- and the retained text is what the parent
+    revision actually published. This is the honest path, and it is the only one that passes.
+    """
+
+    before = {
+        "claims": [a_fact(id="CL-004", text="I-07 (evidence precedes commitment) is orphaned.")]
+    }
+    assert check_append_only(before, {"claims": [a_corrected()]}) == []
 
 
 # --- the two rendered views --------------------------------------------------------------------

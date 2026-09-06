@@ -3,7 +3,7 @@
 
 *التسميات بالعربية. نصوص الادعاءات والاقتباسات بلغتها الأصلية ولم تُترجم.*
 
-`head_digest` sha256:ed08e01feb6cb338989798bddac6fe6434c3d1f36a481dd9974de0ea7c0465e9
+`head_digest` sha256:61cd4be558b07b3e1cc99482c44f4e0ce599b6aab3e0a5e1f1d090df3345174f
 
 ## ما لا يغطيه هذا السجل
 
@@ -174,10 +174,15 @@
 
 <!-- source language: en; not translated -->
 
-> No netns, seccomp or firewall enforcement exists in this repository. A bound this project describes as contained is contained at settle time, which is Observed and not Enforced; a bound that holds only for traffic through the proxy is a chokepoint bound and what bypasses the proxy escapes it. Containment composes with an external sandbox and does not replace one.
+> No netns, seccomp or firewall enforcement exists in this repository. rust/warrant/src/sandbox.rs derives a bubblewrap or firejail command line that carries --unshare-net or --net=none when a warrant grants no egress, and it launches nothing: that module emits a profile and its own header says it enforces nothing. A bound this project describes as contained is contained at settle time, which is Observed and not Enforced; a bound that holds only for traffic through the proxy is a chokepoint bound and what bypasses the proxy escapes it. Containment composes with an external sandbox and does not replace one.
 
 - من يمكنه إثبات خطأ هذا، وكيف: anyone with a clone
-  > a network namespace, seccomp filter or firewall rule is found being applied by code under rust/, at which point a stronger word than Observed becomes available
+  > code under rust/ is found launching a confinement profile, or applying a network namespace, seccomp filter or firewall rule itself, at which point a stronger word than Observed becomes available for the bound it holds
+
+**سجل التصحيحات. المدخلات المُلغاة محفوظة ولا تُحذف.**
+
+- مُلغى v1 (2026-09-06): The published sentence is true and invites a reading that is not. rust/warrant/src/sandbox.rs derives a bubblewrap or firejail command line carrying --unshare-net or --net=none when a warrant grants no egress, and the falsifier as published asked whether a namespace is found being applied by code under rust/ -- so anyone grepping for the falsifier's own terms finds the two flags and cannot tell from the entry that nothing launches the profile. The replacement names the emitting module, so the grep resolves without reading the module, and sharpens the falsifier to launching rather than mentioning.
+  > No netns, seccomp or firewall enforcement exists in this repository. A bound this project describes as contained is contained at settle time, which is Observed and not Enforced; a bound that holds only for traffic through the proxy is a chokepoint bound and what bypasses the proxy escapes it. Containment composes with an external sandbox and does not replace one.
 
 ### CL-015 — ادعاء (مُعلَن هنا، ولا يمكن إعادة حسابه هنا)
 
@@ -201,4 +206,18 @@
 
 - مُلغى v1 (2026-09-05): tools/ci/wiring_census.py's readme_renders asserts the census number in README.md's status table and refused a merge here when that row went stale. This bullet, in the same file, renders the same number a second way and was gated by nothing -- so it kept saying 9 of 39 with 30 orphans while the row above it said 13 of 41 with 28. One assertion per rendering, not one per measurement. Backticks are stripped from this quotation; nothing else is changed.
   > 9 of 39 crates link into the warrantor binary (evidence/wiring-coverage.json names the other 30).
+
+### CL-017 — ادعاء (مُعلَن هنا، ولا يمكن إعادة حسابه هنا)
+
+<!-- source language: en; not translated -->
+
+> tools/ci/check_claims.py refuses a commit that changes a published entry's status, text or falsifier without raising the version and appending a correction that retains what the parent revision published, and refuses one that removes or alters a retained correction. It establishes nothing about an entry the parent revision did not carry: a new entry may arrive at version 2 carrying a version 1 nobody can check, and a version that rises by more than one leaves the intermediate retained texts unattested.
+
+- من يمكنه إثبات خطأ هذا، وكيف: anyone with a clone
+  > rewrite a published entry's text in evidence/claims.json, leave its version at what it was, run python tools/ci/check_claims.py --write and then python tools/ci/check_claims.py --parent-ref HEAD; an exit code of 0 falsifies this
+
+**سجل التصحيحات. المدخلات المُلغاة محفوظة ولا تُحذف.**
+
+- مُلغى v1 (2026-09-06): As published in commit 3c2baa9 this sentence named a refusal the checker did not perform. check_append_only compared versions and retained corrections and never compared the parent revision's text, so leaving the version at 1 and replacing the text passed the gate once --write had refreshed the head -- and a correction could retain a superseded_text that hashed to itself and to nothing anyone ever published. Both were found by running the gate against a hand-built rewrite rather than by reading the code, and both are refused as of this commit. This is the eight-incident defect of this repository, committed inside the artifact built to catch it. Backticks are stripped from this quotation of a README table cell; nothing else is changed.
+  > tools/ci/check_claims.py refuses a commit that changes a published entry without retaining the previous text, and refuses one that removes a retained correction.
 

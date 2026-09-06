@@ -487,6 +487,120 @@ def check_ledger(repository_root: Path, ledger: dict[str, object]) -> list[Claim
     return issues
 
 
+def published_state(claim: dict[str, object]) -> tuple[str, str, str, str]:
+    """What a reader of one revision actually read: the status, the text, and the falsifier.
+
+    All three are compared across revisions, not just the text. A falsifier quietly replaced with
+    one nobody could act on turns a claim back into a slogan while every word of the claim stays
+    put, and that is the same defect wearing a different field.
+    """
+
+    falsifier = claim.get("falsifier")
+    who, how = "", ""
+    if isinstance(falsifier, dict):
+        who, how = str(falsifier.get("who", "")), str(falsifier.get("how", ""))
+    return (str(claim.get("status", "")), str(claim.get("text", "")), who, how)
+
+
+def check_published_state(
+    claim_id: str, before: dict[str, object], after: dict[str, object]
+) -> list[ClaimIssue]:
+    """A published entry changes by appending a correction that retains what the parent published.
+
+    This is the assertion the rest of this file was missing, and it was found by running the gate
+    against a hand-built rewrite rather than by reading the code. Two holes, one comparison:
+
+    * **Same version, new text.** `check_corrections` only ties an entry's version to the number of
+      corrections it carries, so leaving the version at 1 and replacing the text satisfies it. The
+      version did not fall and no correction was dropped, so the check below this one saw nothing
+      either. `--write` then records the new head and the gate exits 0. The rewrite was silent.
+    * **A retained text the parent never published.** `supersedes_digest` is computed over the text
+      sitting beside it, so a fabricated pair is internally consistent to any reader of one
+      revision. Only the parent revision knows what version 1 actually said.
+
+    What this does NOT establish, and it is the reason `check_claim` keeps its own digest check: an
+    entry the parent revision did not carry has no attested history at all, so a NEW entry may
+    arrive at version 2 carrying a version 1 nobody can check. Nor is an intermediate version
+    attested when a version rises by more than one -- only the parent's own version is.
+    """
+
+    before_version = int(cast(int, before.get("version", 0)))
+    after_version = int(cast(int, after.get("version", 0)))
+    if before_version < 1:
+        return []
+    was = published_state(before)
+    if after_version == before_version:
+        if published_state(after) == was:
+            return []
+        return [
+            ClaimIssue(
+                claim_id,
+                f"status, text or falsifier changed at version {after_version} with no correction "
+                f"appended: a published entry changes by raising the version and retaining what "
+                f"the parent revision published, which was {was[1]!r} as {was[0]}",
+            )
+        ]
+    if after_version < before_version:
+        return []  # reported as "version fell" by the caller; one defect, one message.
+    kept = cast(list[dict[str, object]], after.get("corrections", []))
+    # Selected by its `version` field rather than by position. A positional lookup would read the
+    # parent's version out of whatever correction happens to sit at that index, so a chain missing
+    # its first entry would be compared against a later one and pass -- and `check_corrections`
+    # reporting the same chain as malformed is not a substitute for this comparison being right.
+    retained = next(
+        (c for c in kept if int(cast(int, c.get("version", 0))) == before_version), None
+    )
+    if retained is None:
+        return [
+            ClaimIssue(
+                claim_id,
+                f"version rose to {after_version} but no correction retains version "
+                f"{before_version}, which published {was[1]!r} as {was[0]}",
+            )
+        ]
+    retains = (
+        str(retained.get("superseded_status", "")),
+        str(retained.get("superseded_text", "")),
+    )
+    if retains != (was[0], was[1]):
+        return [
+            ClaimIssue(
+                claim_id,
+                f"correction {before_version} does not retain what the parent revision published: "
+                f"it retains {retains[1]!r} as {retains[0]}, and the parent published {was[1]!r} "
+                f"as {was[0]}",
+            )
+        ]
+    parent_falsifier = (was[2], was[3])
+    if published_state(after)[2:] == parent_falsifier:
+        return []
+    # The falsifier moved. It is retained rather than hashed: `state_digest` covers id, version,
+    # status and text, and widening it would change every `supersedes_digest` already written into
+    # evidence/claims.json -- rewriting retained history to close a hole about rewriting retained
+    # history. The comparison against the parent revision is what makes the retention checkable, and
+    # it is weaker than the digest: it holds only while the parent revision is reachable.
+    kept_falsifier = retained.get("superseded_falsifier")
+    if not isinstance(kept_falsifier, dict):
+        return [
+            ClaimIssue(
+                claim_id,
+                f"the falsifier changed at version {after_version} and correction "
+                f"{before_version} carries no superseded_falsifier: a falsifier is part of the "
+                f"published claim, and one replaced with a weaker one is the same silent rewrite "
+                f"wearing a different field",
+            )
+        ]
+    if (str(kept_falsifier.get("who", "")), str(kept_falsifier.get("how", ""))) != parent_falsifier:
+        return [
+            ClaimIssue(
+                claim_id,
+                f"correction {before_version} does not retain the falsifier the parent revision "
+                f"published, which was {parent_falsifier[0]!r} / {parent_falsifier[1]!r}",
+            )
+        ]
+    return []
+
+
 def check_append_only(previous: dict[str, object], current: dict[str, object]) -> list[ClaimIssue]:
     """Every claim and every correction in the parent revision must still be present, verbatim."""
 
@@ -514,6 +628,7 @@ def check_append_only(previous: dict[str, object], current: dict[str, object]) -
                         f"retained, never deleted",
                     )
                 )
+        issues.extend(check_published_state(claim_id, before, after))
     return issues
 
 
