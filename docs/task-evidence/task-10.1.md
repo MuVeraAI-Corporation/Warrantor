@@ -1148,8 +1148,11 @@ RESULT: PASS - 302 Markdown files, 58 RFCs, 81 catalogue rows, and all local lin
 $ python tools/ci/check_us_english.py main                                exit 0
 us-english: 3678 added line(s) across 18 file(s), since main; matcher = vendored verify-us-english.mjs
 us-english: ok
-  (Diff mode reads commits, so the two Markdown files this section edits were additionally
-   checked with `check_us_english.py --files`, which reads every line: `us-english: ok`.)
+  (Measured on `18a28be`, the commit before the one that adds this note. The count rises with
+   every further Markdown line committed into this section -- it read 3694 on the next commit --
+   so what this line asserts is `ok`, not a total. Diff mode reads commits, so the two Markdown
+   files this section edits were additionally checked with `check_us_english.py --files`, which
+   reads every line: `us-english: ok`.)
 $ PYTHONPATH=<both src dirs> python -m pytest python/warrantor_evidence/tests/test_evidence.py python/warrantor_notary/tests/test_notary.py -q
 36 passed
 ```
