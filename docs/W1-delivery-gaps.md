@@ -252,7 +252,7 @@ identity on first use would sign evidence with a key nobody chose.
 **But it is also the reviewer's exact path.** Install the app on a clean machine, double-click it,
 and the agent dies before the window opens. The Windows install did not show this because that
 machine already had a store from CLI use — which is precisely why "it worked on the machine that
-built it" is not evidence about a first run. Note what the store *does* contain afterwards:
+built it" is not evidence about a first run. Note what the store *does* contain afterward:
 `staged/`, `warrants/` and `witness/` were created by `WarrantStore::open` and `keys/` was not, so
 the failure leaves a half-made store behind.
 
@@ -265,7 +265,7 @@ the sentence that names the remedy.
 dodge — the app minting a key silently would repeat the mistake one layer up, but leaving a reviewer
 with a dialog and no next step was not the only alternative.
 
-`firstRunRemedy()` in `desktop/src/policy.js` recognises this one refusal and turns it into a
+`firstRunRemedy()` in `desktop/src/policy.js` recognizes this one refusal and turns it into a
 screen: what is missing, **why the agent refuses on purpose**, and the exact command, with a *Copy
 the command* button. Everything else falls through to the generic error — a first-run screen shown
 for `EADDRINUSE` would send somebody to create a key they already have, and a test asserts it does
@@ -344,7 +344,7 @@ created at all and the paragraph above it described something that had not happe
 stays fixed prose compiled into the binary — nothing store-derived may be templated into a document
 that is served before the token check.
 
-These are behaviours, so they are now tested as behaviours. `rust/warrant/src/console/console.test.js`
+These are behaviors, so they are now tested as behaviors. `rust/warrant/src/console/console.test.js`
 runs under `node --test` — the runtime's own runner, no install, no bundler, no package manager, so
 RFC W1 §Dependencies still holds — and boots `console.js` against a stubbed DOM and a scripted
 server. Every fix above has a test that fails without it.
@@ -410,7 +410,7 @@ approval when `required > 1`, and it reads the *log*, not the registry — so on
 typed at a terminal trips it on a fully registered store, and because the log is append-only it can
 never be untripped. The warrant becomes settleable never, voidable only. The queue reports it as
 deadlocked and the CLI now **refuses** the act rather than performing it and printing a caution
-afterwards. What shipped told the operator they had achieved nothing; they had achieved worse.
+afterward. What shipped told the operator they had achieved nothing; they had achieved worse.
 
 ---
 
@@ -458,7 +458,7 @@ exactly what an attacker who cannot forge signatures wants instead. This is deli
 TOFU-with-pinning, no network**: a directory that hands out keys over the network is a new trust
 root, and that design decision has not been made. What remains open is everything beyond one
 machine — a signed or shared directory, rotation, and who vouches for a name the first time in an
-organisation.
+organization.
 
 What is still missing here: TLS.
 
@@ -473,7 +473,7 @@ What is still missing here: TLS.
   countersigned archive times all buy *absolute* time and all cost a new trust root or new
   infrastructure. What shipped instead is a per-store append-only hash-chained ledger that
   establishes **relative order** — if A precedes B in the chain, A was signed first, whatever
-  timestamps either carries — and makes a **clock that went backwards visible** as a fault of its
+  timestamps either carries — and makes a **clock that went backward visible** as a fault of its
   own kind. The bridge to absolute time is deliberately a human step: the head digest is
   publishable, and pasting it into a commit message or a ticket binds everything before it to a
   clock somebody else keeps. What it does not establish is printed under every rendering.
@@ -490,7 +490,7 @@ loopback bind — see §2.3, where the bind is now fail-closed rather than merel
 
 This remains the largest single gap in the product, and everything in Tier 3 assumes it.
 
-### 2.2 Identity and per-person authorisation — **built**
+### 2.2 Identity and per-person authorization — **built**
 
 For every release before this one: one bearer token per server run, unscoped. Everyone holding it
 was the same principal, `--allow-settle` was all-or-nothing, and the audit trail could not say which
@@ -565,14 +565,14 @@ collected.
 
 Notifications (§3.2) already exist, so a human who is not watching the window can be told a decision
 is waiting. What is still absent is any *routing* of that decision to a particular person: the
-webhook fires, and who picks it up is an organisational question this build does not model.
+webhook fires, and who picks it up is an organizational question this build does not model.
 
 ### 2.3 TLS — **built behind a feature; the bind is fail-closed without it**
 
 There is still no TLS. The token protects access, not bytes on the wire.
 
 What changed is the default. A bind beyond loopback used to print a thorough warning and start the
-server anyway; it is now a **refusal**, and the acknowledgement is
+server anyway; it is now a **refusal**, and the acknowledgment is
 `--i-accept-cleartext-on-this-network`, named after what it admits rather than what it enables. The
 argument is not about how loud a warning is: the token crosses in the clear on every request, a
 warning is read once by the person who typed the command and then their terminal closes while the
@@ -830,7 +830,7 @@ answers the part of the decision-maker's question an evidence relay can answer h
 reached custody** — artifacts, warrants, devices, first and last filing, by kind, by device,
 computed from the same store read the per-warrant listing uses so summary and listings can never
 disagree. It is authenticated like every route, an unreadable store refuses rather than
-summarising as zero, and the render says in its heading and its footer that it is an account of
+summarizing as zero, and the render says in its heading and its footer that it is an account of
 custody records, not a verdict: "what did our agents file, from where, when" is answerable; "what
 did our agents DO" is a question about evidence, answered by fetching and verifying it.
 
@@ -976,7 +976,7 @@ both so the three can merge without renumbering.)
 
 ### 4.1 The guard is wired in as observe-only signals — **partly done**
 
-The benchmarks land real numbers, and W1 fixes the boundary: a model judgement can become a
+The benchmarks land real numbers, and W1 fixes the boundary: a model judgment can become a
 **refusal signal** recorded against a warrant, never a verification verdict.
 
 That boundary is now wired. `rust/warrant/src/guard.rs` attaches a local guard model to a supervised
