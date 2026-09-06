@@ -417,6 +417,26 @@ jobs:
         run: python tools/ci/check_invariants.py
       - name: Test the invariant ledger checker
         run: python -m pytest tools/ci/test_check_invariants.py -q -p no:cacheprovider
+      # The claim ledger. `--parent-ref` is the BASE of the branch, not HEAD.
+      #
+      # HEAD would make the append-only comparison a no-op here: this job runs on a clean checkout,
+      # so HEAD is the commit under test and `git show HEAD:evidence/claims.json` returns the very
+      # bytes the checker just read from the working tree. Comparing a commit against itself is a
+      # gate that reports success having never run, which is the failure mode this repository has
+      # shipped twice. Same BASE_SHA idiom as the US-English step above, and the same reason the
+      # checkout at the top of this job asks for `fetch-depth: 0`: with no history the checker
+      # refuses rather than skipping.
+      - name: Check the public claim ledger
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BASE_SHA" ] || ! git cat-file -e "$BASE_SHA" 2>/dev/null; then
+            echo "no usable base ref; comparing against origin/main"
+            BASE_SHA=origin/main
+          fi
+          python tools/ci/check_claims.py --parent-ref "$BASE_SHA"
+      - name: Test the claim ledger checker
+        run: python -m pytest tools/ci/test_check_claims.py -q -p no:cacheprovider
       - name: Test the US-English gate
         run: python -m pytest tools/ci/test_check_us_english.py -q -p no:cacheprovider
       - name: Test the disk guard

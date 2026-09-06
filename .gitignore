@@ -109,6 +109,7 @@ htmlcov/
 # Task 5.4's common-mode independence record. tools/ci/network_independence.py exits 1 when this
 # file is absent, so an untracked copy is the Task 9.1 failure exactly: green here, red everywhere.
 !/evidence/network-independence.json
+!/evidence/claims.json
 
 # Agent hook state -- per-session scratch containing local absolute paths.
 # Never useful to a contributor and noise in a public repo.

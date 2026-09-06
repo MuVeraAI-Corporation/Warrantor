@@ -1,0 +1,30 @@
+{
+  "format": "warrantor.claim-locales/1",
+  "note": "Reviewed LABEL vocabulary for the rendered claim-ledger views, and nothing else. Claim bodies, falsifier text, correction reasons and every superseded text are quoted from evidence/claims.json in the source language and are never translated -- tools/ci/check_claims.py refuses two views whose quotations differ. The Arabic labels here are scaffolding: no Arabic-reading reviewer has read them, which is what CL-011 records as unknown rather than asserting a localized pack a supervisor could act on.",
+  "locales": {
+    "en": {
+      "title": "Public claim ledger",
+      "locale_note": "Labels in English. Claim bodies and quotations are in the source language and are not translated.",
+      "bound_heading": "What this ledger does not cover",
+      "claims_heading": "Entries",
+      "fact": "fact (recomputed from a named record in this repository)",
+      "claim": "claim (asserted here, not recomputable here)",
+      "unknown": "unknown (open; published rather than omitted)",
+      "falsifier": "Who could show this false, and how",
+      "history_heading": "**Correction history. Superseded entries are retained, never deleted.**",
+      "superseded": "Superseded"
+    },
+    "ar": {
+      "title": "سجل الادعاءات العام",
+      "locale_note": "التسميات بالعربية. نصوص الادعاءات والاقتباسات بلغتها الأصلية ولم تُترجم.",
+      "bound_heading": "ما لا يغطيه هذا السجل",
+      "claims_heading": "المدخلات",
+      "fact": "واقعة (أُعيد حسابها من سجل مُسمّى في هذا المستودع)",
+      "claim": "ادعاء (مُعلَن هنا، ولا يمكن إعادة حسابه هنا)",
+      "unknown": "غير معروف (مفتوح؛ منشور بدل أن يُحجب)",
+      "falsifier": "من يمكنه إثبات خطأ هذا، وكيف",
+      "history_heading": "**سجل التصحيحات. المدخلات المُلغاة محفوظة ولا تُحذف.**",
+      "superseded": "مُلغى"
+    }
+  }
+}

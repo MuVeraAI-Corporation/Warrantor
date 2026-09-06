@@ -189,13 +189,14 @@ v1.0.0, open-sourced early on purpose.
 |---|---|
 | Warrant core — grant, run, report, settle, void, staging, worktree isolation | **Works.** 98 tests, verified against real processes |
 | Supervision — detached daemon, OS lifetime link, deadline enforcement | **Works.** Windows job objects; Linux `setsid` + `PR_SET_PDEATHSIG` |
-| MCP — transport, control and agent endpoints | **Works.** Upstream forwarding not implemented yet |
+| MCP — transport, control and agent endpoints | **Works.** MCP upstream forwarding is implemented; an upstream tool the effect registry cannot class is refused only when --upstream-refuse-unclassified is set. This row said forwarding was not implemented until 2026-09-05, three weeks after `docs/W1-delivery-gaps.md` recorded the fix; the superseded wording is retained as `CL-006` in [`evidence/claims.json`](evidence/claims.json) |
 | GitHub adapter — PRs, comments, reviews, labels at settle | **Works** |
 | Python SDKs — harness, agent SDK, LangChain, vLLM, Hugging Face, Jira/Linear, OCSF, K8s admission | **Work.** 4 of 12 on PyPI; the rest held by PyPI's new-project quota |
 | Web console for non-developers | **Not built.** Data model and reducers exist; no UI in this repository |
 | Capabilities reachable from the CLI | **13 of 41** Rust workspace crates link into the `warrantor` binary; the other 28 compile and pass their tests but nothing a user runs calls them. Measured by `tools/ci/wiring_census.py` from the manifests, recorded in [`evidence/wiring-coverage.json`](evidence/wiring-coverage.json); CI refuses any change that lowers it. The census counts **crates, not capabilities**: a crate is linked once any item in it is reached, so `warrantor-egress-filter` counted from Task 7.1 onward because its deny floor was called, while its `Policy` decision surface had no caller in the product until Task 5.4 added one inside `Proxy::decide`. That call site is real but guarded: it runs only when a secondary filter is present, and nothing in the shipped binary constructs one |
 | Independent network intercepts on a permitted destination | **1**. This is a count of enforcement points and it is one, so the double network isolation the blueprint specifies does not exist yet. One warrant field, `egress_hosts`, drives the MCP proxy and the network namespace in *opposite* directions: whenever a host is permitted the namespace is deliberately not emitted, and the confinement profile does not add one. **One** policy engine decides in a shipped run — `Proxy::new` wires no secondary filter and nothing in the `warrantor` binary constructs one — and **two** decide once a caller of the library wires the second — which today only a Rust caller can do, since no CLI flag or configuration path reaches `Proxy::with_secondary_filter` — and that raises the policy-domain count and leaves this one alone. Measured by `tools/ci/network_independence.py`, recorded in [`evidence/network-independence.json`](evidence/network-independence.json), analyzed in [`docs/05-network-common-mode-analysis.md`](docs/05-network-common-mode-analysis.md). A shell command, a harness built-in, or a socket the agent opens itself passes neither the proxy nor any engine inside it, and no engine at that point resolves DNS |
 | Published packages | **crates.io** 4/4 · **npm** 3/3 · **PyPI** 4/12 · prebuilt binaries for Linux, macOS (arm64 + x86_64) and Windows on the [v1.0.0 release](https://github.com/MuVeraAI-Corporation/Warrantor/releases/tag/v1.0.0) |
+| Published claims — every number above, and what it is derived from | **A ledger, not a badge.** [`docs/public-claims.md`](docs/public-claims.md) separates what is recomputed from a record in this repository (`fact`) from what this project asserts and cannot recompute (`claim`) from what it does not know (`unknown`). Corrections append and never overwrite: `tools/ci/check_claims.py` refuses a commit that changes a published entry without retaining the previous text, and refuses one that removes a retained correction. It refuses a merge, not an edit — the full limitation is rendered at the top of that file and reproduced under [Things that will bite you today](#things-that-will-bite-you-today) |
 
 ### Things that will bite you today
 
@@ -208,10 +209,18 @@ v1.0.0, open-sourced early on purpose.
   unwired rather than connected to something that would treat their replies as real.
 - **Outside Windows and Linux there is no kernel-enforced parent-death link.** The supervisor says so
   at start rather than implying a guarantee it cannot make.
-- **Most of the Rust workspace is not wired into anything a user can run.** 9 of 39 crates
-  link into the `warrantor` binary (`evidence/wiring-coverage.json` names the other 30). Many are
+- **Most of the Rust workspace is not wired into anything a user can run.** 13 of 41 crates link
+  into the warrantor binary and 28 do not (`evidence/wiring-coverage.json` names them). Many are
   standalone libraries where that is correct; the named planes are not. The cross-language census
-  is in [`docs/oss-readiness.html`](docs/oss-readiness.html).
+  is in [`docs/oss-readiness.html`](docs/oss-readiness.html). This bullet said `9 of 39` and `the
+  other 30` until 2026-09-05, while the status table above it — which
+  [`tools/ci/wiring_census.py`](tools/ci/wiring_census.py) does assert — said 13 of 41. Two
+  renderings of one measurement, one gate. The superseded wording is retained as `CL-016` in
+  [`evidence/claims.json`](evidence/claims.json).
+- **The claim ledger refuses a merge, not an edit.** Verbatim, and the same paragraph that heads
+  [`docs/public-claims.md`](docs/public-claims.md):
+
+  > The gate refuses a merge, not an edit: the rewrite lands in a working tree before anything refuses it, and a clone taken from that tree carries the rewrite. It holds only where tools/ci/check_claims.py runs and is a required check -- a branch with checks disabled, a direct push to a repository without the workflow, or a fork are all outside it. Rewriting the revision the checker compares against, by force-push or by rebase, defeats the comparison; the per-entry history digest and this ledger's head_digest let anyone holding an earlier copy detect that, and prove nothing to anyone who does not hold one. Nothing here is anchored in a transparency log, notarized, or countersigned, so an entry's history is verifiable offline against a copy you already trust and against nothing else. And no status in this ledger is evidence about the world: fact means "recomputed from a named record in this repository", not "true".
 
 Gaps are tracked openly: [`docs/integrations-inventory.html`](docs/integrations-inventory.html)
 measures every integration surface and names what is built but unreachable.

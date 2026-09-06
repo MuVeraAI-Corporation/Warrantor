@@ -1473,10 +1473,21 @@ Each finding carries its own honest tier inline.
 
 ### 5.1 What the corpus found
 
-Sixty-one checks pass. Nineteen fail, across eleven invariants. I-02 — no authority expansion — is
-the only invariant with no finding against it: two independent implementations recompute the
-intersection, the receipt verifier rejects a forged capability set by name, and every attack the
-corpus threw at it was refused.
+82 checks pass and 15 are recorded findings that fail when run. 9 of the 12 invariant suites hold at
+least one recorded finding; I-02, I-05 and I-07 hold none — I-02 because two independent
+implementations recompute the intersection, the receipt verifier rejects a forged capability set by
+name, and every attack the corpus threw at it was refused; I-05 and I-07 because Task 9.1 and Task
+1.1 converted theirs. I-07 (evidence precedes commitment) is partial, which is a status and not an
+absence of findings.
+
+**Every number in the paragraph above is derived from its record by `tools/ci/check_claims.py`** —
+`CL-002` from `tools/ci/invariant-ratchet.json`, `CL-005` from the corpus's own `#[ignore]`
+attributes, and `CL-004` from `evidence/invariants.json`. The sentence this paragraph replaced is
+retained as a correction in [`evidence/claims.json`](../evidence/claims.json) rather than deleted
+here: it said sixty-one checks passed and nineteen failed across eleven invariants, and that I-02 was
+the only invariant with no finding against it. Both were true when written. Neither line carried an
+assertion tying it to the record it cited, which is why neither moved when the records did. The
+rendered ledger is [`public-claims.md`](public-claims.md).
 
 | Invariant | Status | The finding | Honest tier | Fixed by |
 |---|---|---|---|---|
