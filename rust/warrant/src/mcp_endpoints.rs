@@ -989,6 +989,16 @@ impl AgentEndpoint {
     pub fn egress_refusals(&self) -> Vec<&crate::egress::EgressRefusal> {
         self.proxy.egress_refusals()
     }
+
+    /// Refusals the second policy engine made, with their destination and its own rule.
+    ///
+    /// Empty in every shipped run, because nothing constructs a secondary filter; surfaced so that
+    /// the day a caller wires one, its refusals are written down and printed under their own
+    /// bound rather than lost. See [`crate::proxy::SECONDARY_FILTER_BOUND`].
+    #[must_use]
+    pub fn secondary_refusals(&self) -> Vec<&crate::egress::SecondaryRefusal> {
+        self.proxy.secondary_refusals()
+    }
 }
 
 impl Endpoint for AgentEndpoint {

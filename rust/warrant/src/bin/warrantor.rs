@@ -5373,13 +5373,24 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                 // existed only in this process's memory for the lifetime of one session, which is
                 // why `warrantor serve` could not answer "what was refused" by calling an existing
                 // function: the types were there and the data was not.
-                match http::record_refusals(
+                //
+                // Two appends to one log: the broker's refusals and the tool refusals, then the
+                // second engine's under its own bound. The second is empty in every shipped run
+                // (nothing constructs a secondary filter) and is written so that the day one is
+                // wired its refusals are attributed to it rather than to the warrant's bound.
+                let at = now();
+                let recorded = http::record_refusals(
                     root,
                     id,
                     &endpoint.authority_requests(),
                     &endpoint.egress_refusals(),
-                    now(),
-                ) {
+                    at,
+                )
+                .and_then(|written| {
+                    http::record_secondary_refusals(root, id, &endpoint.secondary_refusals(), at)
+                        .map(|more| written + more)
+                });
+                match recorded {
                     Ok(0) => {}
                     Ok(count) => eprintln!(
                         "warrantor: recorded {count} refusal group(s) for {id}. Review them across \
@@ -5489,6 +5500,15 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                         warrantor_warrant::egress::reason_word(refusal.reason.clone()),
                         refusal.argument,
                         refusal.tool
+                    );
+                }
+                // The second engine's refusals name the engine, because the warrant's bound
+                // permitted these destinations and the file to change is the operator's filter.
+                for refusal in endpoint.secondary_refusals() {
+                    eprintln!(
+                        "warrantor: egress denied by the second policy engine {} x{} ({}, named in \
+                         {:?} by {})",
+                        refusal.destination, refusal.count, refusal.rule, refusal.argument, refusal.tool
                     );
                 }
                 ExitCode::SUCCESS

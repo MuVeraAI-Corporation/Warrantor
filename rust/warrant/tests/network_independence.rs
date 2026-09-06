@@ -15,7 +15,7 @@ use warrantor_warrant::egress::{
     independence, independence_sentence, EgressBroker, EgressVerdict, SecondaryFilter,
     INDEPENDENCE_AXES, INDEPENDENCE_NOTE,
 };
-use warrantor_warrant::proxy::{Decision, Proxy, ProxyMode, ToolCall};
+use warrantor_warrant::proxy::{Decision, Proxy, ProxyMode, ToolCall, SECONDARY_FILTER_BOUND};
 use warrantor_warrant::staging::EffectRegistry;
 use warrantor_warrant::{sandbox, SideEffectClass, WarrantBounds};
 
@@ -406,8 +406,8 @@ fn through_the_proxy_the_second_engine_narrows_what_the_warrant_permitted() {
     let mut narrowed = proxy_over(&[PERMITTED], Some(SecondaryFilter::default_deny()));
     let decision = narrowed.decide(&call_to(PERMITTED));
     assert!(
-        matches!(&decision, Decision::Deny { bound, .. } if *bound == "egress_hosts"),
-        "a host the operator's engine denies must be refused: {decision:?}",
+        matches!(&decision, Decision::Deny { bound, .. } if *bound == SECONDARY_FILTER_BOUND),
+        "a host the operator's engine denies must be refused under the second engine's own bound,          because the warrant's egress_hosts bound permitted it: {decision:?}",
     );
 
     let recorded = narrowed.secondary_refusals();
@@ -808,7 +808,7 @@ fn the_rendered_rule_is_the_engine_s_own_reason_and_not_one_literal() {
     );
     let decision = blocked.decide(&call_to(PERMITTED));
     assert!(
-        matches!(&decision, Decision::Deny { bound, .. } if *bound == "egress_hosts"),
+        matches!(&decision, Decision::Deny { bound, .. } if *bound == SECONDARY_FILTER_BOUND),
         "a blocklisted host must be refused by the second engine: {decision:?}",
     );
     let recorded = blocked.secondary_refusals();
@@ -900,4 +900,92 @@ fn a_repeated_refusal_is_counted_and_the_most_frequent_is_reported_first() {
     );
     assert_eq!(flipped[0].count, 2, "{flipped:?}");
     assert_eq!(flipped[1].count, 1, "{flipped:?}");
+}
+
+// ── the durable record names the engine that refused ──────────────────────────────────
+
+#[test]
+fn a_second_engine_refusal_is_attributed_to_the_engine_in_memory_and_on_disk() {
+    // CORRECTION (second adversarial review). A second-engine refusal was booked under the
+    // `egress_hosts` bound -- the bound that had just PERMITTED the destination -- so the CLI
+    // printed `denied <tool> xN (egress_hosts)` and sent the developer to widen a warrant bound
+    // that was already wide enough. Worse: `record_refusals` drops `egress_hosts` authority
+    // requests because the broker's refusals are written in full from `EgressRefusal`, and the
+    // second engine has no `EgressRefusal`, so its refusals were written down nowhere.
+    let mut proxy = proxy_over(&[PERMITTED], Some(SecondaryFilter::default_deny()));
+    let decision = proxy.decide(&call_to(PERMITTED));
+
+    // In memory: the per-tool counter every surface reads carries the engine's bound, not the
+    // warrant's, and the broker is not credited with a refusal it did not make.
+    assert!(
+        matches!(&decision, Decision::Deny { bound, .. } if *bound == SECONDARY_FILTER_BOUND),
+        "{decision:?}",
+    );
+    let requests = proxy.authority_requests();
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].bound, SECONDARY_FILTER_BOUND);
+    assert!(
+        !requests
+            .iter()
+            .any(|request| request.bound == "egress_hosts"),
+        "the warrant's egress bound permitted this host and must not be named as refusing it",
+    );
+    assert!(proxy.egress_refusals().is_empty());
+
+    // THE CONTROL: the broker's own refusal keeps the warrant's bound. Same proxy shape, a host
+    // outside the warrant; the label must differ, or the label is decoration.
+    let mut broker_refuses = proxy_over(&[PERMITTED], Some(SecondaryFilter::default_deny()));
+    let outside = broker_refuses.decide(&call_to(OUTSIDE));
+    assert!(
+        matches!(&outside, Decision::Deny { bound, .. } if *bound == "egress_hosts"),
+        "{outside:?}",
+    );
+
+    // On disk: written under the engine's bound with the destination and the engine's own rule.
+    // `record_refusals` alone writes NOTHING for this session, which is the defect the review
+    // found; `record_secondary_refusals` is what writes it.
+    let directory = std::env::temp_dir().join(format!(
+        "warrantor-secondary-refusal-{}",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&directory).expect("the temp directory is creatable");
+    let written_by_the_old_path = warrantor_warrant::serve::record_refusals(
+        &directory,
+        "wrt_secondary",
+        &proxy.authority_requests(),
+        &proxy.egress_refusals(),
+        1_700_000_000,
+    )
+    .expect("records");
+    assert_eq!(
+        written_by_the_old_path, 0,
+        "the per-tool counter is not written as a bare Tool record; the full record follows",
+    );
+    let written = warrantor_warrant::serve::record_secondary_refusals(
+        &directory,
+        "wrt_secondary",
+        &proxy.secondary_refusals(),
+        1_700_000_000,
+    )
+    .expect("records");
+    assert_eq!(written, 1);
+
+    let log = warrantor_warrant::serve::read_refusals(&directory, "wrt_secondary");
+    assert_eq!(log.unreadable_lines, 0);
+    assert_eq!(log.records.len(), 1, "{:?}", log.records);
+    let record = &log.records[0];
+    assert_eq!(record.kind, warrantor_warrant::serve::RefusalKind::Egress);
+    assert_eq!(record.bound, SECONDARY_FILTER_BOUND);
+    assert_eq!(record.destination.as_deref(), Some(PERMITTED));
+    assert_eq!(record.argument.as_deref(), Some("url"));
+    assert!(
+        record
+            .reason
+            .as_deref()
+            .is_some_and(|rule| rule.contains("default_deny")),
+        "the durable reason is the engine's own rule, read off the refusal: {record:?}",
+    );
+    assert_eq!(record.count, 1);
+
+    std::fs::remove_dir_all(&directory).ok();
 }

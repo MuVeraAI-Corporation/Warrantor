@@ -100,6 +100,18 @@ pub struct AuthorityRequest {
     pub count: u32,
 }
 
+/// The bound label a second-engine refusal is recorded under.
+///
+/// Not `"egress_hosts"`, although the second engine decides the same destination the broker just
+/// decided. The warrant's `egress_hosts` bound **permitted** that destination -- the broker returned
+/// `Allow`, and `Proxy::egress_refusals` stays empty -- so a refusal labeled `egress_hosts` sent
+/// the developer to the signed warrant to widen a bound that was already wide enough, when the
+/// file to change is the operator's secondary filter. The label names what refused. The CLI prints
+/// it, and [`crate::serve::record_secondary_refusals`] writes the refusal down under it with its
+/// destination and the engine's own rule, so the durable record attributes the refusal to the
+/// engine that made it.
+pub const SECONDARY_FILTER_BOUND: &str = "secondary_filter";
+
 /// One broker decision not yet written down. Kept until the endpoint drains it.
 struct PendingDecision {
     tool: String,
@@ -327,12 +339,17 @@ impl Proxy {
             .collect()
     }
 
-    /// Record a second-engine refusal, then deny under the `egress_hosts` bound.
+    /// Record a second-engine refusal, then deny under [`SECONDARY_FILTER_BOUND`].
     ///
-    /// The bound label is still `"egress_hosts"`: it names the bound that refused, not the engine
-    /// that decided. Which engine decided is in the [`crate::egress::SecondaryRefusal`], which is
-    /// kept in its own map so an operator sent to fix a refusal is sent to the right configuration
-    /// source — the broker reads the signed warrant claims, this engine reads the operator's file.
+    /// CORRECTION (second adversarial review). This used to deny under `"egress_hosts"` with the
+    /// comment *"it names the bound that refused, not the engine that decided"*. The warrant's
+    /// `egress_hosts` bound did not refuse: the broker allowed the host and `egress_refusals` stays
+    /// empty, which the suite asserts. So the CLI printed `denied <tool> xN (egress_hosts)` for a
+    /// destination that bound permits, and `record_refusals` -- which drops `egress_hosts` requests
+    /// because the broker's refusals are written in full elsewhere -- dropped this one too, leaving
+    /// no durable record at all. The label now names what refused, and
+    /// [`crate::serve::record_secondary_refusals`] writes the [`crate::egress::SecondaryRefusal`]
+    /// down with its destination and the engine's own rule.
     fn deny_secondary(&mut self, tool: &str, refusal: crate::egress::SecondaryRefusal) -> Decision {
         let key = (tool.to_string(), refusal.destination.clone());
         let sentence = refusal.sentence();
@@ -340,7 +357,7 @@ impl Proxy {
             .entry(key)
             .and_modify(|existing| existing.count += 1)
             .or_insert(refusal);
-        self.deny(tool, "egress_hosts", sentence)
+        self.deny(tool, SECONDARY_FILTER_BOUND, sentence)
     }
 
     /// Decide what happens to `call`.
