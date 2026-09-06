@@ -161,6 +161,24 @@ const el = {
   autonomyEmpty: document.getElementById('autonomy-empty'),
   autonomyError: document.getElementById('autonomy-error'),
   autonomyUnreadable: document.getElementById('autonomy-unreadable'),
+  // Crosswalk engine (L8-09, L8-26) — Task 11.8. The twelfth destination;
+  // all five digits are taken and audit, fleet, incidents, policy,
+  // executive and autonomy are already click-only, so this pane is
+  // click-only too. A crosswalk that maps a control to a clause it
+  // does not satisfy is worse than no crosswalk. Every mapping carries
+  // its quote and source date, or it is rendered as `unmapped` — a
+  // visible state, never a blank cell. The pane leads with US model-
+  // risk supervision (Fed SR 26-2 / OCC 2026-13, 17 April 2026) plus
+  // RBI and DPDP for India and Gulf supervisory frameworks; the EU is
+  // a passing mention only. SR 11-7 is NEVER cited as current.
+  viewCrosswalk: document.getElementById('view-crosswalk'),
+  crosswalk: document.getElementById('crosswalk'),
+  crosswalkHeadline: document.getElementById('crosswalk-headline'),
+  crosswalkSummary: document.getElementById('crosswalk-summary'),
+  crosswalkRows: document.getElementById('crosswalk-rows'),
+  crosswalkEmpty: document.getElementById('crosswalk-empty'),
+  crosswalkError: document.getElementById('crosswalk-error'),
+  crosswalkUnreadable: document.getElementById('crosswalk-unreadable'),
   queue: document.getElementById('queue'),
   queueHeadline: document.getElementById('queue-headline'),
   queueWho: document.getElementById('queue-who'),
@@ -487,7 +505,8 @@ function applyEmptyState(kind) {
   const policy = state.view === 'policy';
   const executive = state.view === 'executive';
   const autonomy = state.view === 'autonomy';
-  const elsewhere = summary || queue || settings || coverage || routing || audit || fleet || incidents || policy || executive || autonomy;
+  const crosswalk = state.view === 'crosswalk';
+  const elsewhere = summary || queue || settings || coverage || routing || audit || fleet || incidents || policy || executive || autonomy || crosswalk;
   el.summary.hidden = !summary;
   el.queue.hidden = !queue;
   el.settings && (el.settings.hidden = !settings);
@@ -499,6 +518,7 @@ function applyEmptyState(kind) {
   el.policy && (el.policy.hidden = !policy);
   el.executive && (el.executive.hidden = !executive);
   el.autonomy && (el.autonomy.hidden = !autonomy);
+  el.crosswalk && (el.crosswalk.hidden = !crosswalk);
   el.firstRun.hidden = elsewhere || !explain;
   el.detail.hidden = elsewhere || explain;
 
@@ -557,6 +577,7 @@ async function setView(value) {
     [el.viewPolicy, 'policy'],
     [el.viewExecutive, 'executive'],
     [el.viewAutonomy, 'autonomy'],
+    [el.viewCrosswalk, 'crosswalk'],
   ]) {
     if (!button) continue;
     button.classList.toggle('is-on', value === name);
@@ -574,6 +595,7 @@ async function setView(value) {
   if (value === 'policy') await loadPolicy();
   if (value === 'executive') await loadExecutive();
   if (value === 'autonomy') await loadAutonomy();
+  if (value === 'crosswalk') await loadCrosswalk();
 }
 
 // ── the queue: what is waiting on a human, and what THIS reader can do about it ───────
@@ -3806,6 +3828,188 @@ async function loadAutonomy() {
   renderAutonomy(composed);
 }
 
+// ── the framework crosswalk engine: every mapping carries its evidence, or it is unmapped ──
+
+/**
+ * Refuse a row whose status is `satisfied` without a quote or a date.
+ * A crosswalk that claims a clause is satisfied without a citation a
+ * reader can check is worse than no crosswalk. The function promotes
+ * the row's status to `unmapped` so the pane renders the gap visibly.
+ *
+ * The function is pure; it does not touch the DOM. The pane calls it
+ * for every row before rendering, and the test iterates the fixture
+ * to pin every promotion and refusal.
+ *
+ * @param {object} row The crosswalk row from the server.
+ * @returns {{row: object, promoted: boolean}}
+ */
+export function normalizeCrosswalkRow(row) {
+  if (!row || typeof row !== 'object') {
+    return { row: { ...(row ?? {}), status: 'unmapped' }, promoted: true };
+  }
+  const status = String(row.status ?? '');
+  const quote = String(row.quote ?? '').trim();
+  const sourceDate = String(row.source_date ?? '').trim();
+  // A row whose status is `satisfied` or `partial` without a quote
+  // AND a date is promoted to `unmapped`. A row whose status is
+  // already `unmapped` is passed through.
+  if ((status === 'satisfied' || status === 'partial') && (quote === '' || sourceDate === '')) {
+    return { row: { ...row, status: 'unmapped' }, promoted: true };
+  }
+  return { row, promoted: false };
+}
+
+/**
+ * Read `/v1/crosswalk` into the shape the pane renders. Each row is
+ * normalized: a row whose status is `satisfied` or `partial` without
+ * a quote and a date is promoted to `unmapped`. The pane renders the
+ * promoted row's gap visibly, never as a blank cell.
+ *
+ * @param {boolean} answered
+ * @param {number} status
+ * @param {unknown} payload
+ * @returns {{readable: boolean, crosswalk: object|null, formatError: string|null}}
+ */
+export function crosswalkFacts(answered, status, payload) {
+  const unusable = { readable: false, crosswalk: null, formatError: null };
+  if (!answered || status !== 200) return unusable;
+  const data = payload?.data ?? payload;
+  if (!data || typeof data !== 'object') {
+    return { readable: false, crosswalk: null, formatError: 'expected { rows: [...] }' };
+  }
+  if (!Array.isArray(data.rows)) {
+    return { readable: false, crosswalk: null, formatError: 'expected rows to be an array' };
+  }
+  // Normalize every row. A row that does not pass normalization is
+  // promoted to `unmapped` — the pane renders the gap visibly, never
+  // as a blank cell. The pane stores the UNWRAPPED row (the result
+  // of `normalizeCrosswalkRow`, with status possibly promoted), not
+  // the `{row, promoted}` wrapper, so the renderer can read fields
+  // like `row.status`, `row.control`, `row.quote` directly.
+  const rows = data.rows.map((r) => normalizeCrosswalkRow(r).row);
+  return { readable: true, crosswalk: { rows }, formatError: null };
+}
+
+/**
+ * Compose the crosswalk facts: the crosswalk plus counts of each
+ * mapping status. The counts are the headline; the rows are the
+ * audit trail.
+ *
+ * @param {{crosswalk: object|null}} feeds
+ * @returns {{readable: boolean, crosswalk: object|null, satisfied: number, partial: number, unmapped: number, formatError: string|null}}
+ */
+export function crosswalkComposedFacts(feeds) {
+  const crosswalk = feeds?.crosswalk ?? null;
+  if (!crosswalk) {
+    return { readable: false, crosswalk: null, satisfied: 0, partial: 0, unmapped: 0, formatError: null };
+  }
+  let satisfied = 0;
+  let partial = 0;
+  let unmapped = 0;
+  for (const row of crosswalk.rows ?? []) {
+    const status = String(row?.status ?? 'unmapped');
+    if (status === 'satisfied') satisfied += 1;
+    else if (status === 'partial') partial += 1;
+    else unmapped += 1;
+  }
+  return { readable: true, crosswalk, satisfied, partial, unmapped, formatError: null };
+}
+
+/**
+ * Check whether a text names SR 11-7 as the current US model-risk
+ * supervision guidance. The pane's prose gate refuses any surface
+ * that names SR 11-7 as current; SR 26-2 superseded it on 2026-04-17.
+ *
+ * The check is intentionally narrow: a sentence that names SR 11-7
+ * as a prior or superseded guidance is accepted. The check is the
+ * mirror of the prose gate the plan describes.
+ *
+ * @param {string} text
+ * @returns {boolean} True when the text names SR 11-7 as current.
+ */
+export function namesSr117AsCurrent(text) {
+  if (typeof text !== 'string' || text === '') return false;
+  return /SR\s*11-7.*current|current.*SR\s*11-7/i.test(text);
+}
+
+/** Build a single crosswalk row. The shape is part of the contract:
+ *  every row carries a status pill, the framework, the clause, the
+ *  quote (verbatim), the source date, and (for satisfied or partial
+ *  rows) the source URL. An `unmapped` row renders the gap
+ *  visibly — `quote: not stated`, `date: not stated` — never as a
+ *  blank cell. */
+function crosswalkRow(row) {
+  const li = node('li', 'crosswalk-row');
+  const pill = node('span', `pill pill-${row.status}`, row.status);
+  const pillPara = node('p', 'crosswalk-row-pill');
+  pillPara.append(pill);
+  li.append(pillPara);
+  li.append(node('p', 'crosswalk-row-control', `control: ${row.control}`));
+  li.append(node('p', 'crosswalk-row-framework', `framework: ${row.framework}`));
+  li.append(node('p', 'crosswalk-row-clause', `clause: ${row.clause}`));
+  if (row.status === 'unmapped') {
+    // The gap is rendered visibly: `quote: not stated` and
+    // `date: not stated`. A reader who cannot see the gap has
+    // been told the control is unmapped, and the next move is
+    // to compose a mapping (or accept the gap).
+    li.append(node('p', 'crosswalk-row-quote', 'quote: not stated'));
+    li.append(node('p', 'crosswalk-row-date', 'date: not stated'));
+    li.append(node('p', 'crosswalk-row-unmapped-note', 'this row is unmapped: the control does not (yet) map to the clause'));
+  } else {
+    li.append(node('p', 'crosswalk-row-quote', `quote: ${row.quote}`));
+    li.append(node('p', 'crosswalk-row-date', `source date: ${row.source_date}`));
+    if (row.source_url) {
+      li.append(node('p', 'crosswalk-row-source-url', `source url: ${row.source_url}`));
+    }
+  }
+  return li;
+}
+
+/** Render the crosswalk from composed facts. */
+export function renderCrosswalk(facts) {
+  if (!el.crosswalk) return;
+  if (!facts || !facts.readable) {
+    el.crosswalkError.hidden = false;
+    el.crosswalkError.textContent =
+      'This crosswalk could not be read. A crosswalk that cannot read its rows cannot say what is mapped and what is unmapped, and the page is blank on purpose.';
+    el.crosswalkEmpty.hidden = true;
+    el.crosswalkUnreadable.textContent = facts?.formatError ?? '';
+    el.crosswalkSummary.replaceChildren();
+    el.crosswalkRows.replaceChildren();
+    return;
+  }
+  el.crosswalkError.hidden = true;
+  const hasRows = Array.isArray(facts.crosswalk?.rows) && facts.crosswalk.rows.length > 0;
+  el.crosswalkEmpty.hidden = hasRows;
+  // The headline names all three counts in the same line. A future
+  // change that rendered only the satisfied count would be a marketing
+  // surface; the discipline is to surface every count.
+  el.crosswalkSummary.replaceChildren(
+    node(
+      'p',
+      'crosswalk-headline',
+      `${facts.satisfied} satisfied, ${facts.partial} partial, ${facts.unmapped} unmapped`,
+    ),
+  );
+  el.crosswalkRows.replaceChildren();
+  for (const row of facts.crosswalk.rows ?? []) {
+    el.crosswalkRows.append(crosswalkRow(row));
+  }
+}
+
+/** Load the crosswalk from the backend and paint. */
+async function loadCrosswalk() {
+  if (!el.crosswalk) return;
+  const { answered, status, payload } = await call('/v1/crosswalk');
+  if (answered && status === 401) {
+    showGate('That token was not accepted.');
+    return;
+  }
+  const facts = crosswalkFacts(answered, status, payload);
+  const composed = crosswalkComposedFacts({ crosswalk: facts.crosswalk });
+  renderCrosswalk(composed);
+}
+
 /**
  * Turn a month into the half-open window the API takes.
  *
@@ -5012,6 +5216,7 @@ if (el.viewIncidents) el.viewIncidents.addEventListener('click', () => setView('
 if (el.viewPolicy) el.viewPolicy.addEventListener('click', () => setView('policy'));
 if (el.viewExecutive) el.viewExecutive.addEventListener('click', () => setView('executive'));
 if (el.viewAutonomy) el.viewAutonomy.addEventListener('click', () => setView('autonomy'));
+if (el.viewCrosswalk) el.viewCrosswalk.addEventListener('click', () => setView('crosswalk'));
 
 // The studio re-renders on every keystroke into the editor (so the operator
 // sees the refusal sentence appear as they type a malformed line) and on

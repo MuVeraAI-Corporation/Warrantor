@@ -222,6 +222,21 @@ const ELEMENT_IDS = [
   'autonomy-empty',
   'autonomy-error',
   'autonomy-unreadable',
+  // Crosswalk (L8-09, L8-26) — added by Task 11.8. The twelfth destination;
+  // click-only (every digit is taken). The crosswalk is the bridge between
+  // the receipt graph and the regulator's questionnaire: a row only counts
+  // as mapped when a status, a quote, and a date are all present. A
+  // satisfied-or-partial row with an empty quote or empty date is promoted
+  // to "unmapped" so a regulator can see exactly which claims we have not
+  // substantiated.
+  'view-crosswalk',
+  'crosswalk',
+  'crosswalk-headline',
+  'crosswalk-summary',
+  'crosswalk-rows',
+  'crosswalk-empty',
+  'crosswalk-error',
+  'crosswalk-unreadable',
 ];
 
 function element(tag = 'div', id = '') {
@@ -4706,6 +4721,307 @@ test('every autonomy element id is declared in index.html and stubbed in ELEMENT
   );
   for (const id of autonomyIds) {
     assert.ok(html.includes(`id="${id}"`), `autonomy id ${id} must be in index.html`);
+  }
+});
+
+
+// ── the framework crosswalk engine and the board safety-case pack (L8-09, L8-26) — Task 11.8 ──
+
+import {
+  crosswalkFixtures,
+} from './crosswalk.fixtures.js';
+
+const {
+  normalizeCrosswalkRow,
+  crosswalkFacts,
+  crosswalkComposedFacts,
+  namesSr117AsCurrent,
+} = await (async () => {
+  const app = await openStudio();
+  return app.module;
+})();
+
+/** Open the crosswalk pane against a server answer body. */
+async function openCrosswalk(crosswalk) {
+  const app = await boot((p) => {
+    if (p === '/v1/health') return HEALTH_OK;
+    if (p === '/v1/crosswalk' && crosswalk !== null) return crosswalk;
+    return listOf(ONE_WARRANT);
+  });
+  app.el('view-crosswalk').fire('click');
+  await settle();
+  return app;
+}
+
+test('normalizeCrosswalkRow passes a complete row through unchanged', () => {
+  // A row whose status is `satisfied` with a quote and a date is
+  // a real mapping; the renderer must not promote it to `unmapped`.
+  // A future regression that promoted every row would surface
+  // here, before the pane painted a blank crosswalk.
+  const row = {
+    control: 'warrant signing',
+    framework: 'Fed SR 26-2',
+    clause: 'change control',
+    status: 'satisfied',
+    quote: 'a real quote',
+    source_date: '2026-04-17',
+    source_url: 'https://example.test',
+  };
+  const out = normalizeCrosswalkRow(row);
+  assert.equal(out.promoted, false);
+  assert.equal(out.row.status, 'satisfied');
+});
+
+test('normalizeCrosswalkRow promotes `satisfied` without a quote to `unmapped`', () => {
+  // A row whose status is `satisfied` with an empty quote is a
+  // mapping the reader cannot check. The pane promotes it to
+  // `unmapped` and renders the gap visibly. A future regression
+  // that accepted the bad row would surface here as a non-promotion.
+  const out = normalizeCrosswalkRow({
+    control: 'a control', framework: 'Fed SR 26-2', clause: 'c',
+    status: 'satisfied', quote: '', source_date: '2026-04-17', source_url: '',
+  });
+  assert.equal(out.promoted, true);
+  assert.equal(out.row.status, 'unmapped');
+});
+
+test('normalizeCrosswalkRow promotes `satisfied` without a date to `unmapped`', () => {
+  // The mirror of the quote test. A row whose status is `satisfied`
+  // with an empty date is a mapping the reader cannot anchor in
+  // time. The pane promotes it to `unmapped`.
+  const out = normalizeCrosswalkRow({
+    control: 'a control', framework: 'Fed SR 26-2', clause: 'c',
+    status: 'satisfied', quote: 'q', source_date: '', source_url: '',
+  });
+  assert.equal(out.promoted, true);
+  assert.equal(out.row.status, 'unmapped');
+});
+
+test('normalizeCrosswalkRow promotes `partial` without a quote or date to `unmapped`', () => {
+  // The same discipline applies to `partial` rows. A partial
+  // mapping is the strongest mapping the pane accepts, and a
+  // partial row without a quote is a guess.
+  const noQuote = normalizeCrosswalkRow({
+    control: 'a control', framework: 'Fed SR 26-2', clause: 'c',
+    status: 'partial', quote: '', source_date: '2026-04-17', source_url: '',
+  });
+  assert.equal(noQuote.promoted, true);
+  assert.equal(noQuote.row.status, 'unmapped');
+  const noDate = normalizeCrosswalkRow({
+    control: 'a control', framework: 'Fed SR 26-2', clause: 'c',
+    status: 'partial', quote: 'q', source_date: '', source_url: '',
+  });
+  assert.equal(noDate.promoted, true);
+  assert.equal(noDate.row.status, 'unmapped');
+});
+
+test('normalizeCrosswalkRow passes an already-`unmapped` row through unchanged', () => {
+  // A row that the server already marked `unmapped` is the
+  // correct input; the function does not re-promote it (it is
+  // already unmapped). The test pins that the function is
+  // idempotent on the unmapped state.
+  const out = normalizeCrosswalkRow({
+    control: 'a control', framework: 'SAMA', clause: 'c',
+    status: 'unmapped', quote: '', source_date: '', source_url: '',
+  });
+  assert.equal(out.promoted, false);
+  assert.equal(out.row.status, 'unmapped');
+});
+
+test('every crosswalk fixture reports the expected satisfied/partial/unmapped counts', () => {
+  // The composed facts are the headline of the crosswalk pane:
+  // a future regression that hid one count (e.g. only the
+  // satisfied count) would be a marketing surface; the test
+  // pins all three for every fixture reading.
+  for (const fixture of crosswalkFixtures.crosswalks) {
+    const facts = crosswalkFacts(true, 200, { data: fixture.crosswalk });
+    assert.equal(facts.readable, true, `crosswalk must be readable: ${fixture.label}`);
+    const composed = crosswalkComposedFacts({ crosswalk: facts.crosswalk });
+    assert.equal(
+      composed.satisfied, fixture.expected_satisfied,
+      `satisfied count for ${fixture.label} must be ${fixture.expected_satisfied}`,
+    );
+    assert.equal(
+      composed.partial, fixture.expected_partial,
+      `partial count for ${fixture.label} must be ${fixture.expected_partial}`,
+    );
+    assert.equal(
+      composed.unmapped, fixture.expected_unmapped,
+      `unmapped count for ${fixture.label} must be ${fixture.expected_unmapped}`,
+    );
+  }
+});
+
+test('crosswalkFacts refuses a non-200 status and returns an unreadable shape', () => {
+  // The pane must not render counts when the server refused or
+  // could not be reached. A future regression that painted a
+  // zero-counted crosswalk on transport failure would tell the
+  // operator "all unmapped" when the truth is "I could not ask".
+  const result = crosswalkFacts(true, 500, { data: null });
+  assert.equal(result.readable, false);
+  assert.equal(result.crosswalk, null);
+});
+
+test('crosswalkFacts refuses a payload whose rows field is not an array', () => {
+  // The pane refuses a payload whose shape the renderer cannot
+  // iterate. The test pins the format error so the pane can
+  // show the operator the actual failure.
+  const result = crosswalkFacts(true, 200, { data: { rows: 'not an array' } });
+  assert.equal(result.readable, false);
+  assert.match(result.formatError, /expected rows to be an array/);
+});
+
+test('crosswalkFacts refuses a payload whose root is not an object', () => {
+  const result = crosswalkFacts(true, 200, null);
+  assert.equal(result.readable, false);
+  assert.match(result.formatError, /expected \{ rows: \[\.\.\.\] \}/);
+});
+
+test('the crosswalk pane is hidden by default and visible only when the operator clicks it', async () => {
+  // The same discipline as audit/fleet/incidents/policy/executive/
+  // autonomy: click-only (all five digits are taken), hidden by
+  // default, visible when the operator clicks. A pane that was
+  // always visible would be a pane the operator could not avoid.
+  const app = await openCrosswalk({
+    status: 200,
+    body: { data: crosswalkFixtures.crosswalks[0].crosswalk },
+  });
+  assert.equal(app.el('crosswalk').hidden, false);
+  assert.equal(app.el('queue').hidden, true);
+  assert.equal(app.el('audit').hidden, true);
+  assert.equal(app.el('fleet').hidden, true);
+  assert.equal(app.el('incidents').hidden, true);
+  assert.equal(app.el('policy').hidden, true);
+  assert.equal(app.el('executive').hidden, true);
+  assert.equal(app.el('autonomy').hidden, true);
+});
+
+test('the crosswalk headline names all three counts (satisfied, partial, unmapped) in the same line', async () => {
+  // The crosswalk summary names all three counts in one line.
+  // The complete crosswalk has 4 satisfied, 1 partial, 0 unmapped.
+  // A future regression that rendered only the satisfied count
+  // would be a marketing surface; the test pins the exact line.
+  const app = await openCrosswalk({
+    status: 200,
+    body: { data: crosswalkFixtures.crosswalks[0].crosswalk },
+  });
+  const summary = textOf(app.el('crosswalk-summary'));
+  assert.match(summary, /4 satisfied, 1 partial, 0 unmapped/);
+});
+
+test('an unmapped row renders visibly with `quote: not stated` and `date: not stated`, never as a blank cell', async () => {
+  // The mixed crosswalk has one `unmapped` row (no quote, no
+  // date). The pane must render the gap with prose the reader
+  // can see, not leave the cell blank. A blank cell is the
+  // failure this discipline prevents.
+  const app = await openCrosswalk({
+    status: 200,
+    body: { data: crosswalkFixtures.crosswalks[1].crosswalk },
+  });
+  const rows = app.el('crosswalk-rows').children;
+  assert.equal(rows.length, 2, 'two rows expected in the mixed crosswalk');
+  const unmappedRow = rows.find((r) => r.children.some((c) => c.className === 'crosswalk-row-unmapped-note'));
+  assert.ok(unmappedRow, 'a row with the unmapped note must be rendered');
+  const quote = unmappedRow.children.find((c) => c.className === 'crosswalk-row-quote');
+  const date = unmappedRow.children.find((c) => c.className === 'crosswalk-row-date');
+  assert.ok(quote, 'an unmapped row must render a quote paragraph');
+  assert.match(quote.textContent, /quote: not stated/);
+  assert.ok(date, 'an unmapped row must render a date paragraph');
+  assert.match(date.textContent, /date: not stated/);
+});
+
+test('a `satisfied` row without a quote is rendered as `unmapped`, never as `satisfied`', async () => {
+  // The bad-quote fixture has one row that claims `satisfied`
+  // without a quote. The pane must promote it to `unmapped`
+  // and render the gap visibly. A future regression that
+  // accepted the bad row would surface here.
+  const app = await openCrosswalk({
+    status: 200,
+    body: { data: crosswalkFixtures.crosswalks[2].crosswalk },
+  });
+  const headline = textOf(app.el('crosswalk-summary'));
+  assert.match(headline, /0 satisfied, 0 partial, 1 unmapped/);
+  const rows = app.el('crosswalk-rows').children;
+  assert.equal(rows.length, 1);
+  const pill = rows[0].children.find((c) => c.className === 'crosswalk-row-pill')?.children?.[0];
+  assert.ok(pill, 'the row must carry a status pill');
+  assert.match(pill.className, /pill-unmapped/);
+});
+
+test('the crosswalk pane paints the error paragraph when the backend does not answer', async () => {
+  // The pane refuses to render an empty crosswalk when the
+  // request did not complete. A pane that rendered the empty
+  // state on transport failure would tell the reader "no
+  // crosswalk" when the truth is "I could not ask".
+  const app = await openCrosswalk({ status: 500, body: { data: null } });
+  assert.equal(app.el('crosswalk-error').hidden, false);
+  assert.match(textOf(app.el('crosswalk-error')), /could not be read/);
+});
+
+test('namesSr117AsCurrent returns true when the text names SR 11-7 as current', () => {
+  // The pane refuses any surface that names SR 11-7 as the
+  // current US model-risk supervision guidance. SR 26-2
+  // superseded SR 11-7 on 2026-04-17.
+  for (const c of crosswalkFixtures.sr117Cases) {
+    const result = namesSr117AsCurrent(c.text);
+    assert.equal(
+      result, c.refused,
+      `SR 11-7 verdict for "${c.label}" must be ${c.refused}, got ${result}`,
+    );
+  }
+});
+
+test('the regulatory anchor order is US first, then India, then Gulf, then EU as a passing mention', () => {
+  // The crosswalk leads with US (SR 26-2 / OCC 2026-13, 17 April
+  // 2026), then India (RBI / DPDP), then Gulf (SAMA, CBUAE,
+  // etc.), then EU as a passing mention. A future regression
+  // that reordered the anchors would change the regulatory
+  // posture of the crosswalk; the test pins the order.
+  const anchors = crosswalkFixtures.regulatoryAnchors.map((a) => a.lead);
+  assert.equal(anchors[0], 'US (Fed SR 26-2 / OCC 2026-13)');
+  assert.match(anchors[1], /India/);
+  assert.match(anchors[2], /Gulf/);
+  assert.match(anchors[3], /passing mention/);
+});
+
+test('the crosswalk tab has no digit-key binding in the keyboard switcher', async () => {
+  // Click-only invariant: every digit 6/7/8/9 must not be
+  // bound to setView('crosswalk'). A future regression that
+  // added a digit shortcut would be caught here before it
+  // shipped.
+  const app = await openCrosswalk();
+  const { SHORTCUTS } = app.module;
+  for (const entry of SHORTCUTS) {
+    if (typeof entry?.keys === 'string' && /^[6-9]$/.test(entry.keys)) {
+      assert.notEqual(
+        entry.action,
+        'crosswalk',
+        `digit ${entry.keys} must not be bound to the crosswalk view (SHORTCUTS regression)`,
+      );
+    }
+  }
+});
+
+test('every crosswalk element id is declared in index.html and stubbed in ELEMENT_IDS', async () => {
+  // The pane's element ids must agree with both index.html and
+  // this test file's ELEMENT_IDS. A mismatch would mean the
+  // pane was looking up null, and any test touching the pane
+  // would fail somewhere unrelated. The test pins both sides.
+  const crosswalkIds = [
+    'view-crosswalk', 'crosswalk', 'crosswalk-headline',
+    'crosswalk-summary', 'crosswalk-rows',
+    'crosswalk-empty', 'crosswalk-error', 'crosswalk-unreadable',
+  ];
+  for (const id of crosswalkIds) {
+    assert.ok(ELEMENT_IDS.includes(id), `crosswalk id ${id} must be in ELEMENT_IDS`);
+  }
+  const { readFileSync } = await import('node:fs');
+  const html = readFileSync(
+    path.join(path.dirname(fileURLToPath(import.meta.url)), 'index.html'),
+    'utf8',
+  );
+  for (const id of crosswalkIds) {
+    assert.ok(html.includes(`id="${id}"`), `crosswalk id ${id} must be in index.html`);
   }
 });
 

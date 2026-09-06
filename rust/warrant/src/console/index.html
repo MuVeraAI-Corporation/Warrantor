@@ -77,6 +77,7 @@
           <button id="view-policy" class="view" type="button">Policy</button>
           <button id="view-executive" class="view" type="button">Executive</button>
           <button id="view-autonomy" class="view" type="button">Autonomy</button>
+          <button id="view-crosswalk" class="view" type="button">Crosswalk</button>
         </div>
 
         <div class="filters" role="group" aria-label="Filter by state">
@@ -780,6 +781,59 @@
           baseline the outcome contract is measured against, and the narrowing path the
           system has agreed to take if the evidence weakens. A narrowing event names the
           trigger incident and the receipts the tightening rests on.
+        </p>
+      </section>
+
+      <!-- The framework crosswalk (L8-09, L8-26).
+           A crosswalk that maps a control to a clause it does not
+           satisfy is worse than no crosswalk. Every mapping carries
+           its evidence — a verbatim quote the reader can check, and
+           the source date — or it is rendered as `unmapped`, a visible
+           state, never a blank cell. The pane leads with US model-risk
+           supervision (Fed SR 26-2 / OCC Bulletin 2026-13, dated
+           17 April 2026) plus RBI and DPDP for India and Gulf
+           supervisory frameworks. The EU is a passing mention only.
+           SR 11-7 is NEVER cited as current — SR 26-2 superseded it
+           on 2026-04-17.
+
+           The Board pack export runs through Task 11.4's verifier,
+           so a board pack is an evidence pack that verifies offline
+           with no network and no access to this deployment. -->
+      <section id="crosswalk" class="crosswalk" hidden aria-labelledby="crosswalk-headline">
+        <h2 id="crosswalk-headline">Framework crosswalk &mdash; every mapping carries its evidence</h2>
+
+        <p class="note">
+          Each row below is one control-to-clause mapping. The row carries the framework, the
+          clause, the mapping status (<code>satisfied</code>, <code>partial</code>, or
+          <code>unmapped</code>), and &mdash; for <code>satisfied</code> and <code>partial</code>
+          &mdash; a verbatim quote the reader can check, the source date, and the source URL. A
+          row whose status is <code>satisfied</code> or <code>partial</code> without a quote
+          and a date is promoted to <code>unmapped</code>; a row already at <code>unmapped</code>
+          is rendered with the gap visible (quote: not stated, date: not stated), never as a
+          blank cell. A crosswalk that hides its gaps is a marketing surface.
+        </p>
+
+        <p id="crosswalk-error" class="empty error" hidden>
+          This crosswalk could not be read: the server did not answer, refused, or replied
+          with something this console could not parse. A crosswalk that cannot read its rows
+          cannot say what is mapped and what is unmapped, and the page is blank on purpose.
+        </p>
+        <p id="crosswalk-unreadable" class="note error"></p>
+        <p id="crosswalk-empty" class="empty" hidden>
+          No crosswalk rows are available. A blank crosswalk is the absence of mappings, not
+          the record "no obligations apply".
+        </p>
+
+        <div id="crosswalk-summary" class="crosswalk-summary"></div>
+        <ul id="crosswalk-rows" class="crosswalk-rows"></ul>
+
+        <p class="note">
+          The regulatory anchors the crosswalk leads with are the US model-risk supervision
+          framework (Fed SR 26-2 / OCC Bulletin 2026-13, 17 April 2026) plus the RBI and DPDP
+          frameworks for India and Gulf supervisory frameworks. The EU AI Act is a passing
+          mention only &mdash; never the lead. SR 11-7 is the prior US guidance and is never
+          cited as current; a surface that names SR 11-7 as current is the failure this
+          pane's prose gate is meant to prevent.
         </p>
       </section>
 
