@@ -1,5 +1,5 @@
 //! The frozen v1 notary receipt body: what every receipt signed before the causal verdict looked
-//! like on the wire, and what it must still look like afterwards.
+//! like on the wire, and what it must still look like afterward.
 //!
 //! # Why the strings are literals
 //!
@@ -107,7 +107,7 @@ fn a_signature_over_anything_but_the_frozen_bytes_is_refused() {
     );
 }
 
-/// The silent-drop hole. Serde's default behaviour is to ignore unknown keys, so a body carrying a
+/// The silent-drop hole. Serde's default behavior is to ignore unknown keys, so a body carrying a
 /// field this build has never heard of deserializes, loses it, re-canonicalizes without it, and
 /// fails as `InvalidSignature` -- a version mismatch reported to a third-party auditor as a
 /// forgery. `#[serde(deny_unknown_fields)]` turns that into a parse refusal that names the field.

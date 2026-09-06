@@ -548,7 +548,7 @@ impl StagingQueue {
     /// The whole causal section, pinned to this log's chain head.
     ///
     /// `queue_head` is [`Self::head_digest`] rather than a re-listing of the log, so a receipt
-    /// carrying this section is bound to the hash-chained file: a log rewritten afterwards no
+    /// carrying this section is bound to the hash-chained file: a log rewritten afterward no
     /// longer hashes to the head inside the signature.
     ///
     /// # Errors
