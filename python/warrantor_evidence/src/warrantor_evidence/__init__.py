@@ -25,9 +25,11 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 __all__ = [
+    "PREDICATE_TYPE",
     "EvidenceError",
     "canonical_predicate",
     "check_mode_honesty",
+    "check_predicate_version",
     "compute_intersection_proof",
     "dsse_pae",
     "recompute_intersection",
@@ -35,6 +37,10 @@ __all__ = [
     "verify_chain",
     "verify_receipt",
 ]
+
+#: The predicate version this package has a rule for. Must equal ``evidence::PREDICATE_TYPE`` in
+#: ``rust/evidence/src/lib.rs``; a test asserts the two strings are the same string.
+PREDICATE_TYPE = "https://warrantor.dev/ActionReceipt/v2"
 
 
 class EvidenceError(Exception):
@@ -125,12 +131,52 @@ def verify_authority(authority: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 
 
+def check_predicate_version(predicate: dict[str, Any]) -> None:
+    """Refuse a predicate version this package has no rule for, BEFORE the signature is checked.
+
+    The hazard this closes is specific to a dict-generic canonicalizer. :func:`canonical_predicate`
+    serializes whatever keys the dict has, so a v2 predicate canonicalizes correctly in Python with
+    no edits at all -- and would therefore be *verified* by a reader that knows nothing about the
+    version field or the causal section. A Python verifier that happily accepts a format it cannot
+    interpret is worse than one that refuses it, because the caller believes it checked something.
+
+    Mirrors ``evidence::check_predicate_version`` in ``rust/evidence/src/lib.rs``: an absent field
+    is v1, :data:`PREDICATE_TYPE` is v2, and anything else is refused here rather than surfacing as
+    ``INVALID_SIGNATURE`` -- which would tell an auditor a newer receipt was forged.
+
+    :raises EvidenceError: ``UNKNOWN_VERSION`` for a version with no rule; ``UNVERSIONED_CAUSALITY``
+        for a causal section with no version to read it under.
+    """
+    version = predicate.get("predicate_version")
+    if version is None:
+        if predicate.get("causality") is not None:
+            raise EvidenceError(
+                "UNVERSIONED_CAUSALITY",
+                "the predicate carries a causality section and declares no predicate_version; "
+                "nothing says how to read that section, so it is refused rather than interpreted",
+            )
+        return
+    if version != PREDICATE_TYPE:
+        raise EvidenceError(
+            "UNKNOWN_VERSION",
+            f"unrecognized predicate_version {version!r}; this build reads an absent field as v1 "
+            f"and {PREDICATE_TYPE!r} as v2, and refuses anything else here rather than reporting "
+            "it as a bad signature",
+        )
+
+
 def verify_receipt(receipt: dict[str, Any]) -> None:
-    """Verify a single WAR receipt's Ed25519 signature over the DSSE PAE of the canonical predicate."""
+    """Verify a single WAR receipt's Ed25519 signature over the DSSE PAE of the canonical predicate.
+
+    The version is read first (:func:`check_predicate_version`), then the signature, in the same
+    order as Rust.
+    """
     predicate = receipt.get("predicate")
     signature = receipt.get("signature")
     if not isinstance(predicate, dict) or not isinstance(signature, dict):
         raise EvidenceError("SIGNATURE_ENVELOPE", "receipt missing predicate or signature")
+
+    check_predicate_version(predicate)
 
     if signature.get("algorithm") != "Ed25519":
         raise EvidenceError(

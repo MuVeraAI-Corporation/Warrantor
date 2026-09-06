@@ -111,6 +111,11 @@ pub fn predicate(phase: warrantor_evidence::Phase) -> warrantor_evidence::WarPre
     }];
 
     evidence::WarPredicate {
+        // Added by Task 10.1 because WarPredicate gained two fields; no assertion in this corpus
+        // changed. A v1-shaped fixture is the right default here: the corpus measures the product,
+        // and the product only emits a causal section where it has a staged queue to read.
+        predicate_version: None,
+        causality: None,
         binding: evidence::Binding {
             receipt_id: "rcpt_corpus_baseline".to_string(),
             phase,

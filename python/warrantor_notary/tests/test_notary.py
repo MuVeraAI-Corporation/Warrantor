@@ -162,3 +162,69 @@ def test_interop_canonical_bytes_match_rust():
         # per-entry for clarity.
         canon = wn.canonical_receipt_body(body)
         assert isinstance(canon, str) and len(canon) > 0
+
+
+# ---------------------------------------------------------------------------
+# Task 10.1 — the frozen v1 body, pinned in the second language too
+# ---------------------------------------------------------------------------
+
+FROZEN_BODY_PATH = REPO_ROOT / "testvectors" / "notary" / "frozen_v1_receipt_body.json"
+
+
+def test_the_frozen_v1_body_canonicalizes_and_digests_the_same_in_python():
+    """Task 10.1 changed a signed structure in `warrantor_evidence` and nothing here. This is what
+    holds that second half: two canonicalizers, one set of bytes, one digest.
+
+    Both values are frozen literals in the vector file, so this cannot pass by recomputing them
+    under whatever rule is current -- which is the failure mode a format-freeze test is for.
+    """
+    vector = json.loads(FROZEN_BODY_PATH.read_text(encoding="utf-8"))
+    canonical = wn.canonical_receipt_body(vector["body"])
+    assert canonical == vector["canonical"], (
+        "Python's canonical form of the frozen v1 body no longer matches the frozen bytes. Either "
+        "the canonicalization changed, in which case every signature ever taken is now unverifiable, "
+        "or the two languages have drifted apart."
+    )
+    assert len(canonical.encode("utf-8")) == vector["canonical_length_bytes"]
+    assert wn.receipt_digest_hex(vector["body"]) == vector["digest_sha256"]
+
+
+def test_a_signature_over_the_frozen_bytes_verifies_against_the_rebuilt_body():
+    """The byte-for-byte claim proved the way a third party would prove it: sign the frozen string,
+    hand the verifier the rebuilt body, and require it to verify. It can only verify if this build
+    canonicalizes the body to exactly those bytes.
+    """
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    vector = json.loads(FROZEN_BODY_PATH.read_text(encoding="utf-8"))
+    key = Ed25519PrivateKey.from_private_bytes(bytes([7]) * 32)
+    receipt = {
+        "body": vector["body"],
+        "signature": {
+            "algorithm": "Ed25519",
+            "key_id": "frozen-v1",
+            "public_key": key.public_key().public_bytes_raw().hex(),
+            "value": key.sign(vector["canonical"].encode("utf-8")).hex(),
+        },
+    }
+    wn.verify_receipt(receipt)  # must not raise
+
+
+def test_the_paired_control_one_extra_byte_breaks_it():
+    """Without this, the test above could pass because the verifier accepts anything."""
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    vector = json.loads(FROZEN_BODY_PATH.read_text(encoding="utf-8"))
+    key = Ed25519PrivateKey.from_private_bytes(bytes([7]) * 32)
+    receipt = {
+        "body": vector["body"],
+        "signature": {
+            "algorithm": "Ed25519",
+            "key_id": "frozen-v1",
+            "public_key": key.public_key().public_bytes_raw().hex(),
+            "value": key.sign((vector["canonical"] + " ").encode("utf-8")).hex(),
+        },
+    }
+    with pytest.raises(wn.NotaryError) as exc:
+        wn.verify_receipt(receipt)
+    assert exc.value.code == "INVALID_SIGNATURE"

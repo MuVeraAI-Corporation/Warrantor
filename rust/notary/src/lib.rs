@@ -332,7 +332,20 @@ pub struct SignatureEnvelope {
 }
 
 /// The body of a WAR receipt — what is canonically serialized and signed.
+///
+/// # `deny_unknown_fields`, and why it matters more here than usual
+///
+/// Serde's default is to drop a key it does not recognize. On a **signed** body that is a defect
+/// with a specific, bad failure mode: a receipt from a newer format deserializes, silently loses
+/// the new field, re-canonicalizes without it, and fails as [`NotaryError::InvalidSignature`]. A
+/// third-party auditor is then told "forgery" when the truth is "newer format". Refusing at parse
+/// makes the error name the field instead. Added by Task 10.1 (L7-01), which added **no field
+/// here**: this body has nine sibling `issue_receipt` implementations in other crates, each with
+/// its own body type and canonicalizer, and versioning one of the ten would leave nine unchained
+/// with no marker saying which is which. The causal chain went into `evidence::WarPredicate`,
+/// which is the single envelope all ten funnel through.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct ReceiptBody {
     pub verdict: Verdict,
     pub actor_svid: String,

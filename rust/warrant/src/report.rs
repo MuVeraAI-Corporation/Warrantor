@@ -586,6 +586,13 @@ pub struct Report {
     verdict: notary::Verdict,
     authority: evidence::Authority,
     effect_receipts: Vec<evidence::WarReceipt>,
+    /// The staged route, read from the queue at build time (Task 10.1, L7-01).
+    ///
+    /// Kept here rather than rebuilt in [`Report::sign`] because the bundle's `staged` section
+    /// carries no `depends_on` -- and adding one would change `bundle_digest` for every report ever
+    /// exported. `None` means the queue could not be read, which is a different claim from a queue
+    /// that was read and was empty; only the first makes the causal verdict `Unrepresentable`.
+    causality: Option<evidence::Causality>,
 }
 
 // ── building ──────────────────────────────────────────────────────────────────────────
@@ -694,6 +701,7 @@ fn limitations(
     spend: Option<&SpendSection>,
     custody: Option<&CustodySection>,
     revocation: Option<&RevocationSection>,
+    causality: Option<&evidence::Causality>,
 ) -> Vec<String> {
     // Said whether or not a section is present, because the absence is itself a claim a reader
     // would otherwise fill in wrongly.
@@ -771,6 +779,30 @@ fn limitations(
     ];
     out.push(custody_line);
     out.push(NO_EFFECT_RECEIPTS_LIMITATION.to_string());
+    // The causal verdict (Task 10.1, L7-01). This item's prominence is exactly what invites
+    // overclaiming, so the sentence is rendered FROM the section rather than written beside it:
+    // the hop count and the chain head are read off the record a reader can check, and the two
+    // branches make two different claims because "no route was read" and "a route was read" are
+    // different facts about the same bundle.
+    out.push(match causality {
+        None => "No staged route was read when this report was built, so its evidence receipt \
+                 carries no causality section, and a causal verdict over that receipt refuses as \
+                 unrepresentable rather than passing. That is not a statement that nothing was \
+                 staged."
+            .to_string(),
+        Some(section) => format!(
+            "The causal verdict is computed over the staged-effect order this notary recorded -- \
+             {} hop(s), pinned to staged-log chain head {} -- and it makes the recorded pathway \
+             tamper-evident: an operator cannot later rewrite the route without breaking a \
+             signature or that chain digest. It does **not** prove the recorded route is the route \
+             the agent actually took. Effects reach that record by being STAGED, and nothing \
+             intercepts the agent at each hop, so a route that never passed through the staging \
+             queue is invisible here. Ordering is this machine's observation of its own queue and \
+             not a distributed guarantee: two Warrantor installations produce two independent \
+             orders and nothing reconciles them.",
+            section.step_count, section.queue_head,
+        ),
+    });
     // Containment is the one gate whose caveat changes with the input, so it is stated from the
     // input rather than from a fixed sentence. A build that was handed no contained scope has to
     // say the gate passed for want of anything to check, and a build that was handed one has to say
@@ -993,6 +1025,11 @@ pub fn build_observed(
     let bounds = &claims.bounds;
 
     // ── staged effects ───────────────────────────────────────────────────────────────
+    // The route, for the signed predicate. Read from the same queue in the same breath as the
+    // staged section, so the two cannot describe different states of the log. An unreadable queue
+    // or a dependency cycle leaves this `None`: there is no route to sign, and the causal verdict
+    // over the resulting receipt says exactly that rather than passing.
+    let causality = queue.as_ref().ok().and_then(|q| q.causality().ok());
     let (staged, staged_count, chain_head, staged_tools, queue_available) = match queue {
         Ok(queue) => {
             let count = queue.len();
@@ -1183,6 +1220,7 @@ pub fn build_observed(
             spend.as_ref(),
             custody.as_ref(),
             revocation.as_ref(),
+            causality.as_ref(),
         ),
         spend,
         custody,
@@ -1202,6 +1240,7 @@ pub fn build_observed(
         verdict,
         authority,
         effect_receipts: Vec::new(),
+        causality,
     }
 }
 
@@ -1309,6 +1348,14 @@ impl Report {
             notary::issue_receipt(&self.verdict, &self.request, notary_mode, key, key_id);
 
         let predicate = evidence::WarPredicate {
+            // v2 exactly when there is a route to read. A version declared over an absent section
+            // would say "read me under the causal rule" about a receipt with nothing to read, and
+            // `evidence::check_predicate_version` refuses the mirror image -- a section with no
+            // version -- for the same reason.
+            predicate_version: self
+                .causality
+                .as_ref()
+                .map(|_| evidence::PREDICATE_TYPE.to_string()),
             binding: evidence::Binding {
                 receipt_id: digest.clone(),
                 phase: evidence::Phase::Atomic,
@@ -1356,11 +1403,18 @@ impl Report {
             outcome: Some(evidence::Outcome {
                 status: "success".to_string(),
                 outcome_digest: digest.clone(),
-                // A report performs nothing. An empty effects list is the honest value.
-                effects: Vec::new(),
+                // A report performs nothing, so these are the effects STAGED, not performed --
+                // named by the handles that stand for things that do not exist yet. Derived from
+                // the same route the `causality` section carries, so the two lists cannot disagree.
+                effects: self
+                    .causality
+                    .as_ref()
+                    .map(|c| c.steps.iter().map(|s| s.handle.clone()).collect())
+                    .unwrap_or_default(),
                 error: None,
                 rollback_pointer: None,
             }),
+            causality: self.causality.clone(),
         };
 
         let evidence_receipt = issue_atomic_checked(predicate, key, key_id)?;

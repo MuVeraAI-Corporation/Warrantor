@@ -22,3 +22,10 @@ sha2 = "0.11"
 # intersection of its own. `hex 0.4` is the only crate it brings, and warrantor-warrant already
 # pins that version, so Cargo.lock gains no new package.
 warrantor-delegation-chain = { path = "../delegation-chain", version = "1.0.0" }
+
+[dev-dependencies]
+# Dev-only, and deliberately so. The F-02 gate is stated *per effect class*, and the class taxonomy
+# lives in authority-spec; importing it means the test iterates the real enum instead of a list of
+# strings that would silently go stale when a class is added. tools/ci/wiring_census.py counts only
+# the shipping dependency table, so this adds no shipping edge and does not move the census.
+warrantor-authority-spec = { path = "../authority-spec", version = "1.0.0" }

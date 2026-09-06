@@ -1,0 +1,20 @@
+{
+  "schema": "warrantor.notary.frozen-receipt-body/1",
+  "description": "The canonical form and SHA-256 digest of a minimal v1 notary receipt body, frozen as literals. Task 10.1 (L7-01) changed a signed structure -- warrantor_evidence::WarPredicate -- and deliberately changed nothing here; this file is what proves the second half of that sentence in both languages. A test that recomputes the canonical form from a struct proves nothing about a format change, because it recomputes it under the new rule and agrees with itself.",
+  "how_this_was_produced": "Derived twice, independently, before any production change: once by hand from the field values under the canonicalization rule (sorted keys, no whitespace, compact separators) using Python's json module, and once by the Rust crate. Both produced the 243 bytes below and the same digest. Two verifiers now pin it: rust/notary/tests/v1_receipt_fixture.rs and python/warrantor_notary/tests/test_notary.py.",
+  "body": {
+    "verdict": {
+      "outcome": "allow",
+      "effective_capabilities": ["github.create_pr"]
+    },
+    "actor_svid": "spiffe://yourcorp/agents/bot-1",
+    "operation_class": "report",
+    "timestamp": 1786000000,
+    "enforcement_mode": "observed",
+    "notary_version": "warrantor-notary/1.0"
+  },
+  "canonical": "{\"actor_svid\":\"spiffe://yourcorp/agents/bot-1\",\"enforcement_mode\":\"observed\",\"notary_version\":\"warrantor-notary/1.0\",\"operation_class\":\"report\",\"timestamp\":1786000000,\"verdict\":{\"effective_capabilities\":[\"github.create_pr\"],\"outcome\":\"allow\"}}",
+  "canonical_length_bytes": 243,
+  "digest_sha256": "6835a03a44df0556406780dd2fb1cc7b73ed58fde2f03da8073c74f3a22da466",
+  "what_this_does_not_establish": "Nothing about the nine sibling issue_receipt implementations in other crates. Each has its own body type and its own canonicalizer, and none of them is pinned by any fixture. It also says nothing about whether the signing KEY should be trusted -- only that the bytes a signature was taken over have not moved."
+}

@@ -1483,10 +1483,10 @@ corpus threw at it was refused.
 | **I-01** No active identity, no action | partial | `report.rs` builds its verdict context with `revoked_svids: Vec::new()`, so the Identity gate asks whether an SVID appears in an empty set. The local subject is the compile-time constant `DEFAULT_CLI_SUBJECT`, which nothing issued and nothing can revoke. `invariant-corpus:I-01` | Tier 3 | Task 1.1, Task 3.1 |
 | **I-02** No authority expansion | enforced | No finding. The corpus records one structural note: `notary` and `evidence` implement the intersection separately and nothing cross-checks them, so a future divergence would produce a receipt verifying a decision nobody made. A standing guard test now compares them. | — | Task 1.5 dedupes |
 | **I-03** Purpose-bound data use | unimplemented | No implementation exists. No purpose tag on any request, no data class on any bound, no provenance label on any receipt. Three of the ten kill-chain hops land here, which makes it the largest single gap the corpus measures. `invariant-corpus:I-03` | Tier 3 | **No task in the 2026-09-02 plan.** Plane 5 is recorded there as filled by adopted work; no adoption has happened. |
-| **I-04** No consequential action without current policy | partial | The product reaches the notary once per action, so policy is never re-evaluated at commit — the clause that distinguishes I-04 from an ordinary policy check. `issue_post_commit` copies the pre-commit decision block verbatim, so a commit-time evaluation would be unprovable even if one happened. `invariant-corpus:I-04` | Tier 3 | Task 2.3 |
+| **I-04** No consequential action without current policy | partial | The product reaches the notary once per action, so policy is never re-evaluated at commit — the clause that distinguishes I-04 from an ordinary policy check. `issue_post_commit` copies the pre-commit decision block verbatim, so a commit-time evaluation would be unprovable even if one happened. Task 10.1 landed the causal verdict on 2026-09-06 and **this invariant did not move**: a verdict over a recorded route creates no second evaluation point, so both of `i04_current_policy.rs`'s `#[ignore]`s stay ignored and stay Task 2.3's. `invariant-corpus:I-04` | Tier 3 | Task 2.3 |
 | **I-05** Revocation latency is bounded | partial | `warrant` reuses `credential-vault`'s `fsync`'d revocation journal FORMAT; the 1-second credential budget is still compared only inside `Vault::revoke` / `Vault::revoke_all`, which no shipped path calls — nothing in `rust/warrant/src` constructs a `Vault`, and `RevocationStore::revoke` times nothing and refuses nothing on duration. So the credential budget remains unreachable from the product; what the dependency edge bought is the journal format, not the budget. The identity half has a source (`warrantor revoke`, an append-only per-store journal) and a measured 5-second bound at one enforcement point. The refusal is Tier B, a chokepoint in `notary::verdict`; propagation is Tier C, observed, and reaches no second process: no fan-out, no replica set, and `egress::decide` does not consult the set. The revoked set is per store root, not per machine: another `--root` on the same machine reads a different journal. The journal records when a subject was revoked, never who revoked it. `invariant-corpus:I-05` | Tier 2 | Task 9.1 wired the identity half; Task 3.1 for an issued subject, Task 7.7 for the egress point, Task 9.5 for cross-machine, and the credential budget still needs a shipped caller |
 | **I-06** Artifact identity is exact | partial | The Artifacts gate is correct and the product hands it an empty artifact list and an empty resolved set, so it passes unconditionally on every action. Nothing in the shipped binary identifies a tool, skill or model by digest at the moment of use. `invariant-corpus:I-06` | Tier 3 | Task 2.2, Task 2.4 |
-| **I-07** Evidence precedes commitment | partial (was orphaned; **issuance earned 2026-09-05**) | The finding was that nothing in `rust/warrant/src` ever called `issue_pre_commit`. Task 1.1 closed that half: `settle::EvidencedPerformer` issues a pre-commit, makes it durable, and refuses to call the inner performer when it cannot, on both the CLI and the HTTP settle path. What keeps it **partial** rather than enforced is that the guarantee is held by a WRAPPER — `settle()` still accepts a bare `EffectPerformer`, so the wrap is conventional rather than unavoidable — and that `issue_post_commit` copies the pre-commit decision block, so no commit-time re-evaluation is provable. `invariant-corpus:I-07` (no longer ignored) | Tier 3 | Task 2.3 for the commit point; making the wrap unavoidable is unowned |
+| **I-07** Evidence precedes commitment | partial (was orphaned; **issuance earned 2026-09-05**) | The finding was that nothing in `rust/warrant/src` ever called `issue_pre_commit`. Task 1.1 closed that half: `settle::EvidencedPerformer` issues a pre-commit, makes it durable, and refuses to call the inner performer when it cannot, on both the CLI and the HTTP settle path. What keeps it **partial** rather than enforced is that the guarantee is held by a WRAPPER — `settle()` still accepts a bare `EffectPerformer`, so the wrap is conventional rather than unavoidable — and that `issue_post_commit` copies the pre-commit decision block, so no commit-time re-evaluation is provable. Task 10.1 landed the causal verdict on 2026-09-06 and **this invariant did not move** either: 10.1 never calls `issue_pre_commit`, so `i07`'s remaining `#[ignore]` is untouched. `invariant-corpus:I-07` (no longer ignored) | Tier 3 | Task 2.3 for the commit point; making the wrap unavoidable is unowned |
 | **I-08** Critical actions require non-delegable human authority | partial | `authority_spec::validate` tests only that `approvals` is non-empty; a list holding one empty string satisfies it. Nothing anywhere binds an approval to a human — `notary::Approval` is two booleans the requester supplies, so an agent that builds the request builds its own approval. | Tier 2 | Task 3.3, Task 4.1 |
 | **I-09** Failure is safe | orphaned | The absent-means-none reading holds on three surfaces and is now locked by tests. The preflight that refuses to start an agent against an unmeasured boundary lives in `eval-guard`, which the product does not link. `invariant-corpus:I-09` | Tier 3 | **No task links `eval-guard`** |
 | **I-10** Replay is detectable | partial | `seen_nonces` is hardcoded empty in `report.rs`, so every call is the first call and no replay is detectable on the product's own path. The timestamp window still bites; a replay inside the window does not, and the window is the interval an attacker works in. `invariant-corpus:I-10` | Tier 3 | Task 1.1, Task 3.4 |
@@ -1579,3 +1579,47 @@ from that number.
 test: it is a demonstrated forgery against the verifier a third party runs. The ratchet already fails
 the build on any corpus failure; what this subsection adds is that the reproducing chain belongs in
 `docs/task-evidence/`, not only in a CI log.
+
+### 5.4 The causal verdict (Task 10.1, L7-01) — **Tier C, observed**, and why not one word stronger
+
+`evidence::causal_verdict` answers a question a receipt could not previously ask: was the **pathway**
+to an outcome the authorized one? "Right result, wrong route" is now a violation, named by hop index,
+handle and tool. The route itself is inside the signed predicate (`WarPredicate.causality`), pinned
+to the staged log's own hash-chain head, and `predicate_version` says which rule reads it.
+
+**The tier is C, observed, and the reason is structural rather than modest.** `BoundStrength` reserves
+`Enforced` for cryptography and the operating system and `Mediated` for the proxy chokepoint. The
+causal verdict is neither: it refuses **at settle time, over a record**. Nothing refuses an effect at
+the moment the agent attempts it, because staged effects are queued rather than executed, and an
+effect that never entered the queue never enters the record. That containment is real; it is not
+enforcement. `bound_strengths()` is deliberately **not** edited by this task — the causal verdict is
+not a warrant bound, and adding a row would put a Tier C claim into a table whose readers scan for
+`Enforced`.
+
+| What holds | Tier | The line that holds it | What escapes |
+|---|---|---|---|
+| The recorded route cannot be rewritten after signing without detection | **Tier A — cryptographic** | `evidence::canonical_predicate` puts `causality.steps` (a `Vec`, index order signed) into the DSSE PAE; `verify_receipt` refuses an edit | Anyone holding the issuer key can re-sign a different route. Only the *route checks* survive that, not the signature |
+| An ungranted hop is refused by index, under a signed key or not | **Tier C — observed** | `evidence::causal_verdict`, `CausalRefusal::UnauthorizedHop`, recomputed from `authority.effective_capabilities` and never from a self-declared flag | Nothing refuses the hop when it happens. The verdict is over a record read afterwards |
+| A dependent hop preceding its dependency is refused by index | **Tier C — observed** | `CausalRefusal::OrderBroken`, over the ordering relation among handles | Same: the order is judged, not enforced |
+| The route describes the staged log the reader is holding | **Tier C — observed** | `causal_verdict_pinned` against `StagingQueue::head_digest`; the head is an input, never a file read | A reader who never calls it learns nothing. The staged log and the issuer key sit on one disk |
+| A v1 receipt yields a named refusal rather than a pass | **Tier C — observed** | `CausalRefusal::Unrepresentable`, and `Uninterpretable` for a section with a version this build cannot read | Nothing retro-fits a route onto a historical receipt, by design |
+| A newer format is refused as a version, not as a forgery | **Tier C — observed** | `evidence::check_predicate_version` before the signature check; `#[serde(deny_unknown_fields)]` on `WarPredicate` and `notary::ReceiptBody` | Older *deployed* builds have neither, so they still mis-report a v2 receipt as `InvalidSignature` |
+
+**Not established, and named so nobody has to infer it.** The recorded route is not proof of the route
+the agent took: effects reach the record by being staged, and nothing intercepts the agent at each
+hop. Ordering is this machine's observation of its own queue — two Warrantor installations produce two
+independent orders and nothing reconciles them. The product's `verify_export` does **not** run the
+causal verdict, and that is deliberate: verification is about integrity, so a report recording a
+denial has to keep verifying, or a denial could be made to look like tampering. A reader who wants the
+causal verdict computes it from the receipt.
+
+**Neither I-04 nor I-07 moved.** Both rows above say so. `tools/ci/invariant-ratchet.json` keeps
+`passing_floor: 82` and `ignored_ceiling: 15`, and all three candidate `#[ignore]`s
+(`i07_evidence_precedes_commitment.rs`'s one, and both of `i04_current_policy.rs`'s) stay ignored.
+Task 10.1 adds no evaluation point and never calls `issue_pre_commit`. The full assessment is in
+`docs/task-evidence/task-10.1.md`.
+
+**One open finding handed forward.** There are now three independent canonical-JSON implementations in
+this workspace — `rust/notary/src/lib.rs`, `rust/evidence/src/lib.rs` and
+`rust/post-quantum/src/lib.rs` — against spec 11 §1's rule that no security invariant may have two
+authoritative implementations. Task 10.1 added no fourth and consolidated none of the three.

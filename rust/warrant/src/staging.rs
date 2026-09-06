@@ -47,6 +47,8 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+use warrantor_evidence as evidence;
+
 use crate::WarrantError;
 
 /// Digest that precedes the first entry in a queue.
@@ -509,5 +511,54 @@ impl StagingQueue {
             }
         }
         Ok(ordered)
+    }
+
+    /// The staged-effect DAG as a signable route: [`Self::release_order`] rendered as
+    /// [`warrantor_evidence::CausalStep`]s.
+    ///
+    /// # Why the release order and not the staging order
+    ///
+    /// They differ whenever an agent stages out of dependency sequence, and the release order is
+    /// the one `settle` actually executes ([`crate::settle`]). A causal verdict computed over the
+    /// staging order would be a verdict about an order that never runs.
+    ///
+    /// The `index` here is the hop's position in the release order, from 1 -- **not**
+    /// [`StagedEffect::index`], which is its position in the queue. `causal_verdict` gates the
+    /// index against its position, so the two have to be the same number, and the number that
+    /// matters for a route is where the hop sits in the order that ran.
+    ///
+    /// # Errors
+    /// Whatever [`Self::release_order`] returns: [`WarrantError::Invalid`] for a dependency cycle.
+    pub fn causal_trace(&self) -> Result<Vec<evidence::CausalStep>, WarrantError> {
+        Ok(self
+            .release_order()?
+            .into_iter()
+            .enumerate()
+            .map(|(position, effect)| evidence::CausalStep {
+                index: position as u64 + 1,
+                handle: effect.handle.clone(),
+                tool: effect.tool.clone(),
+                // A BTreeSet iterates sorted, so the Vec inside the signature is deterministic and
+                // a verifier recomputes the same bytes.
+                depends_on: effect.depends_on.iter().cloned().collect(),
+            })
+            .collect())
+    }
+
+    /// The whole causal section, pinned to this log's chain head.
+    ///
+    /// `queue_head` is [`Self::head_digest`] rather than a re-listing of the log, so a receipt
+    /// carrying this section is bound to the hash-chained file: a log rewritten afterwards no
+    /// longer hashes to the head inside the signature.
+    ///
+    /// # Errors
+    /// Whatever [`Self::causal_trace`] returns.
+    pub fn causality(&self) -> Result<evidence::Causality, WarrantError> {
+        let steps = self.causal_trace()?;
+        Ok(evidence::Causality {
+            queue_head: self.head.clone(),
+            step_count: steps.len() as u64,
+            steps,
+        })
     }
 }

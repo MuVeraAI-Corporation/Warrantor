@@ -173,9 +173,166 @@ pub struct Outcome {
     pub rollback_pointer: Option<String>,
 }
 
+// ---------------------------------------------------------------------------
+// The causal section (L7-01) — the route, inside the signed bytes
+// ---------------------------------------------------------------------------
+
+/// One hop of the recorded route: which effect, performed by which tool, depending on which
+/// earlier hops.
+///
+/// # There is deliberately no `authorized` flag here
+///
+/// A field saying whether the hop was permitted would be a field an attacker who can sign sets to
+/// `true`. [`causal_verdict`] therefore recomputes authorization from
+/// `authority.effective_capabilities`, which is itself recomputed from the delegation chain by
+/// [`verify_authority`] (I-02). The record carries the facts; the verdict carries the judgment.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct CausalStep {
+    /// Position in the release order, from 1. Gated against its own position by
+    /// [`causal_verdict`], because every refusal in this module names a hop by this number.
+    pub index: u64,
+    /// The typed handle this hop mints, e.g. `pr://staged/wrt_7f3a/1`.
+    pub handle: String,
+    /// The tool that performs it. Compared against the recomputed capability intersection.
+    pub tool: String,
+    /// Handles this hop depends on. A `Vec` rather than a set because the signed bytes are an
+    /// array whose order is part of the signature; it is populated from a `BTreeSet`, so it is
+    /// sorted and a verifier recomputes it byte-for-byte.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub depends_on: Vec<String>,
+}
+
+/// The recorded route: the staged-effect DAG in release order, pinned to the log it came from.
+///
+/// `queue_head` is the staged log's hash-chain head, not a re-listing of the log. That is what
+/// makes the section checkable against the file rather than merely internally consistent: a log
+/// rewritten after this receipt was signed no longer hashes to the head inside the signature.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct Causality {
+    /// Head of the staged-effect log's hash chain at the moment the route was read.
+    pub queue_head: String,
+    /// How many hops the route holds. Gated against `steps.len()` by [`causal_verdict`]: a count
+    /// beside a list it disagrees with is the defect this repository keeps catching in prose.
+    pub step_count: u64,
+    /// The hops, in release order — dependencies before dependents.
+    pub steps: Vec<CausalStep>,
+}
+
+/// Why a causal verdict refused. Every variant names an index or a version, because "the chain is
+/// bad" is not an auditable refusal.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum CausalRefusal {
+    /// A hop used a tool the recomputed capability intersection does not contain. This is the
+    /// "right result, wrong route" case: the outcome may be permitted and this hop is not.
+    #[error(
+        "hop {index} ({handle}) used tool {tool:?}, which the recomputed capability intersection \
+         does not contain. The outcome may be permitted; this route is not."
+    )]
+    UnauthorizedHop {
+        /// The hop's own recorded index.
+        index: u64,
+        /// The handle it minted.
+        handle: String,
+        /// The tool it used.
+        tool: String,
+    },
+    /// A hop depends on a handle that no earlier hop in the recorded order minted, so the route
+    /// is not a coherent order: the dependent runs before the thing it depends on exists.
+    #[error(
+        "hop {index} depends on {missing}, which no earlier hop in this order minted. Dependencies \
+         must precede dependents, so this is not a coherent release order."
+    )]
+    OrderBroken {
+        /// The dependent hop's own recorded index.
+        index: u64,
+        /// The handle it depends on and nothing earlier produced.
+        missing: String,
+    },
+    /// A hop's recorded index is not its position in the order. Refused because every other
+    /// refusal here names a hop by that number.
+    #[error(
+        "the hop at position {position} records index {declared}. The index is what every causal \
+         refusal names, so a label that is not its position makes those refusals unreadable."
+    )]
+    IndexBroken {
+        /// Position in `steps`, from 1.
+        position: u64,
+        /// The index the step recorded for itself.
+        declared: u64,
+    },
+    /// `step_count` disagrees with the list it counts.
+    #[error("the causality section declares {declared} hop(s) and carries {actual}")]
+    CountMismatch {
+        /// What the section says.
+        declared: u64,
+        /// What it holds.
+        actual: u64,
+    },
+    /// The recorded staged-log head is not the head the reader observed, so this section describes
+    /// a different state of that log than the one in front of the reader.
+    #[error(
+        "the causality section records staged-log head {recorded} and the log observed now is at \
+         {observed}. This route describes a different state of that log."
+    )]
+    QueueHeadMismatch {
+        /// The head inside the signature.
+        recorded: String,
+        /// The head the caller observed.
+        observed: String,
+    },
+    /// There is no route in this receipt to compute a verdict over. **Not a pass.** A v1 receipt
+    /// carries no causality section at all, and a verdict over it can only say so.
+    #[error(
+        "this receipt (predicate_version {predicate_version}) carries no causality section, so \
+         there is no recorded route to compute a verdict over. Nothing about the pathway was \
+         checked."
+    )]
+    Unrepresentable {
+        /// The version the predicate declared, or `absent` when it declared none.
+        predicate_version: String,
+    },
+    /// There **is** a route in this receipt and this build has no rule for reading it. Kept
+    /// separate from [`CausalRefusal::Unrepresentable`] so neither message is ever said about the
+    /// wrong record: "carries no causality section" must not be rendered for a predicate that
+    /// carries one.
+    #[error(
+        "this receipt carries a causality section under predicate_version {predicate_version}, \
+         which this build has no rule for reading. The route was not checked."
+    )]
+    Uninterpretable {
+        /// The version the predicate declared, or `absent` when it declared none.
+        predicate_version: String,
+    },
+}
+
 /// The WAR predicate (spec 01 §3). This is what gets canonicalized + signed.
+///
+/// # Two fields, two canonical rules, one verifier
+///
+/// `predicate_version` and `causality` were added by Task 10.1 (L7-01). Both are `Option` with
+/// `skip_serializing_if`, which is not a style choice: [`canonical_predicate`] is what every
+/// archived signature was taken over, so a field that serialized as `null` or as an empty string
+/// when unset would change those bytes and turn every receipt ever signed into an apparent
+/// forgery. An absent field means v1, and an absent field must stay absent —
+/// `rust/evidence/tests/v1_predicates_still_verify.rs` is what holds that line.
+///
+/// `deny_unknown_fields` closes the other half. Serde's default is to drop a key it does not know,
+/// so a newer predicate handed to an older verifier would deserialize, lose the field,
+/// re-canonicalize without it, and fail as [`EvidenceError::InvalidSignature`] — a version mismatch
+/// reported to a third-party auditor as a forgery.
+///
+/// Note that the *struct* field order below is not the canonical key order: `canonicalize_value`
+/// sorts keys, so `predicate_version` lands between `operation` and `outcome` in the signed bytes
+/// no matter where it is declared here.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct WarPredicate {
+    /// Which rule reads this predicate. Absent means v1 (no causal section). [`PREDICATE_TYPE`]
+    /// means v2, and then `causality` is the section this build knows how to read.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub predicate_version: Option<String>,
     pub binding: Binding,
     pub actor: Actor,
     pub authority: Authority,
@@ -184,6 +341,11 @@ pub struct WarPredicate {
     /// None for pre_commit (the outcome is not yet known); Some for post_commit + atomic.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub outcome: Option<Outcome>,
+    /// The recorded route. `Option` rather than a defaulted empty struct because "no queue was
+    /// read" and "a queue was read and it was empty" are different claims, and only the first is
+    /// [`CausalRefusal::Unrepresentable`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub causality: Option<Causality>,
 }
 
 // ---------------------------------------------------------------------------
@@ -233,6 +395,25 @@ pub enum EvidenceError {
     /// The time-free [`verify_receipt`] and [`verify_chain`] never do, and say so.
     #[error("receipt expired (expires_at={0})")]
     Expired(u64),
+    /// The predicate declares a `predicate_version` this build has no rule for.
+    ///
+    /// Constructed **before** the signature is checked, on purpose. Without it a v3 predicate
+    /// handed to this build would be reported as [`EvidenceError::InvalidSignature`] — telling a
+    /// third-party auditor that a genuine newer receipt is a forgery.
+    #[error(
+        "unrecognized predicate_version {0:?}; this build reads an absent field as v1 and \
+         \"https://warrantor.dev/ActionReceipt/v2\" as v2, and refuses anything else here rather \
+         than reporting it as a bad signature"
+    )]
+    UnknownVersion(String),
+    /// The predicate carries a `causality` section but declares no version, so nothing says which
+    /// rule reads that section. Refused rather than read under the v1 rule, which has no rule for
+    /// it at all.
+    #[error(
+        "the predicate carries a causality section and declares no predicate_version; nothing says \
+         how to read that section, so it is refused rather than interpreted"
+    )]
+    UnversionedCausality,
 }
 
 // ---------------------------------------------------------------------------
@@ -470,12 +651,35 @@ pub fn issue_atomic(predicate: WarPredicate, key: &SigningKey, key_id: &str) -> 
 // Verification — the third-party path (spec 01 §4, §9)
 // ---------------------------------------------------------------------------
 
+/// Which canonical rule reads this predicate — checked **before** any signature, so a version this
+/// build does not know is reported as a version and never as a forgery.
+///
+/// Two rules, one verifier, selected by a field the reader can see: an absent `predicate_version`
+/// is v1 (no causal section), and [`PREDICATE_TYPE`] is v2.
+///
+/// # Errors
+/// [`EvidenceError::UnknownVersion`] naming a version this build has no rule for;
+/// [`EvidenceError::UnversionedCausality`] for a causal section with no version to read it under.
+pub fn check_predicate_version(predicate: &WarPredicate) -> Result<(), EvidenceError> {
+    match predicate.predicate_version.as_deref() {
+        None if predicate.causality.is_some() => Err(EvidenceError::UnversionedCausality),
+        None => Ok(()),
+        Some(version) if version == PREDICATE_TYPE => Ok(()),
+        Some(other) => Err(EvidenceError::UnknownVersion(other.to_string())),
+    }
+}
+
 /// Verify a single receipt's Ed25519 signature over the DSSE PAE of the canonical predicate.
+///
+/// The version is read first ([`check_predicate_version`]), then the signature. Ordering matters:
+/// a receipt from a newer format must be refused as "I do not know this version", never as "this
+/// is forged".
 ///
 /// **This does not check `expires_at`** and never will: it answers "was this signed by that key,
 /// and has it changed since?", which has the same answer forever. Use [`verify_receipt_at`] before
 /// relying on a receipt as *current* authority.
 pub fn verify_receipt(receipt: &WarReceipt) -> Result<(), EvidenceError> {
+    check_predicate_version(&receipt.predicate)?;
     let sig = &receipt.signature;
     if sig.algorithm != "Ed25519" {
         return Err(EvidenceError::SignatureEnvelope(format!(
@@ -648,6 +852,144 @@ pub fn verify_authority(authority: &Authority) -> Result<(), EvidenceError> {
     Ok(())
 }
 
+// ---------------------------------------------------------------------------
+// The causal verdict (L7-01, proof gate F-02)
+// ---------------------------------------------------------------------------
+
+/// The causal verdict: was the recorded route the authorized one?
+///
+/// A receipt records that an outcome was allowed. This asks the different question — whether the
+/// **pathway** to it was one the warrant permitted, in an order that could actually have run. "Right
+/// result, wrong route" is a violation: a three-hop chain whose middle hop uses a tool the warrant
+/// never granted refuses here even when the final outcome is permitted, which the notary's single
+/// question over a *set union* of staged tools cannot see.
+///
+/// # This is a separate verdict, never folded into `decision.verdict`
+///
+/// `decision.verdict` stays exactly what the notary decided. A single field could not carry both
+/// without losing **which one refused**, and which one refused is the whole value here: a denial by
+/// policy and a violation of the route call for opposite responses. So a `Deny` outcome over a clean
+/// route returns `Ok` from this function, and an `Allow` outcome over a broken route returns `Err`.
+///
+/// # What it is computed from
+///
+/// Only the signed predicate: `authority.effective_capabilities` (itself recomputable from the
+/// chain by [`verify_authority`]) and the ordering relation among `causality.steps`. Nothing is
+/// taken on the record's word — there is no `authorized` flag for a re-signer to flip.
+///
+/// # What it does not establish
+///
+/// That the recorded route is the route the agent took. Effects reach this section by being
+/// *staged*; a route that never passed through the staging queue is invisible here. See the
+/// `limitations()` sentence in `rust/warrant/src/report.rs` and Tier C in
+/// `docs/task-evidence/task-10.1.md`.
+///
+/// # Errors
+/// The [`CausalRefusal`] naming the first violation found: an unreadable or absent section as
+/// [`CausalRefusal::Unrepresentable`], then the count, then per hop in order the dependency
+/// relation and the tool, then the index labels.
+pub fn causal_verdict(predicate: &WarPredicate) -> Result<(), CausalRefusal> {
+    let causality = readable_causality(predicate)?;
+
+    let actual = causality.steps.len() as u64;
+    if causality.step_count != actual {
+        return Err(CausalRefusal::CountMismatch {
+            declared: causality.step_count,
+            actual,
+        });
+    }
+
+    // The dependency relation is over handles, so it is decidable whatever the index labels say.
+    // It is therefore checked before the labels: a reordered chain is refused for being
+    // incoherent, which is the substantive finding, rather than for being mislabeled.
+    let granted: std::collections::BTreeSet<&str> = predicate
+        .authority
+        .effective_capabilities
+        .iter()
+        .map(String::as_str)
+        .collect();
+    let mut minted: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
+    for step in &causality.steps {
+        for dependency in &step.depends_on {
+            if !minted.contains(dependency.as_str()) {
+                return Err(CausalRefusal::OrderBroken {
+                    index: step.index,
+                    missing: dependency.clone(),
+                });
+            }
+        }
+        if !granted.contains(step.tool.as_str()) {
+            return Err(CausalRefusal::UnauthorizedHop {
+                index: step.index,
+                handle: step.handle.clone(),
+                tool: step.tool.clone(),
+            });
+        }
+        minted.insert(step.handle.as_str());
+    }
+
+    for (position, step) in causality.steps.iter().enumerate() {
+        let position = position as u64 + 1;
+        if step.index != position {
+            return Err(CausalRefusal::IndexBroken {
+                position,
+                declared: step.index,
+            });
+        }
+    }
+
+    Ok(())
+}
+
+/// [`causal_verdict`], plus the check that the section describes the staged log the caller is
+/// actually holding.
+///
+/// The head is passed in rather than read, for the same reason `now` is passed to
+/// [`verify_receipt_at`]: this crate reads no files and holds no clock. The caller that owns the
+/// staged log (`warrantor_warrant::staging::StagingQueue::head_digest`) supplies it.
+///
+/// The head is compared **first**, because a mismatched head means the route describes a different
+/// state of that log — and judging a route against the wrong log would produce a confident verdict
+/// about the wrong thing.
+///
+/// # Errors
+/// [`CausalRefusal::QueueHeadMismatch`], or whatever [`causal_verdict`] returns.
+pub fn causal_verdict_pinned(
+    predicate: &WarPredicate,
+    observed_queue_head: &str,
+) -> Result<(), CausalRefusal> {
+    let causality = readable_causality(predicate)?;
+    if causality.queue_head != observed_queue_head {
+        return Err(CausalRefusal::QueueHeadMismatch {
+            recorded: causality.queue_head.clone(),
+            observed: observed_queue_head.to_string(),
+        });
+    }
+    causal_verdict(predicate)
+}
+
+/// The causal section, or the named refusal that says why there is none to read.
+///
+/// A version this build has no rule for is [`CausalRefusal::Unrepresentable`] rather than a pass:
+/// the section might be there, and this build still cannot say what it means.
+fn readable_causality(predicate: &WarPredicate) -> Result<&Causality, CausalRefusal> {
+    let declared = predicate.predicate_version.as_deref().unwrap_or("absent");
+    // Absence of the section is checked FIRST so the rendered sentence is true of the record it
+    // describes: "carries no causality section" must not be said about a predicate that carries
+    // one, whatever its version says. The two refusals are separate for exactly that reason.
+    let Some(causality) = predicate.causality.as_ref() else {
+        return Err(CausalRefusal::Unrepresentable {
+            predicate_version: declared.to_string(),
+        });
+    };
+    if declared != PREDICATE_TYPE {
+        return Err(CausalRefusal::Uninterpretable {
+            predicate_version: declared.to_string(),
+        });
+    }
+    Ok(causality)
+}
+
 /// Reject an advisory receipt that claims non-bypassability (spec 01 §6). A `non_bypassability_claim`
 /// field on the predicate (if present and true) under advisory mode is an escalation.
 pub fn check_mode_honesty(
@@ -737,6 +1079,8 @@ mod tests {
 
     fn sample_predicate(phase: Phase, outcome: Option<Outcome>) -> WarPredicate {
         WarPredicate {
+            predicate_version: None,
+            causality: None,
             binding: Binding {
                 receipt_id: "rcpt-001".to_string(),
                 phase,

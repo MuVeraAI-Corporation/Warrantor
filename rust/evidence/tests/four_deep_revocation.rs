@@ -60,6 +60,8 @@ fn four_deep() -> WarrantStore {
 
 fn predicate_with(authority: Authority) -> WarPredicate {
     WarPredicate {
+        predicate_version: None,
+        causality: None,
         binding: Binding {
             receipt_id: "rcpt-four-deep-001".to_string(),
             phase: Phase::PreCommit,

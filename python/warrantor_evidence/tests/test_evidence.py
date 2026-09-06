@@ -178,7 +178,7 @@ def test_verify_receipt_rejects_bad_algorithm():
 )
 def test_interop_rust_chain_verifies():
     bundle = json.loads(BUNDLE_PATH.read_text(encoding="utf-8"))
-    assert bundle["schema"] == "warrantor.evidence.interop.v1"
+    assert bundle["schema"] == "warrantor.evidence.interop.v2"
     we.verify_chain(bundle["pre_commit"], bundle["post_commit"])  # must not raise
 
 
@@ -202,3 +202,87 @@ def test_interop_authority_spot_check():
     assert recomputed == claimed, (
         f"intersection mismatch: recomputed={recomputed} claimed={claimed}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Task 10.1 — the predicate version, and cross-language parity on refusing one
+# ---------------------------------------------------------------------------
+
+
+def test_predicate_type_is_the_same_string_rust_declares():
+    """One constant, two languages. Read from the Rust source rather than retyped."""
+    rust = (REPO_ROOT / "rust" / "evidence" / "src" / "lib.rs").read_text(encoding="utf-8")
+    expected = f'pub const PREDICATE_TYPE: &str = "{we.PREDICATE_TYPE}";'
+    assert expected in rust, (
+        f"rust/evidence/src/lib.rs must declare {expected!r}. Two verifiers keyed on two different "
+        "version strings would disagree about which rule to apply."
+    )
+
+
+def test_an_absent_version_is_v1_and_still_verifies_shape():
+    """The paired control: a v1 predicate passes the version gate. Without this the gate could
+    refuse everything and still look correct."""
+    we.check_predicate_version(_fake_receipt()["predicate"])  # must not raise
+
+
+def test_an_unknown_version_is_refused_with_the_same_code_rust_returns():
+    predicate = _fake_receipt()["predicate"]
+    predicate["predicate_version"] = "https://warrantor.dev/ActionReceipt/v9"
+    with pytest.raises(we.EvidenceError) as exc:
+        we.check_predicate_version(predicate)
+    assert exc.value.code == "UNKNOWN_VERSION"
+    assert "v9" in str(exc.value)
+
+
+def test_the_recognized_version_passes_the_version_gate():
+    predicate = _fake_receipt()["predicate"]
+    predicate["predicate_version"] = we.PREDICATE_TYPE
+    we.check_predicate_version(predicate)  # must not raise
+
+
+def test_a_causal_section_with_no_version_is_refused():
+    """The mirror image, and the one a dict-generic canonicalizer would otherwise wave through."""
+    predicate = _fake_receipt()["predicate"]
+    predicate["causality"] = {"queue_head": "00", "step_count": 0, "steps": []}
+    with pytest.raises(we.EvidenceError) as exc:
+        we.check_predicate_version(predicate)
+    assert exc.value.code == "UNVERSIONED_CAUSALITY"
+
+
+def test_verify_receipt_reports_the_version_not_the_signature():
+    """`_fake_receipt` carries a deliberately bogus signature, so a verifier that checked the
+    signature first would report INVALID_SIGNATURE about a receipt whose real problem is that this
+    build has no rule for its format."""
+    receipt = _fake_receipt()
+    receipt["predicate"]["predicate_version"] = "https://warrantor.dev/ActionReceipt/v9"
+    with pytest.raises(we.EvidenceError) as exc:
+        we.verify_receipt(receipt)
+    assert exc.value.code == "UNKNOWN_VERSION"
+
+
+@pytest.mark.skipif(not BUNDLE_PATH.exists(), reason="interop bundle not produced")
+def test_interop_a_v1_and_a_v2_receipt_both_verify_in_the_same_run():
+    """The compatibility claim across languages: adding two fields did not cost the old shape."""
+    bundle = json.loads(BUNDLE_PATH.read_text(encoding="utf-8"))
+    v1 = bundle["v1_atomic"]
+    v2 = bundle["v2_atomic"]
+    assert "predicate_version" not in v1["predicate"], (
+        "an absent field must stay absent on the wire, or every signature taken before Task 10.1 "
+        "stops verifying"
+    )
+    assert "causality" not in v1["predicate"]
+    assert v2["predicate"]["predicate_version"] == we.PREDICATE_TYPE
+    assert v2["predicate"]["causality"]["step_count"] == 1
+    we.verify_receipt(v1)
+    we.verify_receipt(v2)
+
+
+@pytest.mark.skipif(not BUNDLE_PATH.exists(), reason="interop bundle not produced")
+def test_interop_a_correctly_signed_unknown_version_is_refused_by_python_too():
+    """Rust refuses this receipt as UnknownVersion. Python must refuse the same bytes, and must not
+    accept them merely because its canonicalizer is dict-generic and the signature happens to be
+    valid."""
+    bundle = json.loads(BUNDLE_PATH.read_text(encoding="utf-8"))
+    with pytest.raises(we.EvidenceError) as exc:
+        we.verify_receipt(bundle["unknown_version"])
+    assert exc.value.code == "UNKNOWN_VERSION"

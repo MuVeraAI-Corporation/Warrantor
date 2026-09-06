@@ -189,6 +189,12 @@ impl EffectWitness {
         let claims = &self.warrant.claims;
         let (mode, _) = report_modes();
         evidence::WarPredicate {
+            // A per-effect receipt covers ONE hop, so it carries no route and stays v1. Handing it
+            // a one-element `causality` section would let `causal_verdict` return `Ok` over a
+            // record that holds no ordering at all -- a pass that means nothing. The causal section
+            // belongs on the report receipt, which reads the whole queue.
+            predicate_version: None,
+            causality: None,
             binding: evidence::Binding {
                 receipt_id: sha256_hex(
                     format!(
