@@ -484,10 +484,11 @@ impl ControlEndpoint {
         // No adapter is configured over MCP, so anything requiring a real external call reports
         // what is missing rather than silently doing nothing and calling it success.
         let mut performer = NoAdapter;
-        let mut recorder = match crate::staging::FileRecorder::open(self.store.staged_receipts_path(&id)) {
-            Ok(r) => r,
-            Err(e) => return ToolResult::error(format!("receipt log cannot be opened: {e}")),
-        };
+        let mut recorder =
+            match crate::staging::FileRecorder::open(self.store.staged_receipts_path(&id)) {
+                Ok(r) => r,
+                Err(e) => return ToolResult::error(format!("receipt log cannot be opened: {e}")),
+            };
         let now = (self.now)();
         let mut gate = crate::settle::CommitGate {
             recorder: &mut recorder,

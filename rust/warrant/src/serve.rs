@@ -3646,7 +3646,12 @@ impl Api for StoreApi {
             Ok(r) => r,
             Err(e) => return self.internal("open the receipt log", &e),
         };
-        let mut gate = CommitGate { recorder: &mut recorder, signer: &settle_key, key_id: "settle", now };
+        let mut gate = CommitGate {
+            recorder: &mut recorder,
+            signer: &settle_key,
+            key_id: "settle",
+            now,
+        };
         let report = match settle(
             &mut stored.warrant,
             &queue,

@@ -552,7 +552,10 @@ pub fn settle(
                  again once the record is resolved.",
                 effect.handle
             );
-            boundary = Some(format!("stopped at {} ({}): {reason}", effect.handle, effect.tool));
+            boundary = Some(format!(
+                "stopped at {} ({}): {reason}",
+                effect.handle, effect.tool
+            ));
             outcomes.push(EffectOutcome::Failed {
                 handle: effect.handle.clone(),
                 reason,
@@ -592,8 +595,12 @@ pub fn settle(
         // Phase two.
         match performer.perform(effect, &resolved) {
             Ok(real_id) => {
-                let post =
-                    evidence::issue_post_commit(&pre, performed_outcome(&real_id), gate.signer, gate.key_id);
+                let post = evidence::issue_post_commit(
+                    &pre,
+                    performed_outcome(&real_id),
+                    gate.signer,
+                    gate.key_id,
+                );
                 resolved.insert(effect.handle.clone(), real_id.clone());
                 outcomes.push(EffectOutcome::Released {
                     handle: effect.handle.clone(),
@@ -612,8 +619,12 @@ pub fn settle(
                 }
             }
             Err(reason) => {
-                let post =
-                    evidence::issue_post_commit(&pre, failed_outcome(&reason), gate.signer, gate.key_id);
+                let post = evidence::issue_post_commit(
+                    &pre,
+                    failed_outcome(&reason),
+                    gate.signer,
+                    gate.key_id,
+                );
                 // Best effort: the failure is already the boundary, and a recorder error here
                 // leaves an open pre-commit, which the next settle reports rather than repeats.
                 let _ = gate.recorder.record(&key, &post);
