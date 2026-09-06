@@ -756,3 +756,161 @@ EXITGATE_ARCHIVE=0
 Both archive suites show the required **7 passed, 2 ignored** and **6 passed, 0 failed**; the causal
 suite's refusals naming a hop by index and its accepted controls are the ones named under "The exit
 gate this task set for itself". The ledger may cite Task 10.1 as built.
+
+---
+
+## Review lane, 2026-09-06 (second pass) — on `main` @ `065961b`, re-measured on tip `71190e4`
+
+Phase 1 of the review lane, run again after `main` moved. Everything below was measured in
+`M:/wt-w6-10.1` with a target directory owned by this lane alone, `CARGO_TARGET_DIR=M:/wt-rv-10.1-target`,
+and `CARGO_BUILD_JOBS=2`. The disk guard ran before every cargo invocation (`--require 100` and
+`--require-commit 6`; every call `OK`, never below 246 GB free or 8.2 GB of commit charge). Every
+number in this section was measured on `71190e4`, the last code-or-prose commit before this one;
+this section's own commit adds only this text.
+
+**Rebase.** The tree was clean (`git status --porcelain` empty). The branch already sat on
+`065961b`: `git merge-base HEAD main` is `065961b`, and `git rebase main` answered
+`Current branch feat/causal-verdict-strict is up to date.` No conflict, so no census artifact,
+ratchet number or code hunk was chosen by hand and `wiring_census.py --write` was not needed. The
+previous section's post-rebase SHAs (`2576093` … `4b34c76`, on `92b6018`) were replayed onto
+`065961b` — seven commits later on `main` — before this lane started; the commits as they stand now:
+
+| commit | Steps | what |
+|---|---|---|
+| `d78c8b8` | 1–10 | the causal verdict, the frozen fixtures, the product wiring, the Python parity |
+| `1ac898c` | 11 | US spellings on the lines this branch added |
+| `4e4f214` | 11 | the fresh-worktree verification, verbatim |
+| `231bf06` | 9 | stop using the word Enforced for a verification-time refusal |
+| `71190e4` | 11 | the first review lane's rebased gate and word check |
+| (this section) | 11 | the second review lane: this gate |
+
+No fmt, clippy or test failure was caused by the rebase, so no fix commit was needed.
+
+**The word, checked against the code on this tip.** Commit `231bf06` changed one cell of the tier
+table above, from `Enforced (Tier A)` to *Tier A — cryptographic, deliberately NOT the word
+`Enforced`*. Checked against the tree rather than against the commit message:
+
+- `git diff main..HEAD -- rust/` adds no line that attaches `Enforced`, `Mediated` or a tier letter
+  to the causal verdict. The only added lines carrying those tokens are the pre-existing receipt
+  enum values `EnforcementMode::Advisory` / `EnforcementMode::Observed` on test fixtures, one doc
+  comment that points at "Tier C in" the gaps ledger, and the forbidden-phrase list of the rule-3
+  test `no_source_file_under_rust_claims_the_pathway_is_proven_or_enforced` — which passes on this
+  tip, so no `.rs` file under `rust/` says the pathway is proven, verified or enforced.
+- `rust/warrant/src/lib.rs` is not in the branch diff at all: `BoundStrength` and
+  `bound_strengths()` are byte-identical to `main`, so no signed table gained a row for this bound.
+- The one sentence a bundle carries, `limitations()` at `rust/warrant/src/report.rs:787–803`, is a
+  `format!` over `section.step_count` and `section.queue_head` — derived from the `Causality` record
+  it describes — and reads "makes the recorded pathway tamper-evident … It does **not** prove the
+  recorded route is the route the agent actually took". No tier word appears in it.
+- The phrase "Tier A — cryptographic" lives only in prose: the tier table above and
+  `docs/W1-delivery-gaps.md` §5.4, and both cells say what escapes (the issuer key re-signs a
+  different route; the refusal happens when a reader verifies, not when the edit is made).
+
+One reading recorded for the next reviewer rather than resolved here: the `Enforced` doc comment
+in `BoundStrength` (`rust/warrant/src/lib.rs:216–220`) says "held by cryptography or by the operating
+system: a signature it cannot forge", so the code's own vocabulary would tolerate `Enforced` for a
+signature check. The branch chose the stricter Task 0.4 reading — refusal *at the moment of
+attempt* — and a signature refuses at verification. That direction is an understatement, not an
+overstatement; the cell states what escapes; and no signed bundle carries the word either way.
+The word now used is consistent with the code, which never named a tier for this bound.
+
+### The full gate on this tip, exit codes captured before any pipe
+
+```
+$ git rev-parse --short HEAD ; git rev-parse --short main
+71190e4
+065961b
+
+$ cd rust && cargo fmt --all -- --check                                   exit 0
+$ cargo clippy --workspace --all-targets -- -D warnings                   exit 0   (0 error/warning lines)
+$ cargo test --workspace --all-targets                                    exit 0
+  123 "test result:" lines: 1587 passed, 0 failed, 20 ignored
+$ cargo test --workspace --doc                                            exit 0
+   40 "test result:" lines:    1 passed, 0 failed,  0 ignored
+  (163 suites in total, 1588 passed, 0 failed, 20 ignored — the same counts the previous
+   section measured on 4b34c76; the seven commits main gained in between added no test.)
+
+  This task's suites, from the workspace run:
+     append_only.rs                               7 passed; 0 failed; 2 ignored
+     verification_does_not_depend_on_the_archive  6 passed; 0 failed; 0 ignored
+     causal_verdict.rs                           19 passed; 0 failed; 0 ignored
+     v1_predicates_still_verify.rs                9 passed; 0 failed; 0 ignored
+     v1_receipt_fixture.rs                        5 passed; 0 failed; 0 ignored
+     causal_trace.rs                              7 passed; 0 failed; 0 ignored
+
+$ cd rust && python ../tools/ci/wiring_census.py                         exit 0
+wiring census: 13 of 41 crates reachable from warrantor-warrant over 22 path edges   UNCHANGED
+$ python tools/ci/check_invariant_ratchet.py --show-findings              exit 0
+invariant ratchet: ok (82 passing at floor 82, 15 recorded findings at ceiling 15)  UNCHANGED
+$ python tools/ci/check_invariants.py                                     exit 0
+invariant ledger: 12 invariants; enforced=2, orphaned=1, partial=8, unimplemented=1 UNCHANGED
+$ python tools/ci/check_docs.py                                           exit 0
+RESULT: PASS - 300 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
+$ python tools/ci/check_us_english.py main                                exit 0
+us-english: 2917 added line(s) across 18 file(s), since main; matcher = vendored verify-us-english.mjs
+us-english: ok
+$ python tools/ci/run_python_checks.py test                               exit 0
+[ok  ] warrantor_evidence (1322ms)
+[ok  ] warrantor_notary (1081ms)
+RESULT: PASS - 54/54 Python projects passed test
+$ PYTHONPATH=<both src dirs> python -c "import warrantor_evidence, warrantor_notary; print(__file__ of each)"
+M:/wt-w6-10.1/python/warrantor_evidence/src/warrantor_evidence/__init__.py
+M:/wt-w6-10.1/python/warrantor_notary/src/warrantor_notary/__init__.py
+$ PYTHONPATH=<both src dirs> python -m pytest python/warrantor_evidence/tests/test_evidence.py -q
+21 passed
+$ PYTHONPATH=<both src dirs> python -m pytest python/warrantor_notary/tests/test_notary.py -q
+15 passed
+```
+
+The orphan count did not rise: the census line is byte-identical to the one recorded before either
+rebase. The ratchet was re-run, not typed, and measured the same 82 and 15. The stale-artifact
+hazard the previous lane hit with a shared target directory did not recur: with a lane-private
+directory the ratchet's `cargo test -p warrantor-warrant --test invariants` compiled and ran on the
+first attempt.
+
+### Tier, restated for this tip
+
+The full table is under "Tier table — why each bound gets its word and not a stronger one" above and
+is unchanged on this tip. In one line each, with what escapes:
+
+| bound | word | what escapes it |
+|---|---|---|
+| the signed effect order | Tier A — cryptographic, not the word `Enforced` | the issuer key re-signs any route; a reader who never verifies detects nothing; the refusal is at verification, not at attempt |
+| every causal refusal (`UnauthorizedHop`, `OrderBroken`, `IndexBroken`, `CountMismatch`, the queue-head pin, `Unrepresentable`, `Uninterpretable`, the version gate) | Observed — Tier C | nothing refuses a hop when it happens; a route that never passed through the staging queue is invisible; the staged log, witness log and issuer key share one disk |
+
+Nothing on this branch is `Mediated` and nothing is `Enforced`.
+
+### What this lane does NOT establish
+
+Nothing beyond what "What this task does NOT establish" above already lists. This lane ran no live
+`warrantor grant/stage/settle` transcript; the gate and the exit-gate command are test runs over
+fixtures, and the tier of every bound is exactly as the table states.
+
+### Acceptance — RUN
+
+The plan's Task 10.1 has no paragraph headed "Acceptance"; its exit gate is the paragraph headed
+**Exit gate**, quoted verbatim in "The exit gate this task set for itself" above. The branch performs
+that run; the transcript below is that command on tip `71190e4` in this worktree (paths shown as
+cargo printed them, minus the target-directory prefix), and it is the last thing in this file because
+Step 11 asks for it to be.
+
+```
+$ cd rust && cargo test -p warrantor-evidence --test causal_verdict --test v1_predicates_still_verify
+     Running tests/causal_verdict.rs
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+     Running tests/v1_predicates_still_verify.rs
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+EXITGATE_EVIDENCE=0
+$ cargo test -p warrantor-archive --test append_only --test verification_does_not_depend_on_the_archive
+     Running tests/append_only.rs
+test result: ok. 7 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.13s
+     Running tests/verification_does_not_depend_on_the_archive.rs
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+EXITGATE_ARCHIVE=0
+```
+
+Both archive suites show the required **7 passed, 2 ignored** and **6 passed, 0 failed**. In the
+causal suite, `a_correct_outcome_reached_through_an_ungranted_middle_hop_is_a_violation` asserts
+`index == 2` and that the rendered refusal contains `hop 2` — a refusal naming a hop by index — and
+`the_identical_chain_with_every_hop_granted_passes` is the accepted well-formed control; both passed
+in this run. The ledger may cite Task 10.1 as built.
