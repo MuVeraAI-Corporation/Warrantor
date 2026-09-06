@@ -4645,6 +4645,21 @@ fn cmd_agents_list() -> ExitCode {
         }
         println!();
     }
+    // Computer use is not a harness in the registry above, and the coverage column cannot say
+    // what is true of it: the column answers "is the call refusable", and a screen action can be
+    // refusable by tool name while its EFFECT stays invisible. Task 7.6 (L4-18) put the answer
+    // to the second question in code so this surface can render it rather than paraphrase it.
+    println!("COMPUTER USE:");
+    println!(
+        "  {}
+",
+        warrantor_warrant::computer_use::UNMEDIATED_SENTENCE
+    );
+    println!("  Effects this model cannot see, so no warrant bounds them:");
+    for entry in warrantor_warrant::computer_use::ungoverned_remainder() {
+        println!("    - {}: {}", entry.action, entry.why);
+    }
+    println!();
     println!("  warrantor agents show <harness>");
     println!("  warrantor agents wire <harness> <warrant-id> [--repo .] [--apply]");
     ExitCode::SUCCESS

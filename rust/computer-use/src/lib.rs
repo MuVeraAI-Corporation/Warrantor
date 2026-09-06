@@ -1,14 +1,35 @@
-//! W8 Computer-use broker — the MCP gateway generalized to the GUI (spec gap-analysis §3A.3).
+//! W8 Computer-use broker — a decision function for GUI actions, wired to nothing.
 //!
-//! Every screen action (click, type, navigate, scrape) goes through an authority-scoped broker:
-//! - The action's URL must be within the AAE's allowed URL patterns.
-//! - The action's DOM selector must be within the AAE's allowed selectors.
-//! - A pre-commit receipt is signed with a hash of the screen state before the action.
-//! - Each action is independently kill-switchable.
-//! - "No internet" is enforced in the browser, not in the prompt.
+//! # Read this before reading the claims below it
 //!
-//! This is the defense the July 2026 frontier-lab escapes needed and did not have.
-
+//! This crate is an ORPHAN. It is one of the 28 entries in `evidence/wiring-coverage.json` that
+//! nothing in the shipping binary depends on: `warrantor-warrant` does not name it in any manifest,
+//! and no code path constructs a [`BrokerRequest`]. Its own 12 unit tests are the only callers in
+//! the repository: `cargo test -p warrantor-computer-use --all-targets` runs 12 and passes. The
+//! code works; nothing uses it.
+//!
+//! That matters for how the rest of this file must be read. [`decide`] is a real function that
+//! really refuses an action outside its [`ActionScope`], and [`issue_receipt`] really signs a
+//! receipt over a screen-state hash. What neither does is happen: no screen action in this product
+//! passes through them, because nothing calls them. Until something does, this crate constrains no
+//! agent.
+//!
+//! The header this replaced said "Every screen action (click, type, navigate, scrape) goes through
+//! an authority-scoped broker" and "'No internet' is enforced in the browser, not in the prompt".
+//! Both were false in the present tense, and the second was false in a stronger way: there is no
+//! browser in this repository. Nothing here launches, drives or configures one, so nothing here can
+//! enforce anything inside one. The sentences described a design rather than the code beneath them,
+//! which is the defect class this repository keeps a ledger for.
+//!
+//! # What it would bound if it were wired, and what it still would not
+//!
+//! A URL pattern check and a DOM selector check, at the moment an action is requested — a chokepoint
+//! bound, holding only for actions that arrive through this broker, and only against the two
+//! properties it inspects. It would NOT bound what the clicked element does: `#submit` is a name the
+//! page chose, and the effect behind it is the page's code, which this process never sees. The
+//! effect model's view of that gap, with the ungoverned actions listed as data, is
+//! `warrantor_warrant::computer_use` (Task 7.6, L4-18); read it beside this file.
+//!
 #![forbid(unsafe_code)]
 
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};

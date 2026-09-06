@@ -783,6 +783,61 @@ Nothing in the shipping binary calls `run_conformance` today — the only caller
 transcribed from a contract instead of invented, and until an adapter ships, the kit constrains no
 running code.
 
+### 3.1d Computer use is unmediated, and the surface now says so (Task 7.6, L4-18) — **stated, not fixed**
+
+**The sentence, as the product renders it in `warrantor agents list`:**
+
+> Computer use is UNMEDIATED in this build. The decomposition below is a declaration vocabulary that
+> nothing consults: no code path calls it, and the warrantor-computer-use crate is an orphan that
+> nothing depends on. Even if it were wired, it would cover only the declared subset — a navigation
+> URL, text typed into a field whose role the caller states, and a file dialog path — and not the
+> remainder, which is most of what a computer-use agent does. And it cannot be confined here
+> instead: rust/sandbox-runtime executes WASM modules with declared imports, so it cannot host a
+> browser, and the no-network, no-credential confinement that would earn an OS-level bound for those
+> two properties is not available in this repository.
+
+**Why three reasons and not one.** Each is sufficient on its own, and a reader who fixes only the
+first — wiring the orphan crate into the proxy — must not be able to read this section as
+satisfied. Wiring makes the *call* refusable by tool name. It does nothing for the *effect*: a
+click at a coordinate submits a search on one page and moves money on the next, and the call
+carries nothing that distinguishes them. That is a property of the surface, not of the wiring.
+
+**What is decomposable, by declaration only.** `warrantor_warrant::computer_use::decompose`
+returns a syscall set for exactly the actions whose effect-relevant argument is structured data the
+caller states: a navigation URL is `NET`; text typed into a field the caller declares a credential
+field is `CRED` plus `NET`, since typing a secret into a page hands it to whatever the page posts
+to; free text is `MSG`; a file-dialog write is `MUTATE` and a read is `NET`, because the point of a
+file dialog in a browser is that the bytes go somewhere. Nothing reads the page to infer a field's
+role. The rule is Task 2.1's rule for the same reason: a guess would under-govern precisely the
+case that matters.
+
+**What is not, as data.** `computer_use::UNGOVERNED` lists the remainder — coordinate clicks,
+selector clicks, typing into an undeclared field, screenshots, scraping visible text, and any
+consequence a page produces on its own after an action — each with the reason a reader can act
+on. It is a list in code with a compile-time assertion that it is never empty, so no surface can
+render computer use as fully governed, and governing one of these requires deleting its entry
+rather than editing prose. `warrantor agents list` prints every entry.
+
+**The tier, both halves, as the plan required them written:**
+
+| what | tier | why not a stronger word |
+|---|---|---|
+| the declared subset's decomposition | **no tier — a vocabulary** | nothing calls `decompose`. A decomposition no code consults decides nothing. When something does, the bound it yields is a proxy decision, Mediated, with the remainder as what escapes it |
+| the ungoverned remainder | **ungoverned** | not Observed, because nothing at settle sees a pixel click either. The receipts name the tool, never the effect |
+| the `warrantor-computer-use` broker | **no tier — an orphan** | `decide` is a real chokepoint refusal against a URL pattern and a DOM selector, and would be Mediated if wired. Its header used to claim the present tense; it now says nothing uses it |
+| a sandbox-confined session with no network and no credentials | **not available** | the plan anticipated Tier A for those two properties only. `rust/sandbox-runtime` is a WASI runtime for WASM modules with declared imports; it cannot host a browser. The confinement that would earn the word does not exist in this repository |
+
+**L4-18 stays `status=partial`, and "partial" now means what it says.** What is partial is the
+declared subset. What is not partial is the remainder, which is ungoverned in full, and the
+product text no longer lets the first be read as the second.
+
+**The orphan's header was corrected.** `rust/computer-use/src/lib.rs` opened with "Every screen
+action (click, type, navigate, scrape) goes through an authority-scoped broker" and "'No
+internet' is enforced in the browser, not in the prompt." Nothing depends on the crate, and there
+is no browser in this repository — nothing launches, drives or configures one. Both sentences
+were a design described as shipped code. The header now says what the crate is: a decision
+function that works, exercised by its own 12 unit tests and by nothing else.
+
 ### 3.1b The stop verb reaches the tree and the task state — **built, drilled on Windows; Linux numbers come from CI**
 
 **What the extraction removed.** The warrant crate refused to link `warrantor-kill-switch` because
