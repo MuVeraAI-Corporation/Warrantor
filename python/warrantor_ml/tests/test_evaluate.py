@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from warrantor_ml import evaluate as ev
+from warrantor_ml import serving
 
 # ---------------------------------------------------------------------------
 # The parse layer -- the finding that matters most
@@ -323,3 +324,69 @@ def test_cli_limit_truncates_by_sorted_id(tmp_path: Path) -> None:
     )
     document = json.loads(out.read_text(encoding="utf-8"))
     assert [row["sample_id"] for row in document["samples"]] == ["s001", "s002"]
+
+
+def test_the_descriptor_never_defaults_the_quantization_it_could_not_read() -> None:
+    """The evaluator's own no-default rule, exercised through the evaluator.
+
+    ``descriptor()`` says the field is "NEVER defaulted, because a defaulted value would make
+    every historical document silently agree with whatever this build serves". Nothing asserted
+    it: the refusal tests read the five committed candidate documents, and the fixture in
+    test_programme.py builds a descriptor and then deletes the key by hand. So replacing the
+    ``is not None`` guard with a default to ``serving.QUANTIZATION`` passed the whole suite, and a
+    future evaluator that stamped Q4_K_M on an unlabeled candidate would have shipped green.
+    """
+
+    for model in (
+        "warrantor-guard-0.6b-expguard-weak-exp06-2026-08-22a",
+        "hf.co/some/repo:latest",
+        "hf.co/some/repo:Qwen3",
+    ):
+        descriptor = ev.OllamaGuardBackend(model=model).descriptor()
+        assert "quantisation" not in descriptor, model
+        assert serving.configuration_mismatch(
+            serving.recorded_serving_configuration(descriptor)
+        ) == (
+            "quantisation is absent from the recorded configuration (this build serves "
+            f"{serving.QUANTIZATION!r}); an absent field is a mismatch, never a match",
+        ), model
+    labelled = ev.OllamaGuardBackend(model="hf.co/some/repo:Q4_K_M").descriptor()
+    assert labelled["quantisation"] == serving.QUANTIZATION, (
+        "the allowed control: a tag that DOES name the deployed quantization is recorded, so the "
+        "assertions above are about the absent case and not about a reader that reads nothing"
+    )
+
+
+def test_the_quantization_flag_reaches_the_result_document(tmp_path: Path) -> None:
+    """``--quantization`` is the operator's route for a tag that names nothing.
+
+    Nothing exercised it: severing the flag in ``_build_backend`` (``quantisation=None``) passed
+    the whole suite. An operator re-scoring the five unlabeled candidates with
+    ``--quantization Q4_K_M`` would have produced documents the gate still refused, and no test
+    would have noticed.
+    """
+
+    arguments = ev.build_parser().parse_args(
+        [
+            "--eval-set",
+            "unused.jsonl",
+            "--model",
+            "warrantor-guard-0.6b-local-2026-08-22a",
+            "--quantization",
+            serving.QUANTIZATION,
+        ]
+    )
+    backend = ev._build_backend(arguments)
+    descriptor = backend.descriptor()
+    assert descriptor["quantisation"] == serving.QUANTIZATION
+    assert serving.configuration_mismatch(
+        serving.recorded_serving_configuration(descriptor)
+    ) == (), "with the flag supplied, an unlabeled tag reaches parity through the documented route"
+
+    without = ev.build_parser().parse_args(
+        ["--eval-set", "unused.jsonl", "--model", "warrantor-guard-0.6b-local-2026-08-22a"]
+    )
+    assert "quantisation" not in ev._build_backend(without).descriptor(), (
+        "the control: without the flag the field stays absent, so the assertion above is about "
+        "the flag and not about a default"
+    )
