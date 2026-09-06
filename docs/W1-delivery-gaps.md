@@ -1122,9 +1122,9 @@ next model on this one's misses — one adversarial case in five at the measured
 would become invisible, because the model and its labels would agree. The only labels are human
 decisions the store already holds (a settle, a void), they are **warrant-level supervision on
 call-level examples**, and every row carries that granularity so a recipe can weight or discard it.
-The first real export showed the weakness at once: one harmful and one benign call, both labelled
+The first real export showed the weakness at once: one harmful and one benign call, both labeled
 harmful by a single void, with `guard_said` recording that the guard had them right. No content is
-exported, only digests. `sufficient_for_training` counts *labelled* rows and says the thing that
+exported, only digests. `sufficient_for_training` counts *labeled* rows and says the thing that
 actually closes the gap: using the product. And `Unqualified Professional Advice` — the weakest
 measured class at 0.4298 and the headline target of both weak-category recipes — is **unreachable
 from WildGuardMix**, which has no such category; reaching it needs an ExpGuard corpus, and the
