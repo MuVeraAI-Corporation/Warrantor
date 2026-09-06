@@ -838,6 +838,58 @@ is no browser in this repository — nothing launches, drives or configures one.
 were a design described as shipped code. The header now says what the crate is: a decision
 function that works, exercised by its own 12 unit tests and by nothing else.
 
+### 3.1e An agent may not govern its own governor: the three substrate-mutating adapters (Task 7.4, L4-13, L4-14, L4-26) — **the shape ships; nothing dispatches it**
+
+**The sentence, as the product renders it** (`warrantor_warrant::adapters::substrate::SHELL_BYPASS_SENTENCE`):
+
+> The cloud, CI/CD and identity-provider adapters refuse an effect whose target is the substrate
+> that governs the agent: the policy that authorized its warrant, the workflow that runs the gates,
+> the entitlement it used or its own principal. That refusal happens at the adapter's own call site
+> and binds only calls that go through the adapter. An agent with a shell and the cloud CLI
+> bypasses all three. Nothing in this repository is a network policy or an admission controller,
+> and nothing in the shipping binary dispatches these adapters yet.
+
+**Why these three are one task.** Every other adapter mutates something the warrant is *about*.
+These can mutate the warrant's own preconditions: a cloud control-plane adapter can rewrite the
+network policy the metadata floor (section 3.1c) sits behind, a CI/CD adapter can edit the
+workflow that runs the gates this repository merges through, an identity-provider adapter can
+grant the entitlement that authorized the call. `governs_its_own_governor` is the one predicate all
+three refuse through, and it decides from an `OwnSubstrate` the caller **declares** — policy names,
+workflow paths, entitlement ids, principals — never from the shape of a name. Third application of
+Task 2.1's rule, for Task 2.1's reason. A caller that declares nothing gets an adapter that
+mutates nothing: undeclared is refused, with the sentence saying why, rather than guessed safe.
+
+**What the tests prove, each with its control in the same function.** The cloud adapter refuses
+`apply_network_policy` on the authorizing policy and stages it on an unrelated one. The CI/CD
+adapter refuses `edit_workflow` on the gate workflow, stages it on another, and stages
+`trigger_run` on the gate workflow — running the gates is the opposite of escaping them, and this
+is what separates the predicate from a blanket refusal of anything naming `ci.yml`. The
+identity-provider adapter refuses granting the session's own entitlement to anyone and granting
+anything to the session's own principal, and stages an unrelated grant. A mutation with no named
+target is refused, never defaulted. A transport failure on a read is a refusal, never a receipt.
+All three pass the Task 7.1 conformance kit's three vectors against a registry the test writes
+independently, and every mutation decomposes to `MUTATE`, with `CRED` on the entitlement change,
+in Task 2.1's nine verbs only.
+
+**The tier, and the two escapes it names:**
+
+| what | tier | why not a stronger word, and what escapes |
+|---|---|---|
+| the self-governance refusal in each adapter | **Mediated (Tier B)** — *when dispatched* | it refuses at the adapter's own call site, before anything is staged. What escapes: any agent with a shell and the cloud, CI or IdP command-line tool, which never passes through an adapter; and anything the declared `OwnSubstrate` omits, because the predicate matches declarations, not reality |
+| the same refusal, as shipped today | **no tier — no shipping caller** | `grep -rn "EffectAdapter" rust/warrant/src/bin` finds nothing: no code in the binary constructs or dispatches an `EffectAdapter`. The refusal is a tested mechanism with no path to it, exactly the state 3.1c and 3.1d record for their surfaces. It becomes Mediated the day the settle path dispatches adapters, and not before |
+| the staged mutations | **not performed here** | a `MUTATE` returns a handle a settle can redeem. No adapter in this module talks to a cloud, a CI system or an identity provider; reads go through a caller-supplied transport, and no transport ships. Tasks 7.3 and 7.5 transcribe this shape onto real services; Phase 3 owns the credential they will need |
+
+**Deviation from the plan, stated.** Step 0 asks for Task 3.7's self-protection predicate as the
+first real consumer. Task 3.7 has not started, so no such predicate exists; `rust/self-governance`
+is a conformance *checker* that refuses nothing (its own header says enforcement happens in the
+brokers). This task therefore defines `governs_its_own_governor` itself, narrowly, over the three
+targets these adapters can reach. When 3.7 lands, it generalizes this predicate rather than the
+other way round.
+
+**L4-13, L4-14 and L4-26 stay `status=none`.** Each requires the refusal to bind a real call to a
+real control plane. What ships is the refusal, proven on the adapter surface, and a product
+sentence that says the binary does not yet dispatch it.
+
 ### 3.1b The stop verb reaches the tree and the task state — **built, drilled on Windows; Linux numbers come from CI**
 
 **What the extraction removed.** The warrant crate refused to link `warrantor-kill-switch` because
