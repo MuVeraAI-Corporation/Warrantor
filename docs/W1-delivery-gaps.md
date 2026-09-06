@@ -56,7 +56,8 @@ Two things this does **not** fix, and they are why §3.1 still reads as it does:
   tools of its own that never traverse an MCP server. Wiring one is worth real things — the
   deadline, the worktree, the staged effects, the evidence, the OS lifetime link, and mediation of
   every MCP tool it uses — and it is not mediation of `bash`.
-- **An unknown tool's effects are declared as syscalls, or refused (L4-01, 2026-09-02).** The
+- **An unknown tool's effects are declared as syscalls, or refused (L4-01, 2026-09-02).** Acceptance
+  transcript against a live filesystem MCP server, 2026-09-06: `docs/task-evidence/task-2.1.md`. The
   five-class `--upstream-class` map is gone; a tool is declared as a composition of the nine effect
   syscalls — `--upstream-effects 'deploy.to_prod=exec+net+mutate'`, or a
   `warrantor.effect-registry/1` file via `--upstream-effects-file` — and `--upstream-strict`
