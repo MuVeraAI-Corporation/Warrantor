@@ -69,6 +69,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
+from . import serving
 from ._canonical import canonical_json, sha256_text
 from .baselines import MeasuredBaseline, eval_corpus_digest, get_baseline, normalise_category
 from .leakage import LeakageReport
@@ -299,6 +300,7 @@ def parity_gate(
     leakage: LeakageReport,
     baseline_id: str | None = None,
     minimum_positives: int = MINIMUM_POSITIVES,
+    declared_precision: str | None = None,
 ) -> ParityDecision:
     """Decide whether to promote a candidate adapter. Blind, two-sided, and per-slice.
 
@@ -310,6 +312,11 @@ def parity_gate(
             does not check this can be beaten by memorisation.
         baseline_id: overrides the candidate's declared baseline. Rarely wanted.
         minimum_positives: the evidence floor for this decision.
+        declared_precision: what the OPERATOR said the candidate's precision is, when they said
+            anything. ``candidate.precision`` is derived from the result document; this is the
+            claim made about it on the command line. A claim that contradicts the artifact is a
+            refusal, receipted here rather than short-circuited by the caller, because an
+            unreceipted refusal leaves no record that anyone was told.
 
     Returns:
         A :class:`ParityDecision`. ``insufficient_evidence`` whenever a precondition fails or
@@ -421,6 +428,43 @@ def parity_gate(
     mismatch = _lane_matches(candidate, baseline)
     if mismatch is not None:
         blocking.append(mismatch)
+
+    # DEPLOYMENT-CONFIGURATION PARITY (L9-08).
+    #
+    # `candidate.backend` was loaded by `load_candidate_result` and read by nothing. `_lane_matches`
+    # above compares two of the nine keys `baselines._ollama_backend` records -- `lane` and
+    # `precision` -- and both of those arrive from argv, so the candidate's serving configuration
+    # was whatever the operator declared it to be. What the RESULT DOCUMENT recorded was held in a
+    # field and discarded.
+    #
+    # This is the one axis here with a measured effect, and the effect does not point one way, so
+    # it cannot be waved through as probably-safer. It is also NOT the num_ctx axis: num_ctx was
+    # pinned twice, and then measured inert -- 0 of 493 decision changes across five values on both
+    # models. It is compared here for reproducibility, and quantization is compared because moving
+    # it moves verdicts.
+    recorded = serving.recorded_serving_configuration(candidate.backend)
+    evidence["recorded_serving_configuration"] = recorded
+    evidence["deployed_configuration_digest"] = serving.deployed_digest()
+    if configuration_problems := serving.configuration_mismatch(recorded):
+        blocking.append(
+            "the candidate was evaluated at a configuration this build does not serve: "
+            + "; ".join(configuration_problems)
+            + ". Quantization is not verdict-neutral at the deployed default -- between 4 and 18 "
+            "verdicts per thousand change at Q4_K_M across five measured models, and the "
+            "DIRECTION does not generalize, so this cannot be waved through as 'probably safer'. "
+            "A promotion measured at a configuration the product does not serve is a promotion "
+            "of a model that does not ship."
+        )
+
+    if declared_precision is not None and declared_precision != candidate.precision:
+        evidence["declared_precision"] = declared_precision
+        blocking.append(
+            f"the operator declared precision {declared_precision!r} and the result document "
+            f"records a serving configuration whose precision is {candidate.precision!r}. The "
+            "document is the evidence and the flag is a claim about it. `--precision` used to be "
+            "the ONLY source of this field, which is why a candidate recording no quantization at "
+            "all was accepted as gguf-q4_k_m without challenge."
+        )
 
     try:
         caught, positives, false_positives, negatives = candidate.slice_counts(gate_slice)

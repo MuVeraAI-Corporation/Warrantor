@@ -16,8 +16,10 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Mapping
 from pathlib import Path
 
+from . import serving
 from .lane_export import render_kaggle_script, render_modal_entrypoint
 from .lanes import LANES, LaneUnsuitableError, resolve
 from .leakage import LeakageReport, leakage_report
@@ -231,7 +233,15 @@ def parity_main(argv: list[str] | None = None) -> int:
     parser.add_argument("--result", type=Path, required=True, help="benchmark result document")
     parser.add_argument("--recipe", required=True)
     parser.add_argument("--lane", required=True, choices=sorted(LANES))
-    parser.add_argument("--precision", required=True)
+    parser.add_argument(
+        "--precision",
+        help="OPTIONAL cross-check, not the source of truth. This used to be required, and it "
+        "made the candidate's quantization whatever the operator typed: `_lane_matches` compares "
+        "`precision` against the baseline's, and this string was the only place it came from. It "
+        "is now DERIVED from the quantization the result document records, and a --precision that "
+        "contradicts the document is itself a refusal. Supply it only where the document records "
+        "no quantization and you can say why",
+    )
     parser.add_argument("--manifest-digest", required=True)
     parser.add_argument(
         "--training-corpus",
@@ -257,13 +267,37 @@ def parity_main(argv: list[str] | None = None) -> int:
     arguments = parser.parse_args(argv)
 
     recipe = get_recipe(arguments.recipe)
+
+    # THE ARTIFACT DECIDES, NOT ARGV.
+    #
+    # `--precision` was `required=True` and flowed straight into `CandidateResult.precision`, which
+    # is the only thing `_lane_matches` compares. So the candidate's serving precision was whatever
+    # the operator declared, against a document that recorded no quantization at all -- and the
+    # promoted 2026-08-22 candidate was accepted as `gguf-q4_k_m` without challenge on exactly that
+    # basis. The precision is now read out of the document, and a declared string that contradicts
+    # the document refuses rather than overriding it.
+    try:
+        declared_quantisation = _recorded_quantisation(arguments.result)
+    except (OSError, ValueError) as error:
+        print("INSUFFICIENT EVIDENCE")
+        print(error)
+        return 3
+    derived_precision = f"gguf-{declared_quantisation.lower()}" if declared_quantisation else ""
+    resolved_precision = derived_precision or (arguments.precision or "")
+    # A contradiction between argv and the artifact is NOT short-circuited here. It is handed to the
+    # gate as `declared_precision` so the refusal is RECEIPTED -- a decision document naming the
+    # contradiction, with a digest. An unreceipted refusal is the failure mode the promotion record
+    # exists to prevent: the 2026-08-22 sweep is auditable today because all five verdicts, the four
+    # refusals included, were written down with decision digests.
+    declared_precision = arguments.precision or None
+
     try:
         candidate = load_candidate_result(
             arguments.result,
             candidate_id=recipe.recipe_id,
             baseline_id=recipe.baseline_id,
             lane=arguments.lane,
-            precision=arguments.precision,
+            precision=resolved_precision,
             manifest_digest=arguments.manifest_digest,
             breakdown_key=arguments.breakdown_key,
         )
@@ -295,7 +329,12 @@ def parity_main(argv: list[str] | None = None) -> int:
             }
         )
 
-    decision = parity_gate(candidate, recipe.gate_slice or "overall", leakage)
+    decision = parity_gate(
+        candidate,
+        recipe.gate_slice or "overall",
+        leakage,
+        declared_precision=declared_precision,
+    )
     body = decision.to_dict()
     body["decision_digest"] = decision.decision_digest
     body["recipe_digest"] = recipe.recipe_digest
@@ -309,6 +348,24 @@ def parity_main(argv: list[str] | None = None) -> int:
         print(f"decision: {arguments.out}")
 
     return {"promote": 0, "reject": 1, "insufficient_evidence": 3}[decision.verdict]
+
+
+def _recorded_quantisation(path: Path) -> str:
+    """The quantization a result document records, or ``""`` when it records none.
+
+    Read straight off the document rather than from the loaded :class:`CandidateResult`, because
+    the precision has to be resolved BEFORE the candidate is loaded -- ``precision`` is one of
+    ``load_candidate_result``'s arguments. Returns ``""`` rather than raising for a document that
+    simply does not say: that is the state of all five 2026-08-22 candidates, and the gate's own
+    configuration precondition is what refuses it, with the field named.
+    """
+
+    document = json.loads(path.read_text(encoding="utf-8"))
+    backend = document.get("backend", {})
+    if not isinstance(backend, Mapping):
+        return ""
+    recorded = serving.recorded_serving_configuration(backend)
+    return str(recorded.get("quantisation", ""))
 
 
 def _read_jsonl(path: Path) -> list[dict[str, object]]:

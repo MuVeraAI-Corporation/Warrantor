@@ -11,6 +11,23 @@ from pathlib import Path
 import pytest
 
 from warrantor_ml import evaluate as ev
+from warrantor_ml import serving
+from warrantor_ml._canonical import canonical_json, sha256_text
+
+#: The keys ``EvaluationResult.to_document`` digests, in the order it builds them. Listed here so
+#: this test recomputes the digest from the document rather than from the producer.
+_DIGESTED_KEYS = (
+    "schema_version",
+    "metrics",
+    "per_category_recall",
+    "worst_recall_categories",
+    "eval_set",
+    "backend",
+    "determinism",
+    "failures",
+    "backend_errors",
+    "samples",
+)
 
 # ---------------------------------------------------------------------------
 # The parse layer -- the finding that matters most
@@ -323,3 +340,96 @@ def test_cli_limit_truncates_by_sorted_id(tmp_path: Path) -> None:
     )
     document = json.loads(out.read_text(encoding="utf-8"))
     assert [row["sample_id"] for row in document["samples"]] == ["s001", "s002"]
+
+
+def test_the_descriptor_never_defaults_the_quantization_it_could_not_read() -> None:
+    """The evaluator's own no-default rule, exercised through the evaluator.
+
+    ``descriptor()`` says the field is "NEVER defaulted, because a defaulted value would make
+    every historical document silently agree with whatever this build serves". Nothing asserted
+    it: the refusal tests read the five committed candidate documents, and the fixture in
+    test_programme.py builds a descriptor and then deletes the key by hand. So replacing the
+    ``is not None`` guard with a default to ``serving.QUANTIZATION`` passed the whole suite, and a
+    future evaluator that stamped Q4_K_M on an unlabeled candidate would have shipped green.
+    """
+
+    for model in (
+        "warrantor-guard-0.6b-expguard-weak-exp06-2026-08-22a",
+        "hf.co/some/repo:latest",
+        "hf.co/some/repo:Qwen3",
+    ):
+        descriptor = ev.OllamaGuardBackend(model=model).descriptor()
+        assert "quantisation" not in descriptor, model
+        assert serving.configuration_mismatch(
+            serving.recorded_serving_configuration(descriptor)
+        ) == (
+            "quantisation is absent from the recorded configuration (this build serves "
+            f"{serving.QUANTIZATION!r}); an absent field is a mismatch, never a match",
+        ), model
+    labeled = ev.OllamaGuardBackend(model="hf.co/some/repo:Q4_K_M").descriptor()
+    assert labeled["quantisation"] == serving.QUANTIZATION, (
+        "the allowed control: a tag that DOES name the deployed quantization is recorded, so the "
+        "assertions above are about the absent case and not about a reader that reads nothing"
+    )
+
+
+def test_the_quantization_flag_reaches_the_result_document(tmp_path: Path) -> None:
+    """``--quantization`` is the operator's route for a tag that names nothing.
+
+    Nothing exercised it: severing the flag in ``_build_backend`` (``quantisation=None``) passed
+    the whole suite. An operator re-scoring the five unlabeled candidates with
+    ``--quantization Q4_K_M`` would have produced documents the gate still refused, and no test
+    would have noticed.
+    """
+
+    arguments = ev.build_parser().parse_args(
+        [
+            "--eval-set",
+            "unused.jsonl",
+            "--model",
+            "warrantor-guard-0.6b-local-2026-08-22a",
+            "--quantization",
+            serving.QUANTIZATION,
+        ]
+    )
+    backend = ev._build_backend(arguments)
+    descriptor = backend.descriptor()
+    assert descriptor["quantisation"] == serving.QUANTIZATION
+    assert (
+        serving.configuration_mismatch(serving.recorded_serving_configuration(descriptor)) == ()
+    ), "with the flag supplied, an unlabeled tag reaches parity through the documented route"
+
+    without = ev.build_parser().parse_args(
+        ["--eval-set", "unused.jsonl", "--model", "warrantor-guard-0.6b-local-2026-08-22a"]
+    )
+    assert "quantisation" not in ev._build_backend(without).descriptor(), (
+        "the control: without the flag the field stays absent, so the assertion above is about "
+        "the flag and not about a default"
+    )
+
+
+def test_this_build_writes_version_2_documents_and_the_version_is_digested(tmp_path: Path) -> None:
+    """The version number's two real properties, and not the one it was credited with.
+
+    Reverting SCHEMA_VERSION to 1 passed the whole suite, because nothing read it and nothing
+    asserted it. Its comment claimed the bump was what stopped the gate reading "did not say" as
+    "said Q4_K_M" -- that is the absent-field rule in serving.recorded_serving_configuration, which
+    refuses whatever version declared the document. What the number does do is label the shape and
+    sit inside the digested body, and those are the two things asserted here.
+    """
+
+    eval_set = ev.write_smoke_set(tmp_path / "smoke.jsonl")
+    out = tmp_path / "result.json"
+    assert ev.main(["--eval-set", str(eval_set), "--backend", "stub", "--out", str(out)]) == 0
+    document = json.loads(out.read_text(encoding="utf-8"))
+    assert document["schema_version"] == 2, (
+        "documents this build writes are version 2, the shape whose backend block can record a "
+        "quantization; the seven committed documents in eval_results/ are all version 1"
+    )
+
+    body = {key: value for key, value in document.items() if key in _DIGESTED_KEYS}
+    assert sha256_text(canonical_json(body)) == document["result_digest"]
+    body["schema_version"] = 1
+    assert sha256_text(canonical_json(body)) != document["result_digest"], (
+        "the version is a term in the digest, so a document cannot be relabeled without moving it"
+    )

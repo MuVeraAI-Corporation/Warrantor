@@ -44,6 +44,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from . import serving
 from ._canonical import sha256_file
 from .evaluate import (
     DEFAULT_OLLAMA_ENDPOINT,
@@ -428,7 +429,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--model", default=DEFAULT_OLLAMA_MODEL)
     parser.add_argument("--endpoint", default=DEFAULT_OLLAMA_ENDPOINT)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--num-ctx", type=int, default=8192)
+    parser.add_argument("--num-ctx", type=int, default=serving.NUM_CTX)
+    parser.add_argument(
+        "--quantization",
+        help="the GGUF quantization being served, when the model tag does not name "
+        "it. Recorded in the result document so the promotion gate can compare it "
+        "against what this build serves; left UNRECORDED rather than defaulted when "
+        "neither the tag nor this flag says",
+    )
     parser.add_argument("--timeout", type=float, default=180.0)
     parser.add_argument(
         "--sample-size",
@@ -498,6 +506,7 @@ def main(argv: list[str] | None = None) -> int:
             seed=arguments.seed,
             timeout_seconds=arguments.timeout,
             num_ctx=arguments.num_ctx,
+            quantisation=arguments.quantization,
         )
 
     result = evaluate(
