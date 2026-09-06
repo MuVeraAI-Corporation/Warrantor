@@ -25,7 +25,11 @@ warrantor-delegation-chain = { path = "../delegation-chain", version = "1.0.0" }
 
 [dev-dependencies]
 # Dev-only, and deliberately so. The F-02 gate is stated *per effect class*, and the class taxonomy
-# lives in authority-spec; importing it means the test iterates the real enum instead of a list of
-# strings that would silently go stale when a class is added. tools/ci/wiring_census.py counts only
+# lives in authority-spec. Importing the enum lets the per-class test build its list from an
+# exhaustive `match` over `SideEffectClass`, so a class added to the enum is a compile error in that
+# test (E0004) rather than a silent omission. That is the whole guarantee: the enum has no `ALL`
+# constant or iterator, so a hand-written list would go stale exactly as a list of strings would --
+# the first version of this comment claimed the test "iterates the real enum" while it looped over
+# five hand-listed variants (claim-honesty review, 2026-09-06). tools/ci/wiring_census.py counts only
 # the shipping dependency table, so this adds no shipping edge and does not move the census.
 warrantor-authority-spec = { path = "../authority-spec", version = "1.0.0" }

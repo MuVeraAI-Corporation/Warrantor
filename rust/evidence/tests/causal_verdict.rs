@@ -177,20 +177,45 @@ fn the_identical_chain_with_every_hop_granted_passes() {
         .expect("a route whose every hop is inside the granted intersection must pass");
 }
 
-/// F-02 says *per effect class*. The `SideEffectClass` taxonomy is `Read`, `Write`, `Financial`,
-/// `Destructive`, `Physical`, and the refusal must fire for each of them rather than only for the
-/// Write-shaped GitHub example -- with the paired grant proving each class can also pass.
+/// Every `SideEffectClass`, built from an exhaustive `match` rather than written down beside the
+/// enum: the enum exposes no `ALL` constant or iterator, so a list would go stale silently when a
+/// class is added, whereas a `match` with no wildcard arm stops compiling (E0004) at the arm the new
+/// class needs. The chain is walked from the first variant, so every arm's successor is in the list.
+fn every_effect_class() -> Vec<warrantor_authority_spec::SideEffectClass> {
+    use warrantor_authority_spec::SideEffectClass::{
+        self, Destructive, Financial, Physical, Read, Write,
+    };
+    fn successor(class: SideEffectClass) -> Option<SideEffectClass> {
+        match class {
+            Read => Some(Write),
+            Write => Some(Financial),
+            Financial => Some(Destructive),
+            Destructive => Some(Physical),
+            Physical => None,
+        }
+    }
+    let mut classes = vec![Read];
+    while let Some(next) = successor(*classes.last().expect("non-empty")) {
+        classes.push(next);
+    }
+    classes
+}
+
+/// F-02 says *per effect class*. The refusal must fire for each class in the `SideEffectClass`
+/// taxonomy rather than only for the Write-shaped GitHub example -- with the paired grant proving
+/// each class can also pass. What this establishes, stated exactly: `causal_verdict` compares tool
+/// names against the recomputed capability intersection and never reads a class, so the refusal is
+/// class-blind by construction, and this loop shows that no class-named tool is treated differently
+/// from any other. The list it walks is derived from the enum by [`every_effect_class`].
 #[test]
 fn the_refusal_fires_for_every_effect_class_and_the_grant_lets_each_through() {
-    use warrantor_authority_spec::SideEffectClass;
-
-    for class in [
-        SideEffectClass::Read,
-        SideEffectClass::Write,
-        SideEffectClass::Financial,
-        SideEffectClass::Destructive,
-        SideEffectClass::Physical,
-    ] {
+    let classes = every_effect_class();
+    assert_eq!(
+        classes.len(),
+        5,
+        "the taxonomy this task was written against has five classes"
+    );
+    for class in classes {
         let middle = format!("effect.{}", class.as_str());
         let steps = vec![
             step(1, PR_HANDLE, CREATE_PR, &[]),
