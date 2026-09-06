@@ -18,8 +18,9 @@
 //! from Rust would agree with whatever rule Rust now applies. This one cannot.
 
 use warrantor_evidence::{
-    canonical_predicate, causal_verdict, dsse_pae, verify_receipt, CausalRefusal, EvidenceError,
-    SignatureEnvelope, WarPredicate, WarReceipt, PREDICATE_TYPE,
+    canonical_predicate, causal_verdict, check_predicate_version, dsse_pae, verify_receipt,
+    CausalRefusal, Causality, EvidenceError, SignatureEnvelope, WarPredicate, WarReceipt,
+    PREDICATE_TYPE,
 };
 
 /// A v1 atomic predicate's canonical form: no `predicate_version`, no `causality`.
@@ -168,6 +169,46 @@ fn a_recognized_version_reaches_the_signature_check() {
         ),
         "a recognized version must not short-circuit as UnknownVersion"
     );
+}
+
+/// The mirror image of the unknown-version case: a causal section with NO version declares no rule
+/// for reading itself, and `verify_receipt` refuses it as `UnversionedCausality` -- before the
+/// signature, so a reader is never told it is a forgery. Only the Python mirror tested this arm
+/// until the mutation-review lane (2026-09-06) deleted it from the Rust gate and every Rust suite
+/// stayed green.
+#[test]
+fn a_causal_section_with_no_version_is_refused_as_unversioned_before_the_signature() {
+    let mut predicate: WarPredicate =
+        serde_json::from_str(CANONICAL_V1_PREDICATE).expect("the frozen v1 predicate parses");
+    predicate.causality = Some(Causality {
+        queue_head: "0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+        step_count: 0,
+        steps: Vec::new(),
+    });
+    assert!(
+        predicate.predicate_version.is_none(),
+        "the section is added; the version is not"
+    );
+    assert!(
+        matches!(
+            check_predicate_version(&predicate),
+            Err(EvidenceError::UnversionedCausality)
+        ),
+        "the version gate must name the missing version"
+    );
+    // The frozen signature no longer covers these bytes, so a build that dropped the gate would
+    // report InvalidSignature here -- the forgery message, about a format problem.
+    let receipt = WarReceipt {
+        predicate,
+        signature: frozen_signature(),
+    };
+    match verify_receipt(&receipt) {
+        Err(EvidenceError::UnversionedCausality) => {}
+        other => panic!(
+            "a section with no version must be refused as unversioned before the signature is \
+             read, got {other:?}"
+        ),
+    }
 }
 
 /// The silent-drop hole on the predicate, the twin of the one on `notary::ReceiptBody`.
