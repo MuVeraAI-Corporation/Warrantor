@@ -5,15 +5,36 @@ use std::path::PathBuf;
 
 use ed25519_dalek::SigningKey;
 use warrantor_notary::{Gate, Verdict};
+use warrantor_warrant::mcp::Endpoint;
+use warrantor_warrant::mcp_endpoints::agent_endpoint_for;
 use warrantor_warrant::proxy::{Decision, Proxy, ProxyMode, ToolCall};
 use warrantor_warrant::spend::{
     CallCounter, CallLedger, CallMeter, SpendStore, CALLS_BOUND, CALL_LEDGER_FORMAT,
 };
 use warrantor_warrant::staging::EffectRegistry;
 use warrantor_warrant::store::StoredWarrant;
+use warrantor_warrant::upstream::{UpstreamSet, UpstreamSpec};
 use warrantor_warrant::{SideEffectClass, Warrant, WarrantBounds};
 
 const NOW: u64 = 1_786_000_000;
+fn now() -> u64 {
+    NOW
+}
+
+fn selftest() -> UpstreamSet {
+    let spec = UpstreamSpec {
+        name: "selftest".to_string(),
+        program: env!("CARGO_BIN_EXE_warrantor").to_string(),
+        args: vec!["selftest-upstream".to_string()],
+    };
+    UpstreamSet::start(&[spec], std::time::Duration::from_secs(30)).expect("attach")
+}
+
+fn echo() -> std::collections::BTreeMap<String, serde_json::Value> {
+    [("text".to_string(), serde_json::json!("ping"))]
+        .into_iter()
+        .collect()
+}
 
 fn tempdir(tag: &str) -> PathBuf {
     let mut path = std::env::temp_dir();
@@ -238,4 +259,62 @@ fn an_unparseable_ledger_is_unknown_spend_not_zero() {
     let path = SpendStore::open(&dir).unwrap().calls_path("wrt_calls");
     std::fs::write(&path, b"{ not json").unwrap();
     assert!(CallMeter::open(&dir, &stored, issuer()).is_err());
+}
+
+/// The acceptance test for L3-03 at the tool-call grain: a live upstream, a hundred admitted
+/// calls, and the hundred-and-first refused before it is forwarded, receipted, and still refused
+/// after the session restarts.
+#[test]
+fn the_hundred_and_first_call_is_refused_before_the_upstream_sees_it_and_stays_refused() {
+    let dir = tempdir("endpoint");
+    let stored = stored(Some(100));
+    let mut endpoint =
+        agent_endpoint_for(&stored, dir.join("staged.jsonl"), ProxyMode::Enforce, now)
+            .expect("endpoint")
+            .with_upstreams(selftest())
+            .metered_by(CallMeter::open(&dir, &stored, issuer()).expect("meter"));
+    for i in 0..100 {
+        let result = endpoint.call("selftest.echo", &echo());
+        assert!(!result.is_error, "call {i}: {}", result.text);
+    }
+    assert_eq!(endpoint.forwarding_counts(), Some((100, 0)));
+
+    let refused = endpoint.call("selftest.echo", &echo());
+    assert!(refused.is_error);
+    assert!(refused.text.contains(CALLS_BOUND), "{}", refused.text);
+    assert_eq!(
+        endpoint.forwarding_counts(),
+        Some((100, 0)),
+        "the refused call never reached the upstream"
+    );
+    let ledger = endpoint.call_ledger().expect("metered");
+    assert_eq!(ledger.refused, 1);
+    assert_eq!(
+        ledger.receipt.as_ref().unwrap().body.verdict,
+        Verdict::Deny { gate: Gate::Budget }
+    );
+
+    drop(endpoint);
+    let mut again = agent_endpoint_for(&stored, dir.join("staged.jsonl"), ProxyMode::Enforce, now)
+        .expect("endpoint")
+        .with_upstreams(selftest())
+        .metered_by(CallMeter::open(&dir, &stored, issuer()).expect("meter"));
+    let still = again.call("selftest.echo", &echo());
+    assert!(
+        still.is_error && still.text.contains(CALLS_BOUND),
+        "a restart must not reset the ceiling"
+    );
+}
+
+#[test]
+fn an_unmetered_endpoint_still_refuses_but_says_the_count_is_per_session() {
+    let dir = tempdir("unmetered");
+    let stored = stored(Some(1));
+    let mut endpoint =
+        agent_endpoint_for(&stored, dir.join("staged.jsonl"), ProxyMode::Enforce, now)
+            .expect("endpoint")
+            .with_upstreams(selftest());
+    assert!(!endpoint.call("selftest.echo", &echo()).is_error);
+    assert!(endpoint.call("selftest.echo", &echo()).is_error);
+    assert!(endpoint.call_ledger().is_none());
 }

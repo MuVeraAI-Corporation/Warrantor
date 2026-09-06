@@ -724,6 +724,10 @@ pub struct AgentEndpoint {
     /// Absent means decisions are drained and dropped — the pre-catalog behavior, which is what
     /// every test that predates the catalog runs under and what an observe-mode session does.
     egress_root: Option<std::path::PathBuf>,
+    /// The durable call ledger, when one is attached. Absent in tests that drive a bare queue;
+    /// then the ceiling is counted per process and nothing is receipted. The CLI always attaches
+    /// one.
+    meter: Option<crate::spend::CallMeter>,
     now: fn() -> u64,
 }
 
@@ -751,6 +755,7 @@ impl AgentEndpoint {
             forwarded: 0,
             forward_failures: 0,
             egress_root: None,
+            meter: None,
             now,
         }
     }
@@ -911,6 +916,21 @@ impl AgentEndpoint {
     pub fn witnessed_by(mut self, store: crate::store::WarrantStore) -> Self {
         self.witness = Some(store);
         self
+    }
+
+    /// Attach the durable call ledger. Seeds the proxy's counter from it, so the session continues
+    /// the count the last one left.
+    #[must_use]
+    pub fn metered_by(mut self, meter: crate::spend::CallMeter) -> Self {
+        self.proxy.set_call_counter(meter.counter());
+        self.meter = Some(meter);
+        self
+    }
+
+    /// The durable ledger, when one is attached.
+    #[must_use]
+    pub fn call_ledger(&self) -> Option<&crate::spend::CallLedger> {
+        self.meter.as_ref().map(crate::spend::CallMeter::ledger)
     }
 
     /// Attach a guard to this session, in whatever mode it was built in.
@@ -1147,6 +1167,30 @@ impl Endpoint for AgentEndpoint {
         // The warrant decides first, and its decision is never reconsidered below: no arm of the
         // guard can turn a denial into an allow, because a denial returns without ever reaching it.
         let decision = self.proxy.decide(&call);
+        // The ledger is written BEFORE the arm below forwards or stages, for the reason the guard
+        // arm gives: a ceiling recorded after the call is reconciliation, not a bound. Only calls
+        // the ceiling decided are written — a `tools` or egress refusal is not a call.
+        //
+        // It is also written before the egress log is flushed below, and that order is deliberate:
+        // if the flush fails the call is refused, and a ledger written first has already spent the
+        // slot the in-memory counter spent. The reverse order would leave the persisted count one
+        // behind the counter, so a restart would hand the agent a call the ceiling had already
+        // admitted. A ceiling may over-count a refused call; it may never under-count.
+        let metered = matches!(decision, Decision::Forward | Decision::Stage { .. })
+            || matches!(decision, Decision::Deny { bound, .. } if bound == crate::spend::CALLS_BOUND);
+        if metered {
+            if let Some(meter) = self.meter.as_mut() {
+                let refused = matches!(decision, Decision::Deny { .. });
+                let counter = self.proxy.call_counter().clone();
+                if let Err(e) = meter.note(&counter, tool, refused, (self.now)()) {
+                    return ToolResult::error(format!(
+                        "{tool} was not forwarded: the call ledger could not be written ({e}). A \
+                         ceiling that cannot be recorded is not held across the next restart, so \
+                         the call is refused rather than counted in memory only."
+                    ));
+                }
+            }
+        }
         // BEFORE any effect, and refusing if it cannot be written: a decision that exists only in
         // this process's memory is not evidence, and I-07 says the record comes first.
         if let Err(e) = self.flush_egress_log() {
