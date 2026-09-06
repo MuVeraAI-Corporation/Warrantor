@@ -83,6 +83,8 @@ const ACCEPTED_FLAGS: &[&str] = &[
     // catalog at grant time. Wired in cmd_grant; listed here so the usage text may name it.
     "egress-capability",
     "budget",
+    // Task 1.4: the tool-call ceiling, written into the claims at grant and refused at the proxy.
+    "max-calls",
     "subject",
     // report / verify / issuer / archive
     "export",

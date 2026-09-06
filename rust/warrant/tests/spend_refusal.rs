@@ -318,3 +318,49 @@ fn an_unmetered_endpoint_still_refuses_but_says_the_count_is_per_session() {
     assert!(endpoint.call("selftest.echo", &echo()).is_error);
     assert!(endpoint.call_ledger().is_none());
 }
+
+#[test]
+fn grant_writes_the_ceiling_into_the_claims_and_refuses_a_ceiling_that_does_not_parse() {
+    let dir = tempdir("cli");
+    let run = |extra: &[&str]| {
+        let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_warrantor"));
+        // The subcommand comes first; `--root` after it. This binary's parser dispatches on
+        // argv[1] before it reads flags, so a leading --root is an unknown command.
+        cmd.args(["grant"])
+            .arg("--root")
+            .arg(&dir)
+            .args([
+                "--goal",
+                "g",
+                "--tools",
+                "selftest.echo",
+                "--write",
+                "src/**",
+            ])
+            .args(extra);
+        cmd.output().expect("run")
+    };
+    let out = run(&["--max-calls", "3"]);
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let store = warrantor_warrant::store::WarrantStore::open(&dir).unwrap();
+    let granted = store.list().unwrap();
+    assert_eq!(granted.len(), 1);
+    assert_eq!(granted[0].warrant.claims.bounds.max_tool_calls, Some(3));
+
+    let bad = run(&["--max-calls", "lots"]);
+    assert!(
+        !bad.status.success(),
+        "an unparseable ceiling is a refusal, never a default"
+    );
+    assert_eq!(store.list().unwrap().len(), 1);
+
+    let defaulted = run(&[]);
+    assert!(defaulted.status.success());
+    let all = store.list().unwrap();
+    assert!(all.iter().any(|w| w.warrant.claims.bounds.max_tool_calls
+        == Some(warrantor_warrant::spend::DEFAULT_MAX_TOOL_CALLS)));
+}

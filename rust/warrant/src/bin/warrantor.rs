@@ -493,7 +493,8 @@ warrantor — bounded authority for coding agents
                   enable this, a process sharing this UID could also write.
 
   grant   --goal G --tools T,T --write P,P [--deadline 8h] [--repo .] [--egress H,H]
-          [--egress-capability NAME,NAME] [--budget CENTS] [--subject <id>]
+          [--egress-capability NAME,NAME] [--budget CENTS] [--max-calls N]
+          [--subject <id>]
   list
   holdings
   prune   [--apply]
@@ -688,6 +689,10 @@ itself, and an agent that does not report spends unwatched. What it buys is that
 number is finally read -- a durable per-warrant total, a refusal when a reported use
 would break the ceiling, and cost-aware routing advice from your own price table in
 ~/.warrantor/backends.json. A warrant granted without --budget has a ceiling of zero.
+A tool-call ceiling (--max-calls, default 1000) is different: it is counted at the MCP
+proxy and the call that would exceed it is refused before it is forwarded or staged.
+That bound is mediated, and `warrantor spend <id>` prints its ledger beside the cents
+ledger.
 
 --guard attaches a local guard model to a supervised MCP session. It is OBSERVE-ONLY
 unless you also pass --guard-enforce-untested-do-not-use: it records what a classifier
@@ -819,6 +824,12 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
             }
         },
     };
+    // L3-03 at the tool-call grain: a ceiling the proxy refuses at the moment of the call. A
+    // ceiling that does not parse is a refusal, never a default — the same reading as --budget.
+    let max_tool_calls = match whole_number(args, "max-calls") {
+        Ok(v) => v.unwrap_or(spend::DEFAULT_MAX_TOOL_CALLS),
+        Err(e) => return fail(&e),
+    };
 
     let issuer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
         Ok(k) => k,
@@ -841,7 +852,7 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         staged_classes: [SideEffectClass::Write].into_iter().collect(),
         expires_at: now() + deadline,
         budget_cents_observed: budget_cents,
-        max_tool_calls: Some(spend::DEFAULT_MAX_TOOL_CALLS),
+        max_tool_calls: Some(max_tool_calls),
         delegation_depth: 3,
     };
 
@@ -908,6 +919,7 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         "expires  {} ({}s from now)",
         stored.warrant.claims.bounds.expires_at, deadline
     );
+    println!("calls    {max_tool_calls} (tool calls through the proxy; the ceiling is mediated)");
     if let Some(tree) = &worktree {
         println!("worktree {}", tree.path.display());
         println!("branch   {}", tree.branch);
@@ -2204,6 +2216,22 @@ fn cmd_spend(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     // Bare view: the ledger, and nothing invented around it.
     if input.is_none() && output.is_none() {
         print!("{}", render_ledger(&ledger));
+        // The call ledger, beside the cents ledger: two bounds, two records, one view. An
+        // unreadable call ledger is printed as unreadable rather than silently omitted — "no
+        // record" and "cannot read the record" are different claims.
+        match ledgers.load_calls(bounds, id, &issuer.verifying_key()) {
+            Ok(calls) => {
+                println!(
+                    "  call ceiling            {} ({} used, {} refused, {})",
+                    calls.counter.max_tool_calls,
+                    calls.counter.tool_calls_used,
+                    calls.refused,
+                    spend::CALLS_BOUND
+                );
+                println!("{}", spend::CALLS_NOTE);
+            }
+            Err(e) => println!("  call ceiling            unreadable: {e}"),
+        }
         println!("\n{}", spend::OBSERVATION_NOTE);
         println!(
             "\nRecord what an agent used:  warrantor spend {id} --input <tokens> --output <tokens>"
@@ -5216,6 +5244,21 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                 catalog.capabilities.len()
             );
         }
+
+        // The call ceiling's ledger, opened fail-closed with the issuer key: an unreadable ledger
+        // is unknown spend and the session does not start on it.
+        let issuer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
+            Ok(k) => k,
+            Err(e) => return fail(&e),
+        };
+        endpoint = match spend::CallMeter::open(root, &stored, issuer) {
+            Ok(meter) => endpoint.metered_by(meter),
+            Err(e) => {
+                return fail(&format!(
+                    "cannot open {id}'s call ledger, so its ceiling state is unknown: {e}"
+                ))
+            }
+        };
 
         // Upstreams before the guard, because attaching one can fail and a failure here must stop
         // the session rather than start a supervised agent whose permitted calls have nowhere to
