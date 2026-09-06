@@ -20,7 +20,7 @@
 //! projects to one class through [`Syscall::projection`]. The table is lossy and documented, and
 //! it never projects *downward*: a multi-syscall decomposition takes its highest-ranked class.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -238,5 +238,224 @@ impl Decomposition {
             .map(|s| s.as_str())
             .collect::<Vec<_>>()
             .join("+")
+    }
+}
+
+/// What the registry says about one tool.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Classified<'a> {
+    /// Somebody declared it.
+    Declared(&'a Decomposition),
+    /// Nobody declared it and the policy is [`UnclassifiedPolicy::GuessRead`]: the caller uses
+    /// `Read` and must name the tool at the end of the session, because a count is not a work
+    /// list.
+    Guessed,
+}
+
+/// What to do with a tool nobody declared.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnclassifiedPolicy {
+    /// Strict mode: refuse the call. What `--upstream-strict` selects.
+    Refuse,
+    /// The shipped default until Task 2.2 lands signed manifests: class it `Read`, forward it,
+    /// and name it when the session ends.
+    GuessRead,
+}
+
+/// A tool refused under [`UnclassifiedPolicy::Refuse`]. `Display` is the sentence the agent
+/// reads, and it tells the operator what to type.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Unclassified {
+    /// The published tool name.
+    pub tool: String,
+}
+
+impl std::fmt::Display for Unclassified {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} has no declared effect decomposition, and this session is strict. This build can \
+             only tell what a call DOES for the tools it stages; for everything else the \
+             decomposition is what an operator declared, and an undeclared tool would otherwise \
+             be forwarded as if it only read. Declare it: --upstream-effects '{}=mutate' (verbs: \
+             {}, joined with '+'), or load a {EFFECT_REGISTRY_FORMAT} file with \
+             --upstream-effects-file <path>.",
+            self.tool,
+            self.tool,
+            verb_list()
+        )
+    }
+}
+
+impl std::error::Error for Unclassified {}
+
+/// The on-disk shape of [`EFFECT_REGISTRY_FORMAT`]. Deliberately a map of verb lists rather than
+/// of [`Decomposition`]s, so the only way in is through [`Decomposition::new`]'s checks.
+#[derive(Debug, Serialize, Deserialize)]
+struct RegistryDocument {
+    format: String,
+    tools: BTreeMap<String, BTreeSet<Syscall>>,
+}
+
+/// Published tool name to decomposition.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DecompositionRegistry {
+    tools: BTreeMap<String, Decomposition>,
+}
+
+impl DecompositionRegistry {
+    /// An empty registry.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// The four tools this build can stage and perform, as
+    /// [`crate::staging::EffectRegistry::github`] lists them. Exactly these and no more: a
+    /// builtin decomposition for a tool the settle path cannot perform would promise staging that
+    /// never happens.
+    #[must_use]
+    pub fn builtin() -> Self {
+        fn of(tool: &str, syscalls: &[Syscall]) -> Decomposition {
+            Decomposition {
+                tool: tool.to_string(),
+                syscalls: syscalls.iter().copied().collect(),
+            }
+        }
+        let mut registry = Self::new();
+        for decomposition in [
+            of("github.create_pr", &[Syscall::Net, Syscall::Mutate]),
+            of("github.comment", &[Syscall::Net, Syscall::Msg]),
+            of("github.request_review", &[Syscall::Net, Syscall::Msg]),
+            of("github.add_label", &[Syscall::Net, Syscall::Mutate]),
+        ] {
+            registry
+                .tools
+                .insert(decomposition.tool.clone(), decomposition);
+        }
+        registry
+    }
+
+    /// Add one declaration. A second declaration for the same tool is refused even when
+    /// identical: on one command line, saying a thing twice is a sign one of the two was meant to
+    /// be something else.
+    ///
+    /// # Errors
+    /// The duplicate, with both decompositions named.
+    pub fn insert(&mut self, decomposition: Decomposition) -> Result<(), String> {
+        if let Some(existing) = self.tools.get(&decomposition.tool) {
+            return Err(format!(
+                "{} is declared twice ({} and {}). Two decompositions for one tool means \
+                 whichever was read last decides what happens to it, which is not a decision \
+                 anybody made.",
+                decomposition.tool,
+                existing.render(),
+                decomposition.render()
+            ));
+        }
+        self.tools.insert(decomposition.tool.clone(), decomposition);
+        Ok(())
+    }
+
+    /// Fold `other` in. An identical redeclaration is accepted (two documents may both state the
+    /// obvious); a different one is refused, and the existing decomposition is named so the
+    /// operator can see which side is wrong.
+    ///
+    /// # Errors
+    /// The first conflict.
+    pub fn merge(&mut self, other: Self) -> Result<(), String> {
+        for (tool, decomposition) in other.tools {
+            match self.tools.get(&tool) {
+                Some(existing) if *existing == decomposition => {}
+                Some(existing) => {
+                    return Err(format!(
+                        "{tool} is already declared as {} and cannot be redeclared as {}. If the \
+                         existing one is builtin, it is what the settle path actually performs; \
+                         if it came from a file, fix the file.",
+                        existing.render(),
+                        decomposition.render()
+                    ))
+                }
+                None => {
+                    self.tools.insert(tool, decomposition);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Look a tool up.
+    #[must_use]
+    pub fn get(&self, tool: &str) -> Option<&Decomposition> {
+        self.tools.get(tool)
+    }
+
+    /// How many tools are declared.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.tools.len()
+    }
+
+    /// Whether nothing is declared.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.tools.is_empty()
+    }
+
+    /// Read a [`EFFECT_REGISTRY_FORMAT`] document. Any other format is refused by name; a
+    /// document with no `format` field is not a registry at all.
+    ///
+    /// # Errors
+    /// The parse failure, the foreign format, or the first bad decomposition inside.
+    pub fn from_json(body: &str) -> Result<Self, String> {
+        let document: RegistryDocument = serde_json::from_str(body)
+            .map_err(|e| format!("not a {EFFECT_REGISTRY_FORMAT} document: {e}"))?;
+        if document.format != EFFECT_REGISTRY_FORMAT {
+            return Err(format!(
+                "format {:?} is not {EFFECT_REGISTRY_FORMAT}. A registry in another format is \
+                 not read, it is refused; a new format gets a new name, never a silent change.",
+                document.format
+            ));
+        }
+        let mut registry = Self::new();
+        for (tool, syscalls) in document.tools {
+            registry.insert(Decomposition::new(&tool, syscalls)?)?;
+        }
+        Ok(registry)
+    }
+
+    /// Render as a [`EFFECT_REGISTRY_FORMAT`] document, tools in name order.
+    ///
+    /// # Errors
+    /// Only a serialization failure, which for this shape does not occur.
+    pub fn to_json(&self) -> Result<String, String> {
+        let document = RegistryDocument {
+            format: EFFECT_REGISTRY_FORMAT.to_string(),
+            tools: self
+                .tools
+                .iter()
+                .map(|(tool, d)| (tool.clone(), d.syscalls.clone()))
+                .collect(),
+        };
+        serde_json::to_string_pretty(&document).map_err(|e| format!("encode registry: {e}"))
+    }
+
+    /// Classify one published tool under `policy`.
+    ///
+    /// # Errors
+    /// [`Unclassified`] when nobody declared the tool and the policy is
+    /// [`UnclassifiedPolicy::Refuse`].
+    pub fn classify(
+        &self,
+        tool: &str,
+        policy: UnclassifiedPolicy,
+    ) -> Result<Classified<'_>, Unclassified> {
+        match (self.tools.get(tool), policy) {
+            (Some(decomposition), _) => Ok(Classified::Declared(decomposition)),
+            (None, UnclassifiedPolicy::GuessRead) => Ok(Classified::Guessed),
+            (None, UnclassifiedPolicy::Refuse) => Err(Unclassified {
+                tool: tool.to_string(),
+            }),
+        }
     }
 }

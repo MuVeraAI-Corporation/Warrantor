@@ -2,7 +2,9 @@
 
 use std::collections::BTreeSet;
 
-use warrantor_warrant::effects::{Decomposition, Syscall};
+use warrantor_warrant::effects::{
+    Decomposition, DecompositionRegistry, Syscall, EFFECT_REGISTRY_FORMAT,
+};
 use warrantor_warrant::SideEffectClass;
 
 #[test]
@@ -90,4 +92,89 @@ fn a_decomposition_projects_to_its_most_consequential_class_never_lower() {
             "{syscall:?}"
         );
     }
+}
+
+#[test]
+fn the_builtin_registry_declares_exactly_the_four_staged_github_tools_as_writes() {
+    let registry = DecompositionRegistry::builtin();
+    assert_eq!(registry.len(), 4);
+    for tool in [
+        "github.create_pr",
+        "github.comment",
+        "github.request_review",
+        "github.add_label",
+    ] {
+        let d = registry
+            .get(tool)
+            .unwrap_or_else(|| panic!("{tool} is builtin"));
+        // Every one is a network call; the projection is Write, which is what
+        // EffectRegistry::github() implied before and what staged_classes stages.
+        assert!(d.syscalls().contains(&Syscall::Net), "{tool}");
+        assert_eq!(d.class(), SideEffectClass::Write, "{tool}");
+    }
+    assert!(
+        registry.get("github.merge_pr").is_none(),
+        "nothing the settle path cannot perform"
+    );
+}
+
+#[test]
+fn a_tool_declared_twice_is_refused_and_a_builtin_cannot_be_redeclared_differently() {
+    let mut registry = DecompositionRegistry::new();
+    registry
+        .insert(Decomposition::parse("files.write_file=mutate").expect("parses"))
+        .expect("first");
+    let error = registry
+        .insert(Decomposition::parse("files.write_file=net").expect("parses"))
+        .expect_err("second");
+    assert!(error.contains("declared twice"), "{error}");
+
+    // Merging: identical is fine (two files may both state the obvious), different is refused.
+    let mut base = DecompositionRegistry::builtin();
+    let mut same = DecompositionRegistry::new();
+    same.insert(Decomposition::parse("github.create_pr=net+mutate").expect("parses"))
+        .expect("insert");
+    base.merge(same)
+        .expect("identical redeclaration is not a conflict");
+
+    let mut weaker = DecompositionRegistry::new();
+    weaker
+        .insert(Decomposition::parse("github.create_pr=net").expect("parses"))
+        .expect("insert");
+    let error = base.merge(weaker).expect_err("a builtin redeclared weaker");
+    assert!(error.contains("github.create_pr"), "{error}");
+    assert!(
+        error.contains("net+mutate"),
+        "the existing decomposition is named: {error}"
+    );
+}
+
+#[test]
+fn a_registry_document_round_trips_and_a_foreign_format_is_refused_not_read() {
+    let mut registry = DecompositionRegistry::new();
+    registry
+        .insert(Decomposition::parse("deploy.to_prod=exec+net+mutate").expect("parses"))
+        .expect("insert");
+    let body = registry.to_json().expect("serializes");
+    assert!(body.contains(EFFECT_REGISTRY_FORMAT), "{body}");
+    let back = DecompositionRegistry::from_json(&body).expect("reads its own output");
+    assert_eq!(back, registry);
+
+    let foreign = r#"{"format":"warrantor.effect-registry/2","tools":{"t":["net"]}}"#;
+    let error = DecompositionRegistry::from_json(foreign).expect_err("refused");
+    assert!(error.contains("warrantor.effect-registry/2"), "{error}");
+    assert!(error.contains(EFFECT_REGISTRY_FORMAT), "{error}");
+
+    let unversioned = r#"{"tools":{"t":["net"]}}"#;
+    let error = DecompositionRegistry::from_json(unversioned).expect_err("refused");
+    assert!(error.contains("format"), "{error}");
+
+    // The old vocabulary inside a document is a refusal naming the word, not a silent Read.
+    let old = format!(r#"{{"format":"{EFFECT_REGISTRY_FORMAT}","tools":{{"t":["write"]}}}}"#);
+    let error = DecompositionRegistry::from_json(&old).expect_err("refused");
+    assert!(error.contains("write"), "{error}");
+
+    let empty = format!(r#"{{"format":"{EFFECT_REGISTRY_FORMAT}","tools":{{"t":[]}}}}"#);
+    let error = DecompositionRegistry::from_json(&empty).expect_err("refused");
+    assert!(error.contains("decomposes to nothing"), "{error}");
 }
