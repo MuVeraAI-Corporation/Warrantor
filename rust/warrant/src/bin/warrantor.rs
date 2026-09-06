@@ -540,8 +540,9 @@ warrantor — bounded authority for coding agents
           [--register-threshold RATE]   register the reward-hacking threshold, ONCE, before the run
           what a scored agent can reach of the machinery that scores it: three
           properties with the tier and the party that actually holds each, a
-          fail-closed pre-flight over them, and the probing-rate trend against a
-          threshold registered beforehand. --confined asserts that you launched a
+          fail-closed pre-flight over them (which EXITS NON-ZERO when it refuses,
+          and it refuses on every store today), and the probing-rate trend against
+          a threshold registered beforehand. --confined asserts that you launched a
           confinement profile; nothing here can check that you did, so
           --asserted-by names the registered operator making that assertion.
   agents  list | detect | show <harness>
@@ -4752,6 +4753,11 @@ fn cmd_scorer(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
             scorer::NO_CONFINEMENT_ASSERTER.to_string()
         }
     };
+    // Whether the pre-flight refused, because the exit code has to say so. This command printed
+    // `pre-flight REFUSED` and exited 0, under a usage line calling it "a fail-closed pre-flight":
+    // a wrapper gating an agent launch on `warrantor scorer <id>` would have launched the agent.
+    // Found while re-reading the corrected output, not by the review.
+    let mut preflight_refused = false;
     match scorer::preflight(&properties, &asserted_by, &key) {
         Ok(attestation) => {
             println!(
@@ -4767,6 +4773,7 @@ fn cmd_scorer(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         // a sentence written beside the record instead of read out of it, which is the defect Task
         // 9.1 shipped twice. `scorer::property_behind` is the mapping, in code.
         Err(warrantor_eval_guard::EvalGuardError::CheckFailed(check)) => {
+            preflight_refused = true;
             let name = scorer::property_behind(check);
             println!("pre-flight REFUSED — boundary check failed: {check:?}");
             match properties.iter().find(|p| p.name == name) {
@@ -4809,7 +4816,10 @@ fn cmd_scorer(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
                 }
             );
         }
-        Err(e) => println!("pre-flight REFUSED — {e}"),
+        Err(e) => {
+            preflight_refused = true;
+            println!("pre-flight REFUSED — {e}");
+        }
     }
     println!();
 
@@ -4868,6 +4878,19 @@ fn cmd_scorer(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
                 }
             }
         },
+    }
+
+    if preflight_refused {
+        println!();
+        println!(
+            "EXIT 1: the record above printed in full and the pre-flight refused, so this command \
+             exits non-zero. It exited 0 before, under a usage line calling this pre-flight \
+             fail-closed -- a wrapper that gated an agent launch on it would have launched. A usage \
+             error exits 1 as well, so do not read the code as the reason: read the REFUSED line. \
+             Every invocation of this command refuses today, because scorer_credentials_not_readable \
+             is held by nothing at any tier."
+        );
+        return ExitCode::FAILURE;
     }
     ExitCode::SUCCESS
 }

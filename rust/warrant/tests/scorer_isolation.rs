@@ -992,6 +992,53 @@ fn the_bare_command_refuses_on_the_boundary_it_actually_refuses_on() {
 }
 
 #[test]
+fn a_refused_preflight_exits_non_zero_and_still_prints_the_whole_record() {
+    // Found while re-reading the corrected output, not by the review: `warrantor scorer` printed
+    // `pre-flight REFUSED` and exited 0, under a usage line calling this "a fail-closed pre-flight".
+    // A wrapper gating an agent launch on the command would have launched the agent -- fail-open at
+    // exactly the composition boundary invariant I-09 is about.
+    let dir = tempdir("cli-exit-code");
+    store_with_worktree(&dir, "wrt_scored", WORKTREE);
+
+    let (ok, text) = run(&dir, &["wrt_scored"]);
+    assert!(!ok, "a refused pre-flight must not exit 0: {text}");
+    assert!(text.contains("pre-flight REFUSED"), "{text}");
+    assert!(
+        text.contains("EXIT 1"),
+        "the reason for the code is printed: {text}"
+    );
+
+    // THE CONTROL, and it is not the one this test would prefer. No CLI invocation can produce a
+    // PASSING pre-flight today -- `scorer_credentials_not_readable` is held by nothing at any tier,
+    // which is the finding -- so the control cannot be "the same command exits 0 when the boundary
+    // holds". What it can be, and what matters for a non-zero code, is that the code is not a brick:
+    // the whole record still printed, including the property lines, the tier legend, the derived
+    // caveat and the threshold section, so a reader gets the report and a script gets the failure.
+    for fragment in [
+        "scorer isolation for wrt_scored",
+        "scorer_inputs_not_writable",
+        "scorer_credentials_not_readable",
+        "scorer_not_reachable_over_network",
+        "This record states which party held each isolation property",
+        "no reward-hacking threshold is registered",
+    ] {
+        assert!(
+            text.contains(fragment),
+            "the non-zero exit must not suppress the record: {fragment} missing from {text}"
+        );
+    }
+
+    // And a usage error on the same command exits non-zero too, which is why the printed line says
+    // not to read the code as the reason.
+    let (ok, usage) = run(&dir, &["wrt_scored", "--confined"]);
+    assert!(!ok, "{usage}");
+    assert!(
+        !usage.contains("EXIT 1"),
+        "that path refuses before the pre-flight: {usage}"
+    );
+}
+
+#[test]
 fn the_preflight_refuses_to_name_the_graded_warrant_as_the_party_that_asserted_the_confinement() {
     // `asserted_by` was `format!("operator-at-cli:{id}")` -- the id of the warrant being GRADED, which
     // names no party at all and is the anonymous assertion `Provenance::Asserted` exists to stop,
