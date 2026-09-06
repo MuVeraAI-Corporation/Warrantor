@@ -972,6 +972,29 @@ both so the three can merge without renumbering.)
 
 ---
 
+## Effect plane
+
+### E.1 Two-phase staged effects — **built for the GitHub family; recorder is local**
+
+Every staged effect now has a signed pre-commit receipt the recorder must acknowledge before the
+performer runs, a post-commit that chains to it, and an idempotency key so a retried settle reuses
+a recorded performance and refuses to repeat one whose outcome is not on record (`staging.rs`,
+`settle.rs`, `warrantor.staged-receipt/1`; the receipt path verified live 2026-09-06: `warrantor
+settle` on a credential-less machine issued the pre-commit before the GitHub adapter was reached,
+recorded the failure, and `warrantor verify` read the log back as verified pairs — no pull request
+was created, and this entry does not claim one). Tier: **Mediated** — the performer is a chokepoint
+the agent cannot reach; it is not an OS bound. Not yet: the recorder is
+`receipts/<id>.staged.jsonl` in the same store, so it proves the protocol and not custody (Task 3.4
+puts the flight recorder behind `staging::Recorder`); only the four GitHub kinds are registered, so
+"every syscall" is a property of the loop, not yet of the catalog (Tasks 2.1, 2.5 widen it); the
+staging latency budget E-06 asks for is not published. Two receipt streams exist in this build and
+say so: the report path's `warrantor.effect-receipts/1` log (Task 1.1, feeds the signed bundle) and
+this commit-gate log (`warrantor.staged-receipt/1`, drives idempotent replay); each format refuses
+the other's lines, which is why they are two files and not one, and a later task should consolidate
+them rather than let both grow.
+
+---
+
 ## Tier 4 — model intelligence
 
 ### 4.1 The guard is wired in as observe-only signals — **partly done**

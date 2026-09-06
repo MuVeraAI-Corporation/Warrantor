@@ -100,6 +100,8 @@ pub enum ArtifactClass {
     Staged,
     /// `witness/<id>.jsonl`
     Witness,
+    /// `receipts/<id>.jsonl` and `receipts/<id>.staged.jsonl`
+    Receipts,
     /// `stops/<id>.json`
     Stops,
     /// `spend/<id>.json`
@@ -137,10 +139,11 @@ pub enum ArtifactClass {
 }
 
 /// Every class, in the order an operator should read them: evidence first, machinery last.
-pub const ALL_CLASSES: [ArtifactClass; 20] = [
+pub const ALL_CLASSES: [ArtifactClass; 21] = [
     ArtifactClass::Warrants,
     ArtifactClass::Staged,
     ArtifactClass::Witness,
+    ArtifactClass::Receipts,
     ArtifactClass::Stops,
     ArtifactClass::Spend,
     ArtifactClass::Refusals,
@@ -168,6 +171,7 @@ impl ArtifactClass {
             Self::Warrants => "warrants",
             Self::Staged => "staged",
             Self::Witness => "witness",
+            Self::Receipts => "receipts",
             Self::Stops => "stops",
             Self::Spend => "spend",
             Self::Daemons => "daemons",
@@ -195,6 +199,7 @@ impl ArtifactClass {
             Self::Warrants => "warrants/<id>.json",
             Self::Staged => "staged/<id>.jsonl",
             Self::Witness => "witness/<id>.jsonl",
+            Self::Receipts => "receipts/<id>.jsonl and receipts/<id>.staged.jsonl",
             Self::Stops => "stops/<id>.json",
             Self::Spend => "spend/<id>.json",
             Self::Daemons => "daemons/<id>[.done].json",
@@ -222,6 +227,7 @@ impl ArtifactClass {
             Self::Warrants => root.join("warrants"),
             Self::Staged => root.join("staged"),
             Self::Witness => root.join("witness"),
+            Self::Receipts => root.join("receipts"),
             Self::Stops => root.join("stops"),
             Self::Spend => root.join("spend"),
             Self::Daemons => root.join("daemons"),
@@ -256,6 +262,10 @@ impl ArtifactClass {
             Self::Reviews => "which blocker was last announced for each warrant, so a repeated check does not repeatedly notify. Bookkeeping, not evidence",
             Self::Witness => {
                 "how far each warrant's staged-effect chain reached, recorded outside the log it                  describes"
+            }
+            Self::Receipts => {
+                "the signed pre-commit and post-commit receipts each effect produced, both the \
+                 report path's chains and the settle commit gate's staged log"
             }
             Self::Stops => "signed stop records: what a stop terminated and what it did not",
             Self::Spend => "the signed observed-spend ledger the budget bound is checked against",
@@ -310,6 +320,7 @@ impl ArtifactClass {
             }
             Self::Staged => DeletionEffect::LosesEvidenceSilently,
             Self::Witness => DeletionEffect::LosesEvidence,
+            Self::Receipts => DeletionEffect::LosesEvidence,
             Self::Refusals | Self::Guard => DeletionEffect::LosesEvidence,
             Self::Exports => DeletionEffect::LosesEvidence,
             Self::PendingFilings | Self::TrustedIssuers => DeletionEffect::FlipsAVerdict,
@@ -351,6 +362,10 @@ impl ArtifactClass {
             Self::Witness => {
                 "it is what makes a deleted staged log detectable rather than silent; delete both \
                  and the pair is back to the absence the witness exists to close"
+            }
+            Self::Receipts => {
+                "each receipt is the proof an effect was gated before it happened; a hole where a \
+                 pre-commit used to be reads as an effect that was never evidence-bound (I-07)"
             }
             Self::Actors => "the chain makes a removal DETECTABLE to somebody holding a later head, which is not the same as preventing it -- and a reader with no earlier copy cannot tell",
             Self::Runs => "an unguarded run and a run that never happened become the same observation again, which is precisely the confusion this class was added to end",

@@ -9,9 +9,9 @@ use warrantor_evidence as evidence;
 use warrantor_warrant::receipts::{chains, ReceiptLog};
 use warrantor_warrant::report::{build, verify_export, verify_export_signed_by, ReportError};
 use warrantor_warrant::settle::{
-    settle, EffectOutcome, EffectPerformer, EffectWitness, EvidencedPerformer,
+    settle, CommitGate, EffectOutcome, EffectPerformer, EffectWitness, EvidencedPerformer,
 };
-use warrantor_warrant::staging::{EffectRegistry, StagedEffect, StagingQueue};
+use warrantor_warrant::staging::{EffectRegistry, FileRecorder, StagedEffect, StagingQueue};
 use warrantor_warrant::store::StoredWarrant;
 use warrantor_warrant::{SideEffectClass, Warrant, WarrantBounds, WarrantState};
 
@@ -38,6 +38,20 @@ fn issuer() -> SigningKey {
 
 fn settle_key() -> SigningKey {
     SigningKey::from_bytes(&[2; 32])
+}
+
+fn gate<'a>(recorder: &'a mut FileRecorder, key: &'a SigningKey) -> CommitGate<'a> {
+    CommitGate {
+        recorder,
+        signer: key,
+        key_id: "settle",
+        now: NOW,
+    }
+}
+
+fn fresh_recorder(dir: &std::path::Path) -> FileRecorder {
+    // Its own file: the log under test here is the notary receipt log, and the two formats refuse each other's lines.
+    FileRecorder::open(dir.join("receipts.staged.jsonl")).expect("recorder")
 }
 
 fn args(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
@@ -160,6 +174,7 @@ fn a_pre_commit_receipt_is_on_disk_before_the_effect_is_performed() {
         lines_on_disk_when_performing: Vec::new(),
     };
     let witness = witness(&warrant);
+    let mut rec = fresh_recorder(&dir);
     let mut performer = EvidencedPerformer::new(&mut inner, witness, &mut log);
 
     let report = settle(
@@ -168,6 +183,7 @@ fn a_pre_commit_receipt_is_on_disk_before_the_effect_is_performed() {
         None,
         &settle_key().verifying_key(),
         &mut performer,
+        &mut gate(&mut rec, &settle_key()),
     )
     .expect("settle");
     drop(performer);
@@ -191,6 +207,7 @@ fn every_released_effect_has_a_chain_that_verifies_and_names_its_real_id() {
         lines_on_disk_when_performing: Vec::new(),
     };
     let witness = witness(&warrant);
+    let mut rec = fresh_recorder(&dir);
     let mut performer = EvidencedPerformer::new(&mut inner, witness, &mut log);
     settle(
         &mut warrant,
@@ -198,6 +215,7 @@ fn every_released_effect_has_a_chain_that_verifies_and_names_its_real_id() {
         None,
         &settle_key().verifying_key(),
         &mut performer,
+        &mut gate(&mut rec, &settle_key()),
     )
     .expect("settle");
     assert!(performer.unrecorded().is_empty());
@@ -240,6 +258,7 @@ fn an_effect_for_a_tool_the_warrant_does_not_hold_is_refused_before_it_is_perfor
         lines_on_disk_when_performing: Vec::new(),
     };
     let witness = witness(&warrant);
+    let mut rec = fresh_recorder(&dir);
     let mut performer = EvidencedPerformer::new(&mut inner, witness, &mut log);
     let report = settle(
         &mut warrant,
@@ -247,6 +266,7 @@ fn an_effect_for_a_tool_the_warrant_does_not_hold_is_refused_before_it_is_perfor
         None,
         &settle_key().verifying_key(),
         &mut performer,
+        &mut gate(&mut rec, &settle_key()),
     )
     .expect("settle");
     drop(performer);
@@ -288,6 +308,7 @@ fn a_failed_effect_gets_a_post_commit_that_says_so() {
         lines_on_disk_when_performing: Vec::new(),
     };
     let witness = witness(&warrant);
+    let mut rec = fresh_recorder(&dir);
     let mut performer = EvidencedPerformer::new(&mut inner, witness, &mut log);
     settle(
         &mut warrant,
@@ -295,6 +316,7 @@ fn a_failed_effect_gets_a_post_commit_that_says_so() {
         None,
         &settle_key().verifying_key(),
         &mut performer,
+        &mut gate(&mut rec, &settle_key()),
     )
     .expect("settle");
     drop(performer);
@@ -335,6 +357,7 @@ fn settled_export(dir: &Path) -> warrantor_warrant::report::SignedReport {
         lines_on_disk_when_performing: Vec::new(),
     };
     let witness = witness(&warrant);
+    let mut rec = fresh_recorder(dir);
     let mut performer = EvidencedPerformer::new(&mut inner, witness, &mut log);
     settle(
         &mut warrant,
@@ -342,6 +365,7 @@ fn settled_export(dir: &Path) -> warrantor_warrant::report::SignedReport {
         None,
         &settle_key().verifying_key(),
         &mut performer,
+        &mut gate(&mut rec, &settle_key()),
     )
     .expect("settle");
     drop(performer);

@@ -19,8 +19,10 @@ use ed25519_dalek::SigningKey;
 use warrantor_evidence as evidence;
 use warrantor_warrant::receipts::ReceiptLog;
 use warrantor_warrant::report::{build, SignedReport};
-use warrantor_warrant::settle::{settle, EffectPerformer, EffectWitness, EvidencedPerformer};
-use warrantor_warrant::staging::{EffectRegistry, StagedEffect, StagingQueue};
+use warrantor_warrant::settle::{
+    settle, CommitGate, EffectPerformer, EffectWitness, EvidencedPerformer,
+};
+use warrantor_warrant::staging::{EffectRegistry, FileRecorder, StagedEffect, StagingQueue};
 use warrantor_warrant::store::StoredWarrant;
 use warrantor_warrant::{SideEffectClass, Warrant, WarrantBounds};
 
@@ -162,6 +164,8 @@ pub fn settled_export_and_receipts(
         Vec::new(),
         NOW,
     );
+    let mut rec = FileRecorder::open(dir.join(format!("{id}-receipts-staged.jsonl")))
+        .expect("open staged log");
     let mut performer = EvidencedPerformer::new(&mut inner, witness, &mut log);
     settle(
         &mut granted,
@@ -169,6 +173,7 @@ pub fn settled_export_and_receipts(
         None,
         &settle_key().verifying_key(),
         &mut performer,
+        &mut gate(&mut rec, &settle_key()),
     )
     .expect("settle");
     drop(performer);
@@ -224,6 +229,8 @@ pub fn export_built_over(
         Vec::new(),
         NOW,
     );
+    let mut rec = FileRecorder::open(dir.join(format!("{id}-receipts-staged.jsonl")))
+        .expect("open staged log");
     let mut performer = EvidencedPerformer::new(&mut inner, witness, &mut log);
     settle(
         &mut granted,
@@ -231,6 +238,7 @@ pub fn export_built_over(
         None,
         &settle_key().verifying_key(),
         &mut performer,
+        &mut gate(&mut rec, &settle_key()),
     )
     .expect("settle");
     drop(performer);
@@ -244,4 +252,13 @@ pub fn export_built_over(
     .with_effect_receipts(receipts)
     .sign(&issuer(), "issuer")
     .expect("sign")
+}
+
+fn gate<'a>(recorder: &'a mut FileRecorder, key: &'a SigningKey) -> CommitGate<'a> {
+    CommitGate {
+        recorder,
+        signer: key,
+        key_id: "settle",
+        now: NOW,
+    }
 }
