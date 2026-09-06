@@ -508,12 +508,12 @@ $ python tools/ci/check_invariants.py
 invariant ledger: 12 invariants; enforced=2, orphaned=0, partial=9, unimplemented=1
 LEDGER=0
 $ python tools/ci/check_us_english.py main
-us-english: 3890 added line(s) across 16 file(s), since main; matcher = vendored verify-us-english.mjs
+us-english: 4099 added line(s) across 16 file(s), since main; matcher = vendored verify-us-english.mjs
 us-english: ok
 USEN=0
-    # the added-line COUNT includes this document, so it moves with the commit that records it;
-    # the verdict `ok` is the load-bearing half. It was NOT ok on the first correction-pass run:
-    # two 'afterwards', one here and one in scorer_isolation.rs, both fixed to 'afterward'.
+    # this gate diffs `main...HEAD` -- COMMITTED content -- and the count includes this document, so a
+    # number read from a dirty tree understates: this line first said 3890, measured before the docs
+    # commit. `ok` is the load-bearing half; it was NOT ok at first (two 'afterwards', now 'afterward').
 $ python tools/ci/check_docs.py
 RESULT: PASS - 267 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
 DOCS=0
