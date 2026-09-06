@@ -656,10 +656,24 @@ function renderQueue(facts) {
  * Returns the empty fragment when the field is absent, which is the honest answer for a
  * server that has not shipped the metric. A block that printed "0 disagreement" instead
  * would be a queue that gets faster and friendlier on its way to rubber-stamping.
+ *
+ * Task 11.6 (L8-17, L8-23) added two refusals:
+ *   - The block refuses to render latency figures unless `disagreement_rate` is finite.
+ *     A block that published p50 and p99 without disagreement beside it would teach the
+ *     reader that latency is a goal in itself; the plan's exit gate is "latency cannot
+ *     render without disagreement beside it".
+ *   - A disagreement rate of zero renders as a warning, not as "0%". Zero disagreement
+ *     with a healthy sample size is rubber-stamping, and the renderer names that.
  */
 export function latencyBlock(latency) {
   const frag = document.createDocumentFragment();
   if (!latency || typeof latency !== 'object') return frag;
+  // Task 11.6 refusal: latency figures are conditional on disagreement. If the server
+  // did not send a finite disagreement_rate, the block refuses to publish p50 and p99
+  // rather than printing them without the counter-metric. The prose-only block that
+  // follows carries the reason the latency was withheld.
+  const hasDisagreement = Number.isFinite(latency.disagreement_rate);
+  const disagreementIsZero = hasDisagreement && latency.disagreement_rate === 0;
   const heading = document.createElement('h3');
   heading.className = 'queue-latency-head';
   heading.textContent = 'How fast this queue answers, and how often it disagrees';
@@ -675,15 +689,41 @@ export function latencyBlock(latency) {
     dl.append(dt, dd);
   };
 
-  if (Number.isFinite(latency.p50_seconds)) add('p50 approval latency', `${latency.p50_seconds} s`);
-  if (Number.isFinite(latency.p99_seconds)) add('p99 approval latency', `${latency.p99_seconds} s`);
+  // Latency figures are withheld ONLY when disagreement is not finite. A
+  // disagreement rate of zero IS finite — the latency renders beside the
+  // zero-rendered-as-warning so the reader sees both the warning and the
+  // figure that brought it. Withholding latency when disagreement is zero
+  // would conflate two refusals: "I disagree is missing" vs "I disagree is
+  // honest about rubber-stamping".
+  if (hasDisagreement) {
+    if (Number.isFinite(latency.p50_seconds)) add('p50 approval latency', `${latency.p50_seconds} s`);
+    if (Number.isFinite(latency.p99_seconds)) add('p99 approval latency', `${latency.p99_seconds} s`);
+  }
   if (latency.disagreement_rate === null) {
     add('disagreement rate', 'not stated — too few samples in the window to publish');
   } else if (Number.isFinite(latency.disagreement_rate)) {
-    const pct = Math.round(latency.disagreement_rate * 100);
-    add('disagreement rate', `${pct}% of recent decisions disagreed with the agent's request`);
+    // Task 11.6: a disagreement rate at zero renders as a warning, not as success.
+    // The warning names what zero disagreement would have to mean ("rubber-stamping")
+    // rather than printing "0%" and inviting the reader to read it as a clean number.
+    if (disagreementIsZero) {
+      add('disagreement rate', '0% — WARNING: zero disagreement over a healthy sample is rubber-stamping, not improvement.');
+    } else {
+      const pct = Math.round(latency.disagreement_rate * 100);
+      add('disagreement rate', `${pct}% of recent decisions disagreed with the agent's request`);
+    }
   } else {
     add('disagreement rate', 'not stated');
+  }
+  // The latency block refuses to publish latency figures when disagreement is absent;
+  // a paragraph carries the reason instead so a reader scanning the block sees why the
+  // latency was withheld. This is the structural fix for the plan's "latency cannot
+  // render without disagreement beside it" rule.
+  if (!hasDisagreement) {
+    const withheld = document.createElement('p');
+    withheld.className = 'queue-latency-withheld';
+    withheld.textContent =
+      'p50 and p99 latency are not published for this window — the disagreement rate was not stated by the server, and a latency figure without a counter-metric is the kind of metric a queue learns to game.';
+    frag.append(withheld);
   }
   if (Number.isFinite(latency.sample_size)) {
     add('sample size', `${latency.sample_size} decision(s) in the window`);

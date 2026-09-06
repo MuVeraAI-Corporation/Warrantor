@@ -1706,6 +1706,111 @@ test('the queue does not reward approval rate: no count, no badge, no per-user l
   assert.doesNotMatch(queueText, /streak|fastest|top approver|leaderboard/i);
 });
 
+// ── Task 11.6 — approval quality, cognitive load, automation bias, oversight yield (L8-17, L8-23) ──
+//
+// "A disagreement rate trending to zero while latency improves is rubber-stamping." The exit
+// gate is: the disagreement rate renders beside the latency figure and cannot be hidden;
+// nothing in the UI rewards approval rate, asserted by a test over the enumerated list; and
+// a disagreement rate at zero renders as a warning, not as success.
+
+test('a zero disagreement rate renders as a warning, not as a clean 0%', async () => {
+  // The exit gate, Step 4. A disagreement rate of zero is not success: it is the
+  // signature of a queue that has stopped disagreeing with the agent, which is
+  // rubber-stamping. The renderer names that in the prose, not as a percentage
+  // badge. A reader who sees "0%" with no warning has been told their work is
+  // done when it is not.
+  const { module } = await boot(() => HEALTH_OK);
+  const frag = module.latencyBlock({
+    p50_seconds: 14,
+    p99_seconds: 90,
+    sample_size: 240,
+    window: 'last 24h',
+    disagreement_rate: 0,
+    note: 'A disagreement rate trending to zero while latency improves is rubber-stamping, not improvement.',
+  });
+  const all = textOf(frag);
+  // The warning prose is present.
+  assert.match(all, /0% — WARNING: zero disagreement over a healthy sample is rubber-stamping/);
+  // No bare "0%" reads as a clean number — the prose carries the WARNING class.
+  assert.ok(!/(?<![\w-])0% of recent decisions/.test(all), 'zero disagreement must not render as "0% of recent decisions"');
+  // The latency figures still render alongside the warning — withholding them
+  // would be a different failure (conflating two refusals).
+  assert.match(all, /p50 approval latency/);
+  assert.match(all, /p99 approval latency/);
+});
+
+test('latency cannot render without disagreement beside it', async () => {
+  // The exit gate, Step 5. A latency block that publishes p50 and p99 without
+  // disagreement beside it teaches the reader that latency is a goal in
+  // itself; the plan's exit gate is "latency cannot render without
+  // disagreement beside it". The renderer withholds the latency figures and
+  // prints the prose paragraph that names the refusal, so a reader scanning
+  // the block sees both the disagreement and the reason the latency was
+  // withheld.
+  const { module } = await boot(() => HEALTH_OK);
+  // disagreement_rate === undefined (the field is absent altogether).
+  const frag1 = module.latencyBlock({
+    p50_seconds: 30,
+    p99_seconds: 90,
+    sample_size: 17,
+    window: 'last 24h',
+    // disagreement_rate missing
+  });
+  assert.doesNotMatch(textOf(frag1), /p50 approval latency/, 'p50 must not render without disagreement');
+  assert.doesNotMatch(textOf(frag1), /p99 approval latency/, 'p99 must not render without disagreement');
+  assert.match(textOf(frag1), /not published for this window/, 'withholding reason is rendered');
+  // disagreement_rate === null (too few samples) is the same refusal.
+  const frag2 = module.latencyBlock({
+    p50_seconds: 30,
+    p99_seconds: 90,
+    sample_size: 0,
+    disagreement_rate: null,
+  });
+  assert.doesNotMatch(textOf(frag2), /p50 approval latency/, 'p50 must not render with disagreement_rate: null');
+  assert.match(textOf(frag2), /not stated — too few samples/, 'disagreement reason is rendered');
+  // disagreement_rate is a string (malformed) is the same refusal.
+  const frag3 = module.latencyBlock({
+    p50_seconds: 30,
+    p99_seconds: 90,
+    sample_size: 17,
+    disagreement_rate: 'high',
+  });
+  assert.doesNotMatch(textOf(frag3), /p50 approval latency/);
+  // disagreement_rate > 0 still renders p50 and p99.
+  const frag4 = module.latencyBlock({
+    p50_seconds: 30,
+    p99_seconds: 90,
+    sample_size: 17,
+    disagreement_rate: 0.12,
+  });
+  assert.match(textOf(frag4), /p50 approval latency/);
+  assert.match(textOf(frag4), /p99 approval latency/);
+});
+
+test('the queue is enumerated clean of every element that could reward approval rate', async () => {
+  // The exit gate, Step 3. The removal list, asserted at runtime: every
+  // pattern the plan names as a potential reward is checked against the
+  // rendered queue. The list itself is in the evidence file
+  // (`docs/task-evidence/task-11.6.md`); the test pins the same patterns
+  // here so a future regression is caught by `node --test`, not by a
+  // reader.
+  const app = await openFixture(baselineQueue);
+  const queueText = textOf(app.el('queue'));
+  // Counters tied to the reader's own behavior.
+  assert.doesNotMatch(queueText, /you (have )?approved \d+/i);
+  assert.doesNotMatch(queueText, /approvals? (today|this hour|this week|per hour)/i);
+  assert.doesNotMatch(queueText, /your (rate|speed|throughput|streak)/i);
+  // Sort orders that favor the quick path: "first" / "fastest" / "quickest".
+  assert.doesNotMatch(queueText, /sort(ed)? by speed/i);
+  assert.doesNotMatch(queueText, /fastest first/i);
+  // Badges or labels that mark a fast approver.
+  assert.doesNotMatch(queueText, /streak|fastest|top approver|leaderboard|🏆|⭐/);
+  // Per-user counters or comparisons.
+  assert.doesNotMatch(queueText, /average over (you|your team|this approver)/i);
+  // A progress bar or percent toward a quota.
+  assert.doesNotMatch(queueText, /\d+% of (your )?daily (quota|target|goal)/i);
+});
+
 test('the L8-01 act button is the last interactive child of the row, after every disclosure', async () => {
   // Belt-and-braces version of the anti-ceremony test: the act bar's position in the
   // interactive-children array, not just its class. A regression that swaps two sections
