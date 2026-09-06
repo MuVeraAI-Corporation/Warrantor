@@ -183,22 +183,67 @@ fn the_egress_receipt_records_which_failure_closed_the_action() {
     assert_eq!(receipt.body.capability, request.capability);
 }
 
-// -- finding --------------------------------------------------------------------------
+// -- the finding this suite closed ----------------------------------------------------
 
-/// FINDING (I-09, orphaned). `eval-guard` refuses to start an agent when the boundary it is meant
-/// to be measured against could not be measured — the sharpest expression of I-09 in the
-/// repository — and the `warrantor` binary does not link it. The refusal is real, tested, and
-/// cannot fire for any user of the shipped product.
+/// CLOSED 2026-09-05 by Task 13.7. It read, from 2026-09-02: *"`eval-guard` refuses to start an
+/// agent when the boundary it is meant to be measured against could not be measured — the sharpest
+/// expression of I-09 in the repository — and the `warrantor` binary does not link it. The refusal
+/// is real, tested, and cannot fire for any user of the shipped product."*
 ///
-/// Fixed by: no task in the 2026-09-02 implementation plan links `eval-guard`. Task 0.3's orphan
-/// census is where the crate is counted. Recorded 2026-09-02.
+/// Two things changed, and the order was the whole difficulty. `eval-guard` measures nothing — its
+/// own module doc says so — and its CLI defaulted the four booleans to all-pass, so the shipped
+/// binary emitted a signed "four boundaries held" on a host with no sandbox on it. **Wiring that in
+/// would have raised the wiring census by putting a manufactured claim on the product's main path.**
+/// So the fabrication was fixed first: `Provenance` is a required argument that participates in the
+/// signed bytes, and there is no CLI default for it. Then the crate was linked, behind
+/// `warrantor_warrant::scorer` and `warrantor scorer`.
+///
+/// What is still NOT true, and is why I-09 moves to `partial` rather than `enforced`: *"network loss
+/// to I1 = deny"* has no I1 to lose — there is no identity plane to lose contact with — and the
+/// preflight signs a caller's assertion rather than a measurement. `crate::scorer::preflight` always
+/// passes `Provenance::Asserted` for exactly that reason.
 #[test]
-#[ignore = "I-09 orphaned: eval-guard's fail-closed preflight is not linked by the warrantor binary (2026-09-02)"]
 fn the_product_links_the_preflight_that_refuses_an_unmeasured_boundary() {
+    // Unchanged from the ignored form. It was never weakened -- it is now true.
     let manifest = harness::read_repository_file("rust/warrant/Cargo.toml");
     assert!(
         manifest.contains("warrantor-eval-guard"),
         "the fail-closed preflight lives in a crate the product does not link, so no shipped run \
          is refused for starting against an unmeasured boundary.",
+    );
+
+    // And the manifest line is not the fix. Two assertions beside it, so this test measures the
+    // change rather than the declaration.
+    //
+    // First: the record cannot omit where the four booleans came from.
+    harness::source_contains(
+        "rust/eval-guard/src/lib.rs",
+        "pub provenance: Provenance,",
+        "an attestation with no field naming the source of its four booleans is a signature over an \
+         anonymous claim, which is worse for I-09 than no signature: it reads as evidence.",
+    );
+    harness::source_contains(
+        "rust/eval-guard/src/cli.rs",
+        "provenance: String,",
+        "the CLI must REQUIRE a provenance. It used to build CheckResults::all_pass() by default, so \
+         the shipped binary signed an unmeasured pass for anyone who ran it with no flags.",
+    );
+
+    // Second: the refusal is reachable from the product. `scorer::preflight` maps eval-guard's
+    // ProcessIsolation onto `scorer_credentials_not_readable`, which nothing in this repository
+    // holds -- so the best case the product can construct still fails closed, and it fails on the
+    // boundary that is genuinely absent rather than on an arbitrary one.
+    let properties = warrantor_warrant::scorer::isolation(
+        &bounds_with_budget(Some(100)),
+        Some(warrantor_warrant::sandbox::Confinement::Bubblewrap),
+        std::path::Path::new("/home/agent/.warrantor"),
+        std::path::Path::new("/home/agent/repo/.warrantor/wrt_w1"),
+    );
+    let (key, _) = notary::generate_keypair();
+    let refused = warrantor_warrant::scorer::preflight(&properties, "corpus-i09", &key);
+    assert!(
+        refused.is_err(),
+        "the product's own isolation record must fail this preflight closed: the credential \
+         property is held by nothing, and a pass would be signing the gap. Got {refused:?}",
     );
 }

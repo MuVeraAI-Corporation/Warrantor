@@ -32,6 +32,7 @@ use warrantor_warrant::guard::{
 };
 use warrantor_warrant::operators::{Operator, OperatorRegistry, Scope};
 use warrantor_warrant::sandbox::{self, Confinement, Divergence, Profile};
+use warrantor_warrant::scorer::{self, RegisteredThreshold, ScorerError};
 use warrantor_warrant::{SideEffectClass, WarrantBounds};
 
 const NOW: u64 = 1_786_000_000;
@@ -436,4 +437,219 @@ fn log_with_one_harmful_signal() -> GuardLog {
         summaries: Vec::new(),
         unreadable_lines: 0,
     }
+}
+
+// ── Step 10: the reward-hacking monitor, its ordering rule, and who it escalates to ───────────
+
+/// Write `runs/<warrant>.jsonl` with one record per timestamp given.
+fn record_runs(root: &Path, warrant: &str, at: &[u64]) {
+    let directory = root.join("runs");
+    std::fs::create_dir_all(&directory).expect("runs directory");
+    let mut body = String::new();
+    for (index, when) in at.iter().enumerate() {
+        let record = serde_json::json!({
+            "format": warrantor_warrant::runs::RUN_FORMAT,
+            "warrant_id": warrant,
+            "run_id": format!("run_{warrant}_{index}"),
+            "at": when,
+            "mode": "enforce",
+            "guard": serde_json::Value::Null,
+            "upstreams": 0,
+            "note": warrantor_warrant::runs::RUN_NOTE,
+        });
+        body.push_str(&record.to_string());
+        body.push('\n');
+    }
+    std::fs::write(directory.join(format!("{warrant}.jsonl")), body).expect("write runs");
+}
+
+/// Write `refusals/<warrant>.jsonl` with one record carrying `count` occurrences.
+fn record_refusals(root: &Path, warrant: &str, at: u64, count: u32) {
+    let directory = root.join("refusals");
+    std::fs::create_dir_all(&directory).expect("refusals directory");
+    let record = serde_json::json!({
+        "format": warrantor_warrant::serve::REFUSAL_RECORD_FORMAT,
+        "warrant_id": warrant,
+        "at": at,
+        "kind": "tool",
+        "tool": "files.write",
+        "bound": "write_paths",
+        "destination": serde_json::Value::Null,
+        "argument": serde_json::Value::Null,
+        "reason": serde_json::Value::Null,
+        "count": count,
+    });
+    std::fs::write(
+        directory.join(format!("{warrant}.jsonl")),
+        format!("{record}\n"),
+    )
+    .expect("write refusals");
+}
+
+fn threshold(rate: f64, registered_at: u64) -> RegisteredThreshold {
+    RegisteredThreshold {
+        format: scorer::THRESHOLD_FORMAT.to_string(),
+        rate,
+        registered_at,
+        bom_digest: None,
+    }
+}
+
+#[test]
+fn an_escalation_is_addressed_to_an_operator_who_cannot_settle_the_warrant_being_graded() {
+    // The whole mechanism is in the control. `corpus.rs` turns a settle or a void into a training
+    // label, so the party holding Settle is the party whose decision BECOMES the label. An
+    // escalation that silently fell back to them would be telling the labeller that its own label
+    // is the suspect one, which is worse than telling nobody.
+    let root = tempdir("escalate");
+    record_runs(&root, "wrt_probing", &[NOW, NOW + 10]);
+    record_refusals(&root, "wrt_probing", NOW + 20, 9);
+    let trend = scorer::trend(&root, &threshold(0.2, NOW - 1));
+    assert_eq!(trend.crossed.as_deref(), Some("wrt_probing"), "{trend:?}");
+
+    // The releaser is registered FIRST and holds Stop as well as Settle, which is the realistic
+    // dangerous shape: an operator with full authority. An implementation that looked only for
+    // `allows(Stop)` would pick it, so this ordering is what gives the assertion teeth.
+    let registry = registry_with(&[
+        ("releaser", &[Scope::Settle, Scope::Stop]),
+        ("env-owner", &[Scope::Stop]),
+    ]);
+    let escalation = scorer::escalate(&root, &trend, &registry, NOW + 30).expect("crossed");
+    assert_eq!(escalation.to, "env-owner");
+    assert_eq!(escalation.warrant_id, "wrt_probing");
+    assert!(
+        escalation.note.contains("does not establish"),
+        "{}",
+        escalation.note
+    );
+    assert!(
+        escalation.note.contains("ADVISORY"),
+        "the escalation is advisory and nothing here quarantines a checkpoint; the record has to \
+         say so: {}",
+        escalation.note
+    );
+    // It is durable, or the monitor's output is a print statement.
+    assert_eq!(scorer::read_escalations(&root).len(), 1);
+
+    // CONTROL: with only a settling operator registered, escalation REFUSES rather than falling
+    // back to the party being graded.
+    let only_settler = registry_with(&[("releaser", &[Scope::Settle, Scope::Stop])]);
+    assert_eq!(
+        scorer::escalate(&root, &trend, &only_settler, NOW + 30),
+        Err(ScorerError::NoEnvironmentOwner),
+    );
+}
+
+#[test]
+fn a_trend_that_did_not_cross_produces_no_escalation() {
+    // The other control: `escalate` must not manufacture a record. An escalation logged for a run
+    // that did not cross trains its reader to ignore the next one.
+    let root = tempdir("not-crossed");
+    record_runs(&root, "wrt_quiet", &[NOW, NOW + 10]);
+    record_refusals(&root, "wrt_quiet", NOW + 20, 0);
+    let trend = scorer::trend(&root, &threshold(0.2, NOW - 1));
+    assert_eq!(trend.crossed, None, "{trend:?}");
+    let registry = registry_with(&[("env-owner", &[Scope::Stop])]);
+    assert_eq!(
+        scorer::escalate(&root, &trend, &registry, NOW + 30),
+        Err(ScorerError::NotCrossed),
+    );
+    assert!(scorer::read_escalations(&root).is_empty());
+}
+
+#[test]
+fn a_threshold_registered_after_the_first_run_is_refused() {
+    // L11-12: "the threshold is registered before the run, never tuned after". Ordering is the only
+    // thing that makes a threshold evidence rather than a rationalisation with a number on it.
+    let root = tempdir("late-threshold");
+    record_runs(&root, "wrt_probing", &[NOW]);
+    record_refusals(&root, "wrt_probing", NOW + 20, 9);
+
+    assert_eq!(
+        scorer::trend_checked(&root, &threshold(0.2, NOW + 100)),
+        Err(ScorerError::ThresholdRegisteredAfterTheRun {
+            run_at: NOW,
+            registered_at: NOW + 100,
+        }),
+    );
+
+    // CONTROL: the same store and the same rate, registered BEFORE the run, is accepted — so the
+    // refusal is about the ordering and not about the store or the number.
+    let accepted =
+        scorer::trend_checked(&root, &threshold(0.2, NOW - 1)).expect("registered first");
+    assert_eq!(accepted.crossed.as_deref(), Some("wrt_probing"));
+}
+
+#[test]
+fn a_registered_threshold_cannot_be_rewritten_once_the_runs_have_happened() {
+    let root = tempdir("no-rewrite");
+    let first = scorer::register_threshold(&root, 0.2, NOW, None).expect("first registration");
+    assert!((first.rate - 0.2).abs() < f64::EPSILON);
+    // CONTROL: it can be read back, so the store did take it.
+    assert!(
+        (read_rate(&root) - 0.2).abs() < f64::EPSILON,
+        "control: the first registration is on disk"
+    );
+    // The bound: a second registration is refused rather than replacing the first.
+    let again = scorer::register_threshold(&root, 0.9, NOW + 500, None);
+    assert!(
+        matches!(
+            again,
+            Err(ScorerError::ThresholdAlreadyRegistered { rate, .. })
+                if (rate - 0.2).abs() < f64::EPSILON
+        ),
+        "{again:?}"
+    );
+    assert!(
+        (read_rate(&root) - 0.2).abs() < f64::EPSILON,
+        "the refusal must leave the original in place, not half-write the replacement"
+    );
+}
+
+fn read_rate(root: &Path) -> f64 {
+    scorer::read_threshold(root)
+        .expect("readable")
+        .expect("present")
+        .rate
+}
+
+#[test]
+fn an_unreadable_threshold_file_is_an_error_and_never_treated_as_absent() {
+    // The same fail-closed rule `OperatorRegistry::load` follows: treating a corrupt file as absent
+    // would silently drop the before-the-run ordering, which is the whole content of this number.
+    let root = tempdir("corrupt-threshold");
+    std::fs::create_dir_all(root.join("scorer")).expect("scorer directory");
+    std::fs::write(scorer::threshold_path(&root), "{ not json").expect("write");
+    assert!(matches!(
+        scorer::read_threshold(&root),
+        Err(ScorerError::Io(_))
+    ));
+    // CONTROL: a well-formed file at the same path reads back, so the error is about the content.
+    std::fs::write(
+        scorer::threshold_path(&root),
+        serde_json::to_string(&threshold(0.4, NOW)).expect("serialise"),
+    )
+    .expect("write");
+    assert!((read_rate(&root) - 0.4).abs() < f64::EPSILON);
+}
+
+#[test]
+fn the_trend_is_ordered_by_the_runs_own_clock_and_names_the_first_crossing() {
+    // "Population-level" here means across the warrants a store holds, ordered by when each one
+    // started, so a rising rate is visible as a sequence rather than as a set.
+    let root = tempdir("trend-order");
+    record_runs(&root, "wrt_early", &[NOW, NOW + 1]);
+    record_refusals(&root, "wrt_early", NOW + 5, 1);
+    record_runs(&root, "wrt_late", &[NOW + 100]);
+    record_refusals(&root, "wrt_late", NOW + 105, 8);
+
+    let trend = scorer::trend(&root, &threshold(2.0, NOW - 1));
+    let order: Vec<&str> = trend.per_run.iter().map(|(id, _)| id.as_str()).collect();
+    assert_eq!(order, vec!["wrt_early", "wrt_late"], "{trend:?}");
+    // 1 refusal over 2 runs is 0.5, below the threshold; 8 over 1 is 8.0, above it.
+    assert_eq!(trend.crossed.as_deref(), Some("wrt_late"));
+    // CONTROL: at a threshold below both, the FIRST in time order is the one named — so `crossed`
+    // is reading the order rather than picking the maximum.
+    let low = scorer::trend(&root, &threshold(0.1, NOW - 1));
+    assert_eq!(low.crossed.as_deref(), Some("wrt_early"));
 }

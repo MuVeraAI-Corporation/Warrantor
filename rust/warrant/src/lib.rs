@@ -59,6 +59,7 @@ pub mod review;
 pub mod revoke;
 pub mod runs;
 pub mod sandbox;
+pub mod scorer;
 pub mod serve;
 pub mod settle;
 pub mod spend;

@@ -52,6 +52,7 @@ use warrantor_warrant::retention;
 use warrantor_warrant::revoke;
 use warrantor_warrant::runs;
 use warrantor_warrant::sandbox;
+use warrantor_warrant::scorer;
 use warrantor_warrant::serve as http;
 use warrantor_warrant::settle::{
     settle, void, EffectOutcome, EffectPerformer, EffectWitness, EvidencedPerformer, SettleReport,
@@ -535,6 +536,13 @@ warrantor — bounded authority for coding agents
   approve <warrant-id>
   queue   [--notify]
   sandbox <warrant-id> [--kind bubblewrap|firejail]
+  scorer  <warrant-id> [--confined [--kind bubblewrap|firejail]]
+          [--register-threshold RATE]   register the reward-hacking threshold, ONCE, before the run
+          what a scored agent can reach of the machinery that scores it: three
+          properties with the tier and the party that actually holds each, a
+          fail-closed pre-flight over them, and the probing-rate trend against a
+          threshold registered beforehand. --confined asserts that you launched a
+          confinement profile; nothing here can check that you did.
   agents  list | detect | show <harness>
           | wire <harness> <warrant-id> [--repo .] [--apply] [--replace]
                  [--upstream 'name=command args' ...]
@@ -4553,6 +4561,239 @@ fn cmd_sandbox(args: &Args, store: &WarrantStore) -> ExitCode {
     ExitCode::SUCCESS
 }
 
+// ── scorer: what a scored agent can reach of the thing that scores it ─────────────────
+
+/// `warrantor scorer <warrant-id>` — the isolation record, the pre-flight, and the probing trend.
+///
+/// The one place in the product where `warrantor-eval-guard` is called. Until 2026-09-05 that crate
+/// was orphaned: the fail-closed pre-flight that refuses to start an agent against an unmeasured
+/// boundary could not fire for any user of the shipped binary. It fires here, and — because nothing
+/// in this repository holds the credential property — it refuses. That refusal is the honest output,
+/// not a bug in the wiring.
+#[allow(clippy::too_many_lines)]
+fn cmd_scorer(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
+    let Some(id) = args.positional.first() else {
+        return fail(
+            "usage: warrantor scorer <warrant-id> [--confined [--kind bubblewrap|firejail]] \
+             [--register-threshold RATE]",
+        );
+    };
+    let stored = match store.load(id) {
+        Ok(s) => s,
+        Err(e) => return fail(&e.to_string()),
+    };
+
+    // `--confined` is an ASSERTION by the operator, not a measurement. Naming it as a flag rather
+    // than inferring it from the presence of a profile file is deliberate: a profile that was
+    // written and never launched confines nothing, and `sandbox.rs` already says this process cannot
+    // tell the difference.
+    let confinement = if args.flags.contains_key("confined") {
+        match args.flags.get("kind") {
+            Some(word) => match sandbox::Confinement::parse(word) {
+                Ok(kind) => Some(kind),
+                Err(e) => return fail(&e),
+            },
+            None => Some(sandbox::Confinement::Bubblewrap),
+        }
+    } else {
+        if args.flags.contains_key("kind") {
+            return fail(
+                "--kind names a confinement and --confined is what asserts one is in force. \
+                 Without --confined this command would print a tier earned by a profile nobody \
+                 launched, which is the one thing it exists not to do.",
+            );
+        }
+        None
+    };
+
+    // A warrant granted without `--repo` has no worktree, so it has no filesystem boundary for a
+    // confinement to hold and no path against which the store's location means anything. The record
+    // is still worth printing -- the credential and network properties do not depend on a worktree --
+    // but asserting a confinement over a path that does not exist would put an Enforced tier on a
+    // comparison against the string "<no worktree>". `cmd_sandbox` refuses outright for the same
+    // reason; this refuses only the half that needs the path.
+    let worktree = match (stored.worktree.clone(), confinement) {
+        (Some(worktree), _) => worktree,
+        (None, None) => PathBuf::from("<no worktree: granted without --repo>"),
+        (None, Some(_)) => {
+            return fail(&format!(
+                "{id} has no worktree, so --confined cannot be evaluated: a filesystem confinement \
+                 needs the one path it binds read-write, and without it the store-inside-the-worktree \
+                 check would compare against a placeholder and report Enforced. A warrant granted \
+                 with --repo has one. Drop --confined to see the properties that do not depend on a \
+                 worktree."
+            ))
+        }
+    };
+
+    if let Some(raw) = args.flags.get("register-threshold") {
+        let Ok(rate) = raw.parse::<f64>() else {
+            return fail(&format!(
+                "{raw:?} is not a refusals-per-run rate. Write a number, e.g. 0.2."
+            ));
+        };
+        if !rate.is_finite() || rate < 0.0 {
+            return fail("a threshold rate must be a finite number and not negative");
+        }
+        match scorer::register_threshold(root, rate, now(), None) {
+            Ok(threshold) => {
+                println!(
+                    "registered threshold {} refusals/run at {}",
+                    threshold.rate, threshold.registered_at
+                );
+                println!("  {}", scorer::threshold_path(root).display());
+                println!(
+                    "  bom_digest is null: a digest-pinned evaluation bill of materials is Task \
+                     13.5 and does not exist yet. The field is empty rather than filled with \
+                     something plausible."
+                );
+            }
+            Err(e) => return fail(&e.to_string()),
+        }
+    }
+
+    println!("scorer isolation for {id}");
+    println!("  store     {}", root.display());
+    println!("  worktree  {}", worktree.display());
+    println!(
+        "  confined  {}",
+        confinement.map_or("no -- nothing is composed with", sandbox::Confinement::word)
+    );
+    println!();
+
+    let properties = scorer::isolation(
+        &stored.warrant.claims.bounds,
+        confinement,
+        root,
+        worktree.as_path(),
+    );
+    for property in &properties {
+        println!("  {}", property.render());
+        println!("    held by  {}", property.held_by.word());
+        if let scorer::HeldBy::Os { mechanism } = &property.held_by {
+            println!("    how      {mechanism}");
+        }
+        println!("    NOT      {}", property.not_covered);
+    }
+    println!();
+    for line in warrantor_warrant::render_tier_legend() {
+        println!("  {line}");
+    }
+    println!();
+    println!("{}", scorer::ISOLATION_RECORD_CAVEAT);
+    println!();
+
+    // The pre-flight. `keys/issuer.key` and not the settle key: this signs a statement about the
+    // store, and releases nothing.
+    let key = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
+        Ok(key) => key,
+        Err(e) => return fail(&e),
+    };
+    let asserted_by = format!("operator-at-cli:{id}");
+    match scorer::preflight(&properties, &asserted_by, &key) {
+        Ok(attestation) => {
+            println!(
+                "pre-flight PASSED, {} by {:?}",
+                attestation.provenance.word(),
+                attestation.provenance.source()
+            );
+            println!("  {}", attestation.provenance.caveat());
+        }
+        // The explanation is DERIVED from the boundary that actually failed, and from that
+        // property's own entry in the record printed above. The first run of this command printed
+        // "boundary check failed: NetworkIsolation" over a paragraph about ProcessIsolation --
+        // a sentence written beside the record instead of read out of it, which is the defect Task
+        // 9.1 shipped twice. `scorer::property_behind` is the mapping, in code.
+        Err(warrantor_eval_guard::EvalGuardError::CheckFailed(check)) => {
+            let name = scorer::property_behind(check);
+            println!("pre-flight REFUSED — boundary check failed: {check:?}");
+            match properties.iter().find(|p| p.name == name) {
+                Some(property) => {
+                    println!(
+                        "  eval-guard's {check:?} stands for {name} in this record, and that \
+                         property is {}, held by {}.",
+                        property
+                            .strength
+                            .map_or("held by nothing".to_string(), |s| s.word().to_string()),
+                        property.held_by.word()
+                    );
+                    println!("    {}", property.not_covered);
+                }
+                None => println!(
+                    "  {name} is absent from the record, which is itself the refusal: an absent \
+                     property means none, never satisfied."
+                ),
+            }
+            println!(
+                "  This is invariant I-09 firing on the product's own path rather than a wiring \
+                 fault -- a pre-flight that passed over a property nothing holds would be signing \
+                 the gap. See `crate::scorer::preflight` for the whole four-to-three mapping, \
+                 including which of the four is the least comfortable."
+            );
+        }
+        Err(e) => println!("pre-flight REFUSED — {e}"),
+    }
+    println!();
+
+    // The monitor. Only with a threshold registered beforehand: there is no default rate, because a
+    // number chosen at read time is a rationalisation rather than a registration.
+    match scorer::read_threshold(root) {
+        Err(e) => return fail(&e.to_string()),
+        Ok(None) => {
+            println!(
+                "no reward-hacking threshold is registered, so no probing trend is reported. There \
+                 is deliberately no default: L11-12's whole content is that the threshold is \
+                 registered BEFORE the run and never tuned after, and a number this command \
+                 invented at read time would carry none of that. Register one with \
+                 `warrantor scorer {id} --register-threshold 0.2`."
+            );
+        }
+        Ok(Some(threshold)) => match scorer::trend_checked(root, &threshold) {
+            Err(e) => {
+                println!("probing trend REFUSED — {e}");
+            }
+            Ok(trend) => {
+                println!(
+                    "probing rate per graded warrant, threshold {} refusals/run registered at {}:",
+                    trend.threshold, trend.registered_at
+                );
+                if trend.per_run.is_empty() {
+                    println!("  no supervised runs recorded, so there is nothing to trend");
+                }
+                for (warrant, rate) in &trend.per_run {
+                    let mark = if *rate >= trend.threshold {
+                        "CROSSED"
+                    } else {
+                        ""
+                    };
+                    println!("  {warrant:<24}{rate:>8.3}  {mark}");
+                }
+                if trend.crossed.is_some() {
+                    let registry = match OperatorRegistry::load(root) {
+                        Ok(registry) => registry,
+                        Err(e) => return fail(&e),
+                    };
+                    match scorer::escalate(root, &trend, &registry, now()) {
+                        Ok(escalation) => {
+                            println!();
+                            println!(
+                                "ESCALATED to {:?} (holds stop, does not hold settle)",
+                                escalation.to
+                            );
+                            println!("  {}", escalation.note);
+                        }
+                        Err(e) => {
+                            println!();
+                            println!("escalation REFUSED — {e}");
+                        }
+                    }
+                }
+            }
+        },
+    }
+    ExitCode::SUCCESS
+}
+
 // ── agents: the harnesses, and pointing them at a warranted session ───────────────────
 
 /// The home directory, for the harnesses whose configuration is per-user rather than per-project.
@@ -7042,6 +7283,7 @@ fn main() -> ExitCode {
         "approve" => cmd_approve(&args, &store, &root),
         "queue" => cmd_queue(&args, &store, &root),
         "sandbox" => cmd_sandbox(&args, &store),
+        "scorer" => cmd_scorer(&args, &store, &root),
         "agents" => cmd_agents(&args, &store),
         "guard" => cmd_guard(&args, &store, &root),
         "anchor" => cmd_anchor(&args, &root),

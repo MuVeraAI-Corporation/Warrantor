@@ -214,7 +214,7 @@ that file.
 crate, no `[dev-dependencies]` entry, no `[[test]]` target and no CI job.
 
 **Ignored count unchanged at 18.** No `#[ignore]` was added, before or after the corrections:
-`ignored_ceiling` is 15, so ignore number 16 would raise it, which the ratchet treats as a build
+`ignored_ceiling` is 14, so ignore number 15 would raise it, which the ratchet treats as a build
 failure — correctly, since it is a widening gap. The six unrefused strategies are carried by
 `harness::reached_the_boundary_unrefused`, one `Reach::Unrepresentable` entry, one
 `Reach::RefusedOnlyByReaderWrittenCode` entry and two `assert_eq!`s in the archive suite instead.
@@ -225,11 +225,12 @@ See correction 7; it is now gated by
 `adversary::the_documents_ordinal_for_the_next_ignore_is_read_from_the_ratchet_and_not_from_the_plan`,
 
 *Re-measured at merge:* the numbers above are this branch's. Task 9.1 merged first and converted
-three ignores, so the merged tree holds **15**, not 18, and the gated sentence in both documents was
-rebuilt to *"`ignored_ceiling` is 15, so ignore number 16 would raise it"*. The correction record
-above is left as written because it describes what was true on this branch; the gate is what keeps
-the live sentence honest, and it is the reason the drift was caught during the merge rather than
-after it.
+three ignores, so the merged tree held **15**, not 18, and the gated sentence in both documents was
+rebuilt to match. Task 13.7 then converted the I-09 finding, taking the ceiling to **14**, and the
+gate made this document's copy of the sentence go red until it was rebuilt again to *"`ignored_ceiling`
+is 14, so ignore number 15 would raise it"*. The correction record above is left as written because
+it describes what was true on this branch; the gate is what keeps the live sentence honest, and it is
+the reason the drift was caught during the merge rather than after it — twice now.
 which reads the ceiling from `tools/ci/invariant-ratchet.json`, checks it against the `#[ignore]`
 attributes the corpus holds, and requires the sentence above in both documents.
 
@@ -526,8 +527,10 @@ raise `ignored_ceiling`, one clause after correctly stating the count is 18.
 the **nineteenth**. The ordinal was inherited from the plan (which says "a fourteenth"), itself
 written against a superseded 19-ignore baseline.
 *How it was caught:* all three lenses, independently, by counting.
-*What changed:* the sentence now reads *"`ignored_ceiling` is 15, so ignore number 16 would raise
-it"* in both documents, and it is **gated**:
+*What changed:* the sentence is rebuilt from the recorded ceiling on every change to it — it read
+*"…is 15, so ignore number 16…"* at this branch's merge and reads *"`ignored_ceiling` is 14, so
+ignore number 15 would raise it"* since Task 13.7 closed the I-09 finding — in both documents, and it
+is **gated**:
 `adversary::the_documents_ordinal_for_the_next_ignore_is_read_from_the_ratchet_and_not_from_the_plan`
 reads `ignored_ceiling` from `tools/ci/invariant-ratchet.json`, asserts it equals the number of
 line-leading `#[ignore` attributes in `rust/warrant/tests/invariants/`, and requires both documents

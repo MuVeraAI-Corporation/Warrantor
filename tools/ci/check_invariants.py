@@ -29,7 +29,10 @@ EXPECTED_IDS = tuple(f"I-{number:02d}" for number in range(1, 13))
 # Kept in step with rust/warrant/Cargo.toml by hand, which is why `wiring_census.py` reads that
 # manifest instead: this constant is what decides whether an "orphaned" ledger entry is a lie, and
 # a stale entry here would let one pass. `credential-vault` joined on 2026-09-05 (Task 9.1) with
-# `default-features = false`.
+# `default-features = false`. `eval-guard` joined on 2026-09-05 (Task 13.7), behind
+# `warrantor_warrant::scorer` and `warrantor scorer` -- which is exactly what moves I-09 off
+# `orphaned`, and is why the two edits have to land in one commit: leaving this constant stale would
+# let an `orphaned` entry that has become false pass the check written to catch it.
 WARRANT_REACHABLE_CRATES = frozenset(
     {
         "warrant",
@@ -41,6 +44,7 @@ WARRANT_REACHABLE_CRATES = frozenset(
         "containment-conformance",
         "spend",
         "credential-vault",
+        "eval-guard",
     }
 )
 TEST_REFERENCE = re.compile(

@@ -134,10 +134,12 @@ pub enum ArtifactClass {
     Runs,
     /// `reviews/<id>.json`
     Reviews,
+    /// `scorer/{threshold.json,escalations.jsonl}`
+    Scorer,
 }
 
 /// Every class, in the order an operator should read them: evidence first, machinery last.
-pub const ALL_CLASSES: [ArtifactClass; 20] = [
+pub const ALL_CLASSES: [ArtifactClass; 21] = [
     ArtifactClass::Warrants,
     ArtifactClass::Staged,
     ArtifactClass::Witness,
@@ -152,6 +154,7 @@ pub const ALL_CLASSES: [ArtifactClass; 20] = [
     ArtifactClass::TrustedIssuers,
     ArtifactClass::Notifications,
     ArtifactClass::Reviews,
+    ArtifactClass::Scorer,
     ArtifactClass::Daemons,
     ArtifactClass::Logs,
     ArtifactClass::Keys,
@@ -175,6 +178,7 @@ impl ArtifactClass {
             Self::Actors => "actors",
             Self::Runs => "runs",
             Self::Reviews => "reviews",
+            Self::Scorer => "scorer",
             Self::Refusals => "refusals",
             Self::Guard => "guard",
             Self::Keys => "keys",
@@ -202,6 +206,7 @@ impl ArtifactClass {
             Self::Actors => "actors/<id>.jsonl",
             Self::Runs => "runs/<id>.jsonl",
             Self::Reviews => "reviews/<id>.json",
+            Self::Scorer => "scorer/{threshold.json,escalations.jsonl}",
             Self::Refusals => "refusals/<id>.jsonl",
             Self::Guard => "guard/<id>.jsonl",
             Self::Keys => "keys/*.key",
@@ -229,6 +234,7 @@ impl ArtifactClass {
             Self::Actors => root.join("actors"),
             Self::Runs => root.join("runs"),
             Self::Reviews => root.join("reviews"),
+            Self::Scorer => root.join("scorer"),
             Self::Refusals => root.join("refusals"),
             Self::Guard => root.join("guard"),
             Self::Keys => root.join("keys"),
@@ -254,6 +260,7 @@ impl ArtifactClass {
             Self::Actors => "who settled, voided, stopped or approved each warrant -- hash-chained, and the only place a name is attached to a decision",
             Self::Runs => "when each supervised session started, and whether anything was watching it. The `guard: null` lines are the only positive record that a session ran unwatched",
             Self::Reviews => "which blocker was last announced for each warrant, so a repeated check does not repeatedly notify. Bookkeeping, not evidence",
+            Self::Scorer => "the reward-hacking threshold, registered BEFORE a run and never rewritten, and the escalations that crossing it produced. The threshold's value is its ORDERING against the runs it judges: one chosen after the traces are in is a rationalisation with a number on it",
             Self::Witness => {
                 "how far each warrant's staged-effect chain reached, recorded outside the log it                  describes"
             }
@@ -328,6 +335,10 @@ impl ArtifactClass {
             // notification. Nothing downstream of it is a verdict, and nothing is lost that was
             // not also derivable.
             Self::Reviews => DeletionEffect::NoIntegrityConsequence,
+            // Deleting the threshold does not lose a verdict -- it loses the ORDERING that made the
+            // verdict admissible. A store with escalations and no threshold reads as a monitor
+            // whose number nobody can check; a store with neither reads as a run nothing watched.
+            Self::Scorer => DeletionEffect::LosesEvidence,
             Self::Keys | Self::Serve | Self::Run | Self::Backends => {
                 DeletionEffect::BreaksTheInstallation
             }
@@ -355,6 +366,7 @@ impl ArtifactClass {
             Self::Actors => "the chain makes a removal DETECTABLE to somebody holding a later head, which is not the same as preventing it -- and a reader with no earlier copy cannot tell",
             Self::Runs => "an unguarded run and a run that never happened become the same observation again, which is precisely the confusion this class was added to end",
             Self::Reviews => "the next check re-announces whatever is still waiting. A duplicate notification is the whole cost, and a duplicate is something a human can see and dismiss",
+            Self::Scorer => "a threshold can then be re-registered AFTER the runs it judges, which is the one thing L11-12 says it must never be, and the escalation that named an environment owner is gone with it",
             Self::Stops => {
                 "containment is decided by this file existing: remove it and the notary's gate goes \
                  from deny to pass"

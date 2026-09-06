@@ -130,6 +130,11 @@ const ACCEPTED_FLAGS: &[&str] = &[
     "notify",
     // sandbox
     "kind",
+    // scorer. `confined` is an ASSERTION by the operator that a confinement profile is in force,
+    // not a measurement -- nothing in this process can check it, which is why it is a flag someone
+    // has to type rather than something inferred.
+    "confined",
+    "register-threshold",
     // notify commands
     "allow-notify-command",
     // Task 2.1: upstream tool effect decompositions. `--upstream-effects` and

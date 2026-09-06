@@ -1198,7 +1198,9 @@ I-08 are enforced by tests on the `warrantor` path; I-01, I-04, I-06, I-07 (its 
 2026-09-05 by Task 1.1), I-10, I-11 and I-12 are
 partial (a gate refuses, but on a flag the caller supplies, or the mode is advisory), and so is I-05
 (its revocation source earned 2026-09-05 by Task 9.1; its propagation half is one process);
-I-09 is orphaned in `eval-guard`; I-03 has no code in any language. The
+I-09 is partial (its pre-flight was orphaned in `eval-guard` and was linked 2026-09-05 by Task 13.7,
+behind `warrantor scorer` — but the crate measures nothing, so what it signs is a caller's assertion,
+and there is still no I1 to lose contact with); I-03 has no code in any language. The
 ledger is CI-checked against the tests it names, so a status can only move when a test moves.
 
 The **substrate is real** and the **single-machine loop is complete**. Most of what is missing is
@@ -1283,7 +1285,7 @@ corpus threw at it was refused.
 | **I-06** Artifact identity is exact | partial | The Artifacts gate is correct and the product hands it an empty artifact list and an empty resolved set, so it passes unconditionally on every action. Nothing in the shipped binary identifies a tool, skill or model by digest at the moment of use. `invariant-corpus:I-06` | Tier 3 | Task 2.2, Task 2.4 |
 | **I-07** Evidence precedes commitment | partial (was orphaned; **issuance earned 2026-09-05**) | The finding was that nothing in `rust/warrant/src` ever called `issue_pre_commit`. Task 1.1 closed that half: `settle::EvidencedPerformer` issues a pre-commit, makes it durable, and refuses to call the inner performer when it cannot, on both the CLI and the HTTP settle path. What keeps it **partial** rather than enforced is that the guarantee is held by a WRAPPER — `settle()` still accepts a bare `EffectPerformer`, so the wrap is conventional rather than unavoidable — and that `issue_post_commit` copies the pre-commit decision block, so no commit-time re-evaluation is provable. `invariant-corpus:I-07` (no longer ignored) | Tier 3 | Task 2.3 for the commit point; making the wrap unavoidable is unowned |
 | **I-08** Critical actions require non-delegable human authority | partial | `authority_spec::validate` tests only that `approvals` is non-empty; a list holding one empty string satisfies it. Nothing anywhere binds an approval to a human — `notary::Approval` is two booleans the requester supplies, so an agent that builds the request builds its own approval. | Tier 2 | Task 3.3, Task 4.1 |
-| **I-09** Failure is safe | orphaned | The absent-means-none reading holds on three surfaces and is now locked by tests. The preflight that refuses to start an agent against an unmeasured boundary lives in `eval-guard`, which the product does not link. `invariant-corpus:I-09` | Tier 3 | **No task links `eval-guard`** |
+| **I-09** Failure is safe | partial | The absent-means-none reading holds on three surfaces and is locked by tests. The pre-flight that refuses to start an agent against an unmeasured boundary is now **linked** (Task 13.7, 2026-09-05) and reachable as `warrantor scorer <id>`, where it refuses — on the boundary standing for `scorer_credentials_not_readable`, which nothing here holds. Two things keep it off `enforced`: `eval-guard` measures nothing (no eBPF, no sockets, no namespaces, by its own module doc), so it signs a caller's **assertion** and `scorer::preflight` always tags it `Provenance::Asserted`; and "network loss to I1 = deny" has no I1 to lose. `invariant-corpus:I-09` | Tier 3 | Honest probes are R2's remaining debt |
 | **I-10** Replay is detectable | partial | `seen_nonces` is hardcoded empty in `report.rs`, so every call is the first call and no replay is detectable on the product's own path. The timestamp window still bites; a replay inside the window does not, and the window is the interval an attacker works in. `invariant-corpus:I-10` | Tier 3 | Task 1.1, Task 3.4 |
 | **I-11** Self-change is governed | partial | The `warrant` layer holds this structurally and the corpus locks both mechanisms. The `egress` broker beneath it holds nothing: it accepts whatever catalog its caller hands it and never reads `signature`, so a caller-extended catalog is honored and an unsigned one is indistinguishable from a signed one. Three `DenyReason` variants — including `AgentCannotAmendCatalog`, which names this invariant in its own doc comment — are declared, rendered as prose to users, and constructed by no decision anywhere. | Tier 2 | Task 2.5, Task 5.2 |
 | **I-12** Physical systems can reach a safe state | partial | `STOP_ENFORCEMENT_MODE` is `"advisory"` and `verify_stop` refuses any record claiming otherwise, which is the honest engineering. It remains the finding: a kill path an agent may decline to traverse satisfies "there exists a kill path" only under a weak reading of *exists*. `invariant-corpus:I-12` | Tier 3 | Task 1.3 |
@@ -1354,7 +1356,7 @@ run through `harness::reached_the_boundary_unrefused`; A7 is a `Reach::Unreprese
 test asserts that no absence checker exists; A1 asserts that no `verify_chain_signed_by` exists and
 that the other three envelopes still have theirs; A8 asserts `PutOutcome::Stored` for a fabrication
 and `dev_adversary` for the attribution. That is deliberate:
-`ignored_ceiling` is 15, so ignore number 16 would raise it, which the ratchet treats as a build
+`ignored_ceiling` is 14, so ignore number 15 would raise it, which the ratchet treats as a build
 failure — correctly, since it is a widening gap
 — and an ignored test does not start failing when someone fixes the thing it describes. These six do:
 the moment a nonce store, an issuance-time binding, an absence checker, an anchored chain verifier, an

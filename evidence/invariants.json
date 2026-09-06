@@ -91,12 +91,14 @@
     {
       "id": "I-09",
       "statement": "Failure is safe. If any plane fails open, the action fails closed. Network loss to I1 = deny.",
-      "status": "orphaned",
+      "status": "partial",
       "enforced_by": [
-        {"crate": "eval-guard", "symbol": "warrantor_eval_guard::run_preflight", "test": "rust/eval-guard/src/lib.rs::any_failure_blocks_start", "note": "a failed probe returns Err and no attestation is produced; the CLI prints 'REFUSING to start the agent (invariant I-09: failure is safe).' at cli.rs:52 and exits 1"},
-        {"crate": "eval-guard", "symbol": "warrantor_eval_guard::run_preflight", "test": "rust/eval-guard/src/lib.rs::all_pass_returns_signed_attestation", "note": "the control: probes that pass produce a signed attestation, so the refusal path is not one-sided"}
+        {"crate": "eval-guard", "symbol": "warrantor_eval_guard::run_preflight", "test": "rust/eval-guard/src/lib.rs::any_failure_blocks_start", "note": "a failed result returns Err and no attestation is produced; the CLI prints 'REFUSING to start the agent (invariant I-09: failure is safe).' and exits 1"},
+        {"crate": "eval-guard", "symbol": "warrantor_eval_guard::run_preflight", "test": "rust/eval-guard/src/lib.rs::all_pass_returns_signed_attestation", "note": "the control: results that pass produce a signed attestation, so the refusal path is not one-sided"},
+        {"crate": "eval-guard", "symbol": "warrantor_eval_guard::Provenance", "test": "rust/eval-guard/src/lib.rs::an_attestation_relabelled_as_a_different_source_no_longer_verifies", "note": "Task 13.7: the source of the four booleans is a required argument that participates in the signed bytes, so an unnamed source can no longer be signed and a relabelled attestation does not verify"},
+        {"crate": "warrant", "symbol": "warrantor_warrant::scorer::preflight", "test": "rust/warrant/src/scorer.rs::the_products_own_isolation_fails_the_preflight_and_names_the_credential_boundary", "note": "the product's call site, reachable as `warrantor scorer <id>`. It refuses, on the boundary standing for scorer_credentials_not_readable, which nothing in this repository holds -- and the control in the same test shows a hand-built all-Enforced set does sign, so this is a gate rather than a brick"}
       ],
-      "gap": "warrantor-eval-guard is a separate binary the warrantor CLI never invokes; 'network loss to I1 = deny' has no I1 to lose. The measured pre-flight probes (run_preflight_measured, rust/eval-guard/src/probes.rs) that the plan cited exist only in uncommitted work, not on origin/main. Phase 3 wires the pre-flight into a supervised session."
+      "gap": "The pre-flight is now LINKED (rust/warrant/Cargo.toml, Task 13.7) and reachable as `warrantor scorer`, so its refusal can fire for a user of the shipped product; that is what moved this entry off `orphaned`. It is not `enforced`, for two reasons that are unchanged. First, 'network loss to I1 = deny' has no I1 to lose: there is no identity plane in this build to lose contact with (see I-01). Second, eval-guard MEASURES NOTHING -- no eBPF, no sockets, no namespaces, by its own module doc -- so what it signs is a caller's assertion, and `scorer::preflight` therefore always passes Provenance::Asserted and never Measured. The measured probes the plan once cited (run_preflight_measured, rust/eval-guard/src/probes.rs) do not exist in this repository at all. Honest probes are what R2 still owes."
     },
     {
       "id": "I-10",
