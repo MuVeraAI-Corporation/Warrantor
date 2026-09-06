@@ -56,6 +56,28 @@ pub struct PinnedIssuer {
     /// rendered as anything but prose.
     #[serde(default)]
     pub note: String,
+    /// `Some` when this pin arrived by `issuer import`; `None` when a human pinned it here.
+    /// Skipped when `None` so a directory of local pins is byte-identical to one written before
+    /// this field existed, and `TRUST_FORMAT` does not change.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub imported_from: Option<ImportProvenance>,
+}
+
+/// Where an inherited pin came from. Absent on a pin a human made here with `issuer add`.
+///
+/// Written by `bundle::import` from what it resolved — the local name the signer was pinned
+/// under, never the label the bundle chose — so a verdict can say "inherited from a bundle signed
+/// by `sec`" and a reader can tell a key they checked from one they were handed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ImportProvenance {
+    /// The name this machine had already pinned the signing key under when the import ran.
+    pub signer_name: String,
+    /// The exporter's label for itself (`issued_by`). A label, not an authenticated identity.
+    pub issued_by: String,
+    /// When the bundle was exported, epoch seconds.
+    pub issued_at: u64,
+    /// SHA-256 hex of the bundle file the pin came from.
+    pub bundle_digest: String,
 }
 
 /// The directory: every name this machine trusts, in one file, in name order.
@@ -196,6 +218,7 @@ impl Directory {
                 key: hex_key,
                 pinned_at: now,
                 note: note.to_string(),
+                imported_from: None,
             },
         );
         Ok(PinOutcome::Pinned)
@@ -226,6 +249,7 @@ impl Directory {
             key: hex::encode(key.to_bytes()),
             pinned_at: now,
             note: note.to_string(),
+            imported_from: None,
         };
         Ok(())
     }

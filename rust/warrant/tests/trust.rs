@@ -81,6 +81,7 @@ fn a_directory_with_a_non_key_pin_is_refused_rather_than_partly_read() {
             key: "not a key".to_string(),
             pinned_at: NOW,
             note: String::new(),
+            imported_from: None,
         },
     );
     directory.save(&root).expect("save");
@@ -465,4 +466,29 @@ fn show_hex_without_an_issuer_key_refuses_and_mints_nothing() {
         !home.join(".warrantor/keys/issuer.key").exists(),
         "asking to SEE a key must not create one: {output}"
     );
+}
+
+/// A directory written before pins carried provenance still loads, and every pin in it reads as
+/// made here — `None` is the shape a locally-made pin has, not a missing value.
+#[test]
+fn a_directory_without_provenance_still_loads_and_its_pins_are_local() {
+    let root = tempdir("no-provenance");
+    std::fs::create_dir_all(root.join("trusted")).expect("dir");
+    let key_hex = hex::encode(key(7).verifying_key().to_bytes());
+    std::fs::write(
+        trust::directory_path(&root),
+        format!(
+            "{{\"format\":\"warrantor.trusted-issuers/1\",\"issuers\":{{\"ana\":{{\"key\":\"{key_hex}\",\"pinned_at\":{NOW},\"note\":\"video call\"}}}}}}"
+        ),
+    )
+    .expect("write");
+
+    let directory = Directory::load(&root).expect("old shape loads");
+    let pin = &directory.issuers["ana"];
+    assert_eq!(pin.imported_from, None::<trust::ImportProvenance>);
+
+    // And saving it back does not invent the field: a local pin's file is byte-stable.
+    directory.save(&root).expect("save");
+    let written = std::fs::read_to_string(trust::directory_path(&root)).expect("read");
+    assert!(!written.contains("imported_from"), "{written}");
 }

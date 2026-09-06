@@ -389,6 +389,7 @@ pub fn import(
                         // would make every inherited pin look freshly verified.
                         pinned_at: incoming.pinned_at,
                         note,
+                        imported_from: None,
                     },
                 );
                 outcomes.insert(name.clone(), ImportOutcome::Added);
