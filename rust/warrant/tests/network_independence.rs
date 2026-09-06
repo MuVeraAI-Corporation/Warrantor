@@ -989,3 +989,49 @@ fn a_second_engine_refusal_is_attributed_to_the_engine_in_memory_and_on_disk() {
 
     std::fs::remove_dir_all(&directory).ok();
 }
+
+// ── the order of the two engines, asserted where both refuse ──────────────────────────
+
+#[test]
+fn the_broker_decides_before_the_second_engine_so_a_refusal_is_attributed_to_the_engine_that_made_it(
+) {
+    // Test-rigor finding P2 (second adversarial review): reordering `Proxy::decide` so the second
+    // engine is consulted BEFORE the broker left every suite green, because the only attribution
+    // test wired a filter that ALLOWED the outside host and so could not see the order. Under that
+    // mutation a host the broker refuses is recorded as a second-engine refusal, and the operator
+    // is sent to the operator file for a bound the signed warrant set.
+    //
+    // Both engines refuse here: the warrant does not name OUTSIDE, and the default-deny filter
+    // names nothing. Which record the refusal lands in is therefore the order, and nothing else.
+    let mut proxy = proxy_over(&[PERMITTED], Some(SecondaryFilter::default_deny()));
+    let decision = proxy.decide(&call_to(OUTSIDE));
+    assert!(
+        matches!(&decision, Decision::Deny { bound, .. } if *bound == "egress_hosts"),
+        "the broker runs first, so the warrant's bound is the one that refused: {decision:?}",
+    );
+    assert_eq!(
+        proxy.egress_refusals().len(),
+        1,
+        "the broker's refusal is the one recorded",
+    );
+    assert!(
+        proxy.secondary_refusals().is_empty(),
+        "the second engine must never be consulted for a destination the broker already refused; \
+         a record here means the engines run in the wrong order: {:?}",
+        proxy.secondary_refusals(),
+    );
+    if let Decision::Deny { reason, .. } = &decision {
+        assert!(
+            !reason.contains("second policy engine"),
+            "the sentence the agent sees must not name an engine that did not decide: {reason}",
+        );
+    }
+
+    // THE CONTROL, same proxy: a host the warrant permits reaches the second engine and is refused
+    // by it, recorded on the other side. If both maps were empty above because nothing ran, this
+    // would be empty too.
+    proxy.decide(&call_to(PERMITTED));
+    assert_eq!(proxy.secondary_refusals().len(), 1);
+    assert_eq!(proxy.secondary_refusals()[0].destination, PERMITTED);
+}
+
