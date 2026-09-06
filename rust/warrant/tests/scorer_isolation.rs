@@ -693,6 +693,19 @@ fn an_escalation_is_addressed_to_an_operator_who_cannot_settle_the_warrant_being
          say so: {}",
         escalation.note
     );
+    // The note said the escalation "reached" the principal, and nothing delivers it: `escalate`
+    // picks a name and appends a line. A durable record must not claim a delivery that has no
+    // mechanism behind it, so the sentence says it is addressed and says nothing sends it.
+    assert!(
+        escalation.note.contains("Nothing delivers it"),
+        "the record must say no delivery happens: {}",
+        escalation.note
+    );
+    assert!(
+        !escalation.note.contains("reached"),
+        "no notification path exists, so the record must not say the principal was reached: {}",
+        escalation.note
+    );
     // It is durable, or the monitor's output is a print statement.
     assert_eq!(scorer::read_escalations(&root).len(), 1);
 

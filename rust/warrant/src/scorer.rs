@@ -711,8 +711,16 @@ pub struct Escalation {
 }
 
 /// The sentence every escalation carries.
+///
+/// It said the escalation "reached" the principal. Nothing delivers it: [`escalate`] chooses the
+/// name and appends one line to `scorer/escalations.jsonl`, and there is no notification path in
+/// this module. The record is *addressed* to the principal, who learns of it by reading this store
+/// or running `warrantor scorer`. The plan's wording was carried into a durable record without the
+/// mechanism behind the verb, and a reviewer caught it.
 pub const ESCALATION_NOTE: &str =
-    "This escalation reached a named local principal holding Stop and not Settle. It does not \
+    "This escalation is ADDRESSED to a named local principal holding Stop and not Settle, and \
+     recorded in scorer/escalations.jsonl. Nothing delivers it: no notification is sent, and the \
+     principal learns of it only by reading this store or running `warrantor scorer`. It does not \
      establish that the principal is independent of the environment being graded: the registry is a \
      file on this machine, and an operator token is a token rather than a person. It is also \
      ADVISORY -- nothing in this code stops the run or quarantines a checkpoint. The quarantine \
