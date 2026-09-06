@@ -4,7 +4,7 @@
 **Date:** 2026-08-13
 
 The second RFC in the **W series**. [RFC W1](W1-surfaces-and-the-backend.md) drew the boundary that
-lets a model into this system at all: *a model's output is never a verdict; model judgements become
+lets a model into this system at all: *a model's output is never a verdict; model judgments become
 refusal **signals** recorded against a warrant.* W1 stated the rule and wired nothing. This document
 is the wiring, and the argument for the one decision inside it that is not obvious — the guard
 observes and does not block.
@@ -36,7 +36,7 @@ therefore not timidity about a promising feature. It is what the measurement sup
 
 ## Goals
 
-1. A guard model's judgement is **recorded** against a warrant, with enough provenance to be
+1. A guard model's judgment is **recorded** against a warrant, with enough provenance to be
    evidence, and in the shipped mode changes no outcome. Where it *can* change one — the
    enforcement path, off by default — every surface says so from the recorded mode rather than
    assuming the default.
@@ -93,7 +93,7 @@ wiring of this module and are stated here because the ordering *is* the design:
    on. The same holds for a permitted call the endpoint cannot forward for want of an upstream:
    nothing happened, so nothing is recorded.
 2. **The guard is asked before the effect exists, never after.** In the `Decision::Stage` arm the
-   guard is consulted *before* `Proxy::apply`. The first version asked afterwards, and under
+   guard is consulted *before* `Proxy::apply`. The first version asked afterward, and under
    `GuardMode::Enforce` that produced the worst outcome available: `StagingQueue::stage` had already
    hash-chained the effect and `sync_all`'d it to `<root>/staged/<id>.jsonl`, so the agent was told
    "refused by the guard model", the log said refused, and the write was still queued to fire the
@@ -192,7 +192,7 @@ cannot be typed by accident or reached by completing `--guard`.
 
 That function is only half of the path; the other half is *where the call site asks*, and the
 ordering rule above is the rest of it. A test drives `Enforce` through `AgentEndpoint::call` and
-asserts the staging queue is empty afterwards — the path is exercised end to end rather than
+asserts the staging queue is empty afterward — the path is exercised end to end rather than
 asserted about in isolation, which is what the previous version's unit test on a hand-built
 `GuardObservation` did while the integration was wrong.
 
@@ -217,7 +217,7 @@ health, and the run continues.
 
 | Threat | Posture | Mitigation / residual |
 |---|---|---|
-| The guard endpoint used as an exfiltration channel for the agent's tool arguments | **Mitigated** | `attach` refuses a non-loopback endpoint before any content is sent. Scheme, userinfo and host are all checked; anything unrecognised is refused. |
+| The guard endpoint used as an exfiltration channel for the agent's tool arguments | **Mitigated** | `attach` refuses a non-loopback endpoint before any content is sent. Scheme, userinfo and host are all checked; anything unrecognized is refused. |
 | A dead or absent backend read as "all clear" | **Mitigated** | Transport failure is `backend_unavailable`, never `not_harmful`. An absent log renders `configured: false` with a note saying it is an absence of observation, not of findings. A test asserts no signal from a dead backend ever claims `not_harmful`. |
 | A signal with no provenance | **Mitigated** | `attach` refuses when the backend cannot report a `sha256:<64 hex>` for the tag. No guard attaches, so no evidence-free signal can exist. |
 | The supervised agent reading back its own guard verdicts through `/v1` | **Residual, reduced** | Same-UID reachability of the loopback API is a known, documented property of `serve.rs` and is not fixed here. Reduced to: argument names, a content digest, and a capped excerpt of the model's own reply. The agent learns that *something* was flagged, not what the classifier keys on and not its own text back. |

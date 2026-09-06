@@ -129,5 +129,5 @@ pass identically is the contract.
   agents (W6 delegation handles inter-agent authority; orchestration is out of thesis).
 - Not a runtime. It is a declaration; enforcement is the gateway's job (X8).
 - Not a substitute for receipts. The manifest says what the agent *is*; the receipt says what it *did*.
-- Not a guarantee of model behaviour. A manifest with `capabilities: [read]` does not prevent the
+- Not a guarantee of model behavior. A manifest with `capabilities: [read]` does not prevent the
   model from *trying* to write; it guarantees the gateway will deny the write.

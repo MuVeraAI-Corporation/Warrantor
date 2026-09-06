@@ -144,7 +144,7 @@ Second Workshop on Agents in the Wild (AIWILD) at ICML 2026. This is the templat
    plus an explicit count of negative results.
 2. **A scope statement in the contributions list, not buried in Limitations.** Verbatim: "An
    explicit scope statement: we do not show that no internal pre-action signal exists, only that
-   these natural probe families do not yield a robust one under the tests we ran." T-04's analogue:
+   these natural probe families do not yield a robust one under the tests we ran." T-04's analog:
    *we do not show that no masking scheme can preserve an unsupervised field, only that naive loss
    masking under a shared LoRA adapter does not, in this setting.*
 3. **Several independent instances, framed as a recurring failure mode rather than one benchmark.**

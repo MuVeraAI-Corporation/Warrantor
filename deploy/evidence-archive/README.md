@@ -75,7 +75,7 @@ They insert and never delete: the tests run under the same append-only rules the
 they are safe against a real archive but will leave their fixtures in it. Point them at a database
 you are willing to keep rows in.
 
-## Enrol the first device
+## Enroll the first device
 
 Authentication is device pairing, not a shared token. An operator mints a one-time code; the device
 generates an Ed25519 keypair, keeps the private half, and signs every request. That is what makes
@@ -95,7 +95,7 @@ warrantor archive enrol --url http://127.0.0.1:8788 --code <the code>
 
 That generates `~/.warrantor/keys/device.key`, sends only the public half, and writes
 `~/.warrantor/archive.json` recording which archive this device is paired with and under what id.
-The archive never sees a private key, at enrolment or afterwards.
+The archive never sees a private key, at enrolment or afterward.
 
 ## Filing and reading evidence
 

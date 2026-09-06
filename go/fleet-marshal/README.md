@@ -56,7 +56,7 @@ status:
 
 ## Architecture
 
-Every K8s interaction is the `RolloutExecutor` interface, so the rollout maths is testable
+Every K8s interaction is the `RolloutExecutor` interface, so the rollout math is testable
 fully in-memory. Production wiring (controller-runtime, pod patching, service-mesh traffic
 weights) lives in `cmd/fleet-marshal` and is intentionally thin.
 

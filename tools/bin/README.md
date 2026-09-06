@@ -25,7 +25,7 @@ Often (but not always) ideas flow through this pipeline:
 - **[Discord](https://modelcontextprotocol.io/community/communication)** - Real-time community discussions
 - **[Discussions](https://github.com/modelcontextprotocol/registry/discussions)** - Propose and discuss product/technical requirements
 - **[Issues](https://github.com/modelcontextprotocol/registry/issues)** - Track well-scoped technical work  
-- **[Pull Requests](https://github.com/modelcontextprotocol/registry/pulls)** - Contribute work towards issues
+- **[Pull Requests](https://github.com/modelcontextprotocol/registry/pulls)** - Contribute work toward issues
 
 ### Quick start:
 

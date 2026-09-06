@@ -18,7 +18,7 @@ delegated to the attestation verifier in the Warrantor agent running on the node
 | `muveraai.com/aae`          | Required. The base64 attestation envelope blob.    |
 | `muveraai.com/aae-digest`   | Optional. When present, must match `sha256:<hex>`. |
 
-## Behaviour
+## Behavior
 
 - Pods in `kube-system`, `kube-public`, `kube-node-lease` are exempt by
   default (override with `allow_namespaces`).

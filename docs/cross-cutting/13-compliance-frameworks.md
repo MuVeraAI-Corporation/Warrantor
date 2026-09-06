@@ -31,7 +31,7 @@
 |-----------|-------------------|-----------------|
 | **SDAIA national AI risk management framework** (Saudi Arabia) | Launched **14 Jul 2026**: unified methodology for identifying, assessing, treating and **continuously monitoring** AI risks, for government and private sector. Sits alongside PDPL (in force Sep 2023) and the AI Adoption Framework (4 maturity levels, Sep 2024) | "Continuously" is the differentiator: point-in-time attestations don't satisfy it. Reconciliation timer + live run state + refusal trends are continuous by construction |
 | **DIFC Regulation 10** (UAE) | In force; regulates autonomous and semi-autonomous systems directly — requires privacy impact assessments and **risk-based audits of automated decision-making**. The most AI-specific provision in the Gulf | Warrant bounds are a machine-readable answer to "what may this autonomous system do"; evidence packs serve the audit requirement |
-| **UAE federal agentic-AI programme** | 23 Apr 2026: 50% of federal sectors/services/operations to agentic AI within two years | Demand signal, not an obligation — the buyer explicitly needs agent governance at sovereign scale |
+| **UAE federal agentic-AI program** | 23 Apr 2026: 50% of federal sectors/services/operations to agentic AI within two years | Demand signal, not an obligation — the buyer explicitly needs agent governance at sovereign scale |
 
 > GCC entries above are drawn from secondary analyses; confirm against SDAIA/DIFC primary texts
 > before they appear in customer-facing material.
@@ -149,7 +149,7 @@ DORA (applies from Jan 17, 2025; enforcement active 2026) requires financial ins
 ## US / India / GCC — what supervisors ask for, and what answers it
 
 The primary-market frameworks are principle- and evidence-based rather than checklist-based, so the
-mapping is from *asked-for artefact* to *producing primitive* rather than component-by-component:
+mapping is from *asked-for artifact* to *producing primitive* rather than component-by-component:
 
 | Supervisors ask for | Producing primitive | Where it lives |
 |---|---|---|
@@ -166,7 +166,7 @@ Two properties do disproportionate work here:
 
 1. **Refusal records.** Most platforms can show what an agent did; supervisors increasingly ask what
    it *attempted*. `AuthorityRequest {tool, bound, reason, count}` answers that directly.
-2. **Enforced vs Observed labelling** (`BoundStrength`). Presenting a measured bound as an enforced
+2. **Enforced vs Observed labeling** (`BoundStrength`). Presenting a measured bound as an enforced
    one to a regulator is a misrepresentation; the platform distinguishes them in the type system.
 
 ## Primary sources (verified 11 Aug 2026)

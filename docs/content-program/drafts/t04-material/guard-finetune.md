@@ -129,7 +129,7 @@ scoped to run 2**. If that sentence is allowed to cover run 1 as well, it is fal
 - **Coverage — precisely:** This is the strongest published version of "**tuning a guard makes it more
   permissive, and the damage concentrates in the directions that carried the safety decision**." T-04 should
   cite it: run 2's recall collapse (0.6804 overall; 0.5572 adversarial, 23 points below base) is an instance
-  of the phenomenon it names, and its drift-ratio result is the representational analogue of T-04's
+  of the phenomenon it names, and its drift-ratio result is the representational analog of T-04's
   mechanistic claim about shared projections.
 - **What it does NOT do, precisely:** (1) The guard is treated as a **single-output** classifier; there is no
   multi-field structured output, no severity/category pair. (2) There is **no loss masking of any field** —
@@ -180,7 +180,7 @@ Schema Reinforcement Learning*, arXiv:2502.18878; *ScrapeGraphAI-100k*, arXiv:26
 hallucinated or extra keys and value precision — never a documented case of one field's closed vocabulary
 migrating into another field's slot as a *consequence of masking that slot from the loss*.
 
-### B5. The nearest structural analogue outside the guard literature — a footnote, not a citation
+### B5. The nearest structural analog outside the guard literature — a footnote, not a citation
 
 The answer-only-vs-rationale line (*Answer-Conditioned Chains of Thought Degrade Verifiable-Reasoning
 Distillation*, arXiv:2607.14552; *Better Accuracies, Worse Reasoning: A Step-Level Audit of Medical

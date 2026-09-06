@@ -103,7 +103,7 @@ authored policy and compiled through the same path.
 **Normative.** A jurisdiction module **MUST NOT** require compiler changes. If one does, the
 abstraction is wrong. The deliverable alongside the modules is the crosswalk report showing one
 signed evidence bundle satisfying several supervisory expectations at once — which is the compliance
-moat, and it is a documentation artifact, not an engineering programme.
+moat, and it is a documentation artifact, not an engineering program.
 
 ---
 

@@ -11,7 +11,7 @@ changed so that it does. If a run does not fit the free quota, the answer is a s
 **Both training corpora are gated and both return HTTP 401 to anonymous requests.** This is not
 a code problem and no script can work around it.
 
-| Corpus | Repo | Gate | Licence | Commercial use |
+| Corpus | Repo | Gate | License | Commercial use |
 | --- | --- | --- | --- | --- |
 | WildGuardMix | `allenai/wildguardmix` | `auto` | ODC-By-1.0 | Restricted by AI2 responsible-use click-through |
 | ExpGuardMix | `6rightjade/expguardmix` | `auto` | CC-BY-4.0 | **Unresolved** — the gate form says research-only |
@@ -44,7 +44,7 @@ Two things, and only two.
 ### 1. The data, as a private Kaggle Dataset
 
 Download the parquet locally (with your token), then upload it as a **private** Kaggle Dataset.
-Do not make it public: neither licence grants you redistribution rights you can pass on, and
+Do not make it public: neither license grants you redistribution rights you can pass on, and
 ODC-By governs the database rather than the underlying content.
 
 | File | Size | Rows |
@@ -103,7 +103,7 @@ memory holds. A run that OOMs at hour three has cost three of thirty weekly hour
 
 Kaggle's free GPUs are **T4 (sm_75)** and **P100 (sm_60)**. **Neither supports bf16**, and
 neither supports FlashAttention-2. Qwen3Guard ships `torch_dtype: bfloat16`, so the run casts to
-fp16 and inherits fp16 loss-scaling behaviour.
+fp16 and inherits fp16 loss-scaling behavior.
 
 That matters more here than it would elsewhere. A guard model's entire product is a *calibrated
 logit*, and logit calibration is exactly what fp16 loss scaling perturbs. The script prints the

@@ -73,7 +73,7 @@ The three files, dispatched on their declared `format` — the same three-way ma
 makes. An unknown format is a refusal at the door, never a stored blob.
 
 Bytes are stored **verbatim**, content-addressed by SHA-256 of exactly what arrived, in a `BYTEA`
-column. Not `JSONB`, which normalises key order and number formatting; not a parsed value
+column. Not `JSONB`, which normalizes key order and number formatting; not a parsed value
 re-serialised on the way out, because a faithful round trip through `serde_json` is still the
 archive choosing the bytes. *The archive returns what it was given* is the only claim that makes
 verifying off the archive worth anything, and it is only true if nothing rewrites a byte.
@@ -110,7 +110,7 @@ file is the single most important thing to be able to put in front of a human.
 The same is true of `unknown`, and making it true took a fix. A body that declares one of the three
 formats and will not deserialise into it is filed under the warrant it names, with the check recorded
 as `unknown` — no verifier ran, so nothing established that its signatures are wrong. Until now that
-was documentation rather than behaviour: every arm producing `unknown` also produced no warrant id,
+was documentation rather than behavior: every arm producing `unknown` also produced no warrant id,
 and ingest refused the submission on the next line, so the third value could not be written and the
 version-skew case (a newer build's export this one cannot parse) was dropped at the door instead of
 kept. The warrant id is read out of the raw JSON purely as a **filing key**, validated with the same
@@ -217,7 +217,7 @@ explicit to read rather than inferring authority from an absence.
 ### Transport
 
 The archive reuses `serve::parse_request_with`, added additively in this change so `parse_request`
-keeps its exact signature and behaviour. The framing discipline — refuse every `Transfer-Encoding`,
+keeps its exact signature and behavior. The framing discipline — refuse every `Transfer-Encoding`,
 validate path segments and never percent-decode them, cap every line read, one request per
 connection, `Connection: close` — is the part most worth not rewriting, and this surface faces a
 network rather than a loopback socket. Only the body cap differs: 4 MiB rather than 64 KiB, because
@@ -253,7 +253,7 @@ against a real threat. Adding one should be a documented decision naming an orig
 | A forged or malformed file is submitted | Ingest runs the existing verifier and records `ok`/`failed`/`unknown`; unknown formats are refused at the door and never stored | An artifact that verifies but was signed by an untrusted key is stored, correctly: the archive is not the judge of whose key matters |
 | A captured request is replayed | The signature pins method, path, device, nonce, timestamp and body digest; nonces are single-use per device (unique index); timestamps must be within 5 minutes either way | A replay inside the window from a device whose key is held by the attacker — see the next row |
 | A device key is on a lost laptop | `warrantor-archive` revocation sets `revoked_at`; a revoked device is refused on the next request. Keys are per-device, so the blast radius is one person's device rather than everyone's token | Anything that device submitted before revocation was legitimately signed and stays. There is no automatic key expiry in stage 1 |
-| A stolen enrolment code | Single-use (one conditional `UPDATE`, tested against a real database), 15-minute expiry, only its SHA-256 stored, and one refusal for unknown/expired/claimed so the route is not an oracle | Whoever holds the code within its window can enrol a device under the operator's chosen label. The digest lookup runs in data-dependent time — a `BTreeMap::get` and a primary-key index probe — so a timing side channel exists against a SHA-256 of 32 CSPRNG bytes, which is not a practical path to guessing a code. This row previously claimed a mitigation the code did not apply; see `tests/append_only.rs::the_threat_model_names_no_mitigation_this_crate_does_not_implement` |
+| A stolen enrollment code | Single-use (one conditional `UPDATE`, tested against a real database), 15-minute expiry, only its SHA-256 stored, and one refusal for unknown/expired/claimed so the route is not an oracle | Whoever holds the code within its window can enroll a device under the operator's chosen label. The digest lookup runs in data-dependent time — a `BTreeMap::get` and a primary-key index probe — so a timing side channel exists against a SHA-256 of 32 CSPRNG bytes, which is not a practical path to guessing a code. This row previously claimed a mitigation the code did not apply; see `tests/append_only.rs::the_threat_model_names_no_mitigation_this_crate_does_not_implement` |
 | An operator deletes rows out of band | A `BEFORE UPDATE OR DELETE` trigger and a runtime role with no `UPDATE`/`DELETE` grant | **Not prevented.** The DBA owns the database. Custody against the audited party rests on off-archive verifiability, not on the trigger |
 | Someone renders the archive's ingest check as a verdict | The field is named `not_a_verdict`; `ArchiveResponse` cannot produce a `verified` key; every route's body is walked by test | A client that reads `not_a_verdict.ingest_check` and renders it as a tick anyway. The name makes that a deliberate act |
 | SQL injection through a digest, id or filter | Parameterised queries only (`$1`, `$2` …); no string concatenation near SQL; digests and ids validated before they reach the store | None known |
@@ -364,7 +364,7 @@ test is `two_devices_submitting_produce_two_distinguishable_submitters` — the 
 executable.
 
 `rust/warrant/tests/serve.rs` passes untouched, which is the check that `parse_request_with` changed
-no behaviour.
+no behavior.
 
 ## Deployment
 
@@ -438,7 +438,7 @@ discard half the append-only enforcement and leave the trigger standing alone.
 5. **The trust directory (stage 2)** — the local half shipped: `warrantor issuer add` pins
    name → key into `trusted/issuers.json` (TOFU-with-pinning, no network, re-pinning refuses
    without an explicit replace), and `verify --issuer <name>` prints which anchor a verdict used.
-   Stage 2 proper — a signed or shared directory, rotation, and organisational vouching — is
+   Stage 2 proper — a signed or shared directory, rotation, and organizational vouching — is
    still open, and a directory that hands out keys over the network remains a trust root this
    design has not decided to add. That is what would fully close the residual in row 1 of the
    threat model.

@@ -2,7 +2,7 @@
 
 Auto-create Jira or Linear tickets from Warrantor agent incidents (P9 / X9).
 
-Consumes the normalised incident dict produced by `incident_exchange` and maps
+Consumes the normalized incident dict produced by `incident_exchange` and maps
 each Warrantor incident type to a ticket label and priority.
 
 ## Forwarders

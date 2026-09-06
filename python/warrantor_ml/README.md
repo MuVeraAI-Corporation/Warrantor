@@ -23,16 +23,16 @@ project would cost far more than it proves. Every test in this project runs with
 
 | Module | Responsibility |
 | --- | --- |
-| `datasets` | Declarative corpus registry — licence, click-through terms, gating, cache paths. Downloads on demand, never at import. |
+| `datasets` | Declarative corpus registry — license, click-through terms, gating, cache paths. Downloads on demand, never at import. |
 | `metrics` | Confusion matrix and the derived rates. Recall first, accuracy last. |
-| `evaluate` | Runs a guard model over a labelled set via a local Ollama backend. Deterministic given a seed; writes a digest-bound JSON result. |
+| `evaluate` | Runs a guard model over a labeled set via a local Ollama backend. Deterministic given a seed; writes a digest-bound JSON result. |
 | `model_card` | Builds and Ed25519-signs an AIBOM. Refuses to emit one with a missing required field. |
 | `fine_tune` | LoRA/QLoRA planning and training. Pure VRAM arithmetic; no CPU fallback. |
 | `deploy_model` | Binds a fine-tuned adapter behind `ContentScanner` without touching enforcement code. |
 | `benchmark_wildguard` | The held-out WildGuardTest split, broken down adversarial versus plain. |
 | `benchmark_expguard` | The held-out ExpGuardTest split, broken down by vertical domain. |
 
-### The training programme (RFC W2)
+### The training program (RFC W2)
 
 | Module | Responsibility |
 | --- | --- |
@@ -40,7 +40,7 @@ project would cost far more than it proves. Every test in this project runs with
 | `manifest` | Dataset provenance. A validator that **refuses** five named conditions, not a schema that records them. |
 | `teachers` | Open-weight teachers may generate; frontier judges may only score. Enforced by type: `JudgeScore` is not a row type. |
 | `baselines` | The measured numbers from `ml/README.md`, frozen as counts with the backend configuration that produced them. |
-| `leakage` | Normalised-content overlap between a training corpus and an eval split. The augmentation leak, not the published split boundary. |
+| `leakage` | Normalized-content overlap between a training corpus and an eval split. The augmentation leak, not the published split boundary. |
 | `lanes` | RTX 5080 / Kaggle T4-P100 / Modal A100. Refuses a run that will not fit or will not finish. |
 | `recipes` | The nine recipes as data with a stable digest, so two lanes can run provably the same recipe. Also the only place a measured baseline becomes reachable: an unbound one cannot be gated against by any CLI. |
 | `parity` | The blind gate. `promote` / `reject` / `insufficient_evidence`, two-sided and per-slice. |

@@ -28,7 +28,7 @@ Both scripts follow the same shape:
 
 - a CUDA base image with `vllm` + the local Warrantor package installed,
 - a class-based GPU model server (`@app.cls(gpu="A10G")`) that loads the model
-  once per container via `@modal.enter()` so cold starts amortise the weight
+  once per container via `@modal.enter()` so cold starts amortize the weight
   download,
 - a remote `@app.function(gpu="A10G")` runner that drives the model in-process
   (no HTTP hop — the benchmark saturates the GPU directly), and
