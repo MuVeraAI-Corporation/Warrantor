@@ -986,6 +986,14 @@ us-english: 3014 added line(s) across 17 file(s), since main; matcher = vendored
 us-english: ok
 ```
 
+**Which tip each figure describes.** Everything above was measured on `07e7553`, the last commit
+that changes a file any of these runs reads. The commit that adds this section is Markdown only, so
+it moves exactly two things and neither is a gate result: the byte count of this file and the added
+line count in the `check_us_english` line, which reads 3292 on the tip that carries this paragraph
+and would read higher again if this paragraph grew. `cargo`, the census, the ratchet, the ledger,
+`check_docs` and the exit gate return the same values on both tips, and `check_docs` still counts
+302 Markdown files because this file already existed.
+
 **23 path edges where section 9 read 22, and the ratchet at 85/15 where it read 82/15 — both came
 from `main`, not from here.** `evidence/wiring-coverage.json` on `main` already records 23 edges
 (`cad254a`), and `git diff main..HEAD -- rust/ evidence/` is `guard_parity.rs` alone: this branch
