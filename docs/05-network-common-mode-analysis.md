@@ -27,7 +27,7 @@ this prose. A sentence here that disagrees with the code fails the build.
 ### Layer A — the MCP proxy chokepoint
 
 Real, reachable, and the only layer that decides per host. `rust/warrant/src/proxy.rs` lines
-227-234 run every destination a call names through the broker:
+284-308 run every destination a call names through **both** engines:
 
 ```rust
 for destination in crate::egress::destinations_of(call) {
@@ -37,15 +37,36 @@ for destination in crate::egress::destinations_of(call) {
         let refusal = EgressRefusal::new(&call.tool, &destination, reason);
         return self.deny_egress(&call.tool, refusal);
     }
+    // Second engine, second configuration source, SAME chokepoint. Deny-only, and
+    // structurally so: the broker's arm above returns before this one runs.
+    if let Some(secondary) = self.secondary.as_ref() {
+        let decision = secondary.decide(&destination.host);
+        if decision.action == warrantor_egress_filter::Action::Deny {
+            let refusal =
+                crate::egress::SecondaryRefusal::new(&call.tool, &destination, &decision);
+            return self.deny_secondary(&call.tool, refusal);
+        }
+    }
 }
 ```
 
+> **Citation correction.** Both adversarial review lenses caught this independently. The block above
+> was quoted from the **pre-change** file — missing the very engine this task added — and all four
+> `proxy.rs` anchors on this page were pre-change line numbers, stale by exactly the lines this
+> branch inserted above them. A reader following the old `227-234` landed inside `deny_secondary`, a
+> function that did not exist when the anchor was written. Every non-`proxy.rs` citation on this page
+> verified correct, which is the tell: `proxy.rs` is the one file the branch grew. Nothing caught it,
+> because the gate's probes matched strings and its render targets matched the count, and no check
+> read a line anchor at all. Anchors are now **derived** by
+> `tools/ci/network_independence.py::citations_resolve`, which finds each construct's real line in
+> the source and fails the build when this document cites a different one.
+
 Two properties of that loop matter for independence and are easy to misread:
 
-- `NEVER_IN_OBSERVE` (`rust/warrant/src/proxy.rs` lines 119-120) holds exactly
+- `NEVER_IN_OBSERVE` (`rust/warrant/src/proxy.rs` lines 129-130) holds exactly
   `[SideEffectClass::Destructive, SideEffectClass::Financial]`. It contains nothing egress-shaped,
   so **observe mode records every network call and refuses none.**
-- `staged_classes` is consulted *after* the egress loop (lines 236-243), so staging is never a
+- `staged_classes` is consulted *after* the egress loop (lines 310-316), so staging is never a
   substitute for an egress refusal.
 
 ### Layer B — the network namespace
@@ -125,7 +146,7 @@ The anchor's residual makes these the test. Two layers sharing any one of them a
 | **enforcement point** | `Proxy::decide`, in the `warrantor` process | the kernel, *if* an operator launched the printed profile | **shared in practice**: layer B is never emitted alongside a permitted host, so only one point ever acts on one |
 | **credential** | none — `rust/warrant/src/egress.rs` lines 53-56: *"the process that serves a supervised agent deliberately holds no key"* | none | **not shared** — and independent by *absence*, not by design |
 | **configuration source** | `WarrantBounds::egress_hosts`, inside the signed claims | the same field, read with the opposite sense | **shared** |
-| **telemetry path** | `Proxy::egress_refusals` and `Proxy::requests` (`rust/warrant/src/proxy.rs` lines 110-112), in-process, no independent sink | **none at all**: a netns refusal is a `connect()` failure inside the agent that never reaches Warrantor | **shared** |
+| **telemetry path** | `Proxy::egress_refusals`, `Proxy::secondary_refusals` and `Proxy::requests` (`rust/warrant/src/proxy.rs` lines 115-122), in-process, no independent sink | **none at all**: a netns refusal is a `connect()` failure inside the agent that never reaches Warrantor | **shared** |
 
 L0-10's own residual names three more that any analysis must concede: *"an unmodeled shared
 dependency such as a resolver, a clock or a certificate authority is still common-mode."* Two of the
@@ -211,17 +232,32 @@ says so.
 
 ### What the count excludes
 
-Two policy engines decide this destination and one boundary enforces them. The count above is a
-count of policy domains, not a count of enforcement points: both engines run inside the Warrantor
-MCP proxy, so a shell command, a harness built-in, or any socket the agent opens itself passes
-neither of them. There is no network namespace, seccomp filter or firewall behind this count unless
-you launched the confinement profile yourself, and this process cannot tell whether you did. A
+The count above is a count of enforcement points acting on a destination this warrant permits, and
+it is one. Both engines run inside the Warrantor MCP proxy, so a shell command, a harness built-in,
+or any socket the agent opens itself passes neither of them. Two policy engines decide at that one
+point, so the *engine* count is the count of policy domains and is not a second boundary. There is
+no network namespace, seccomp filter or firewall behind this count, and the confinement profile does
+not add one for a warrant that permits any host -- it omits `--unshare-net` precisely then. A
 hostname that resolves into a private or metadata range is not caught: neither engine resolves DNS.
 
-This paragraph is `egress::INDEPENDENCE_NOTE` in `rust/warrant/src/egress.rs`, asserted onto every
-surface that prints the count, for the same reason `ENFORCEMENT_NOTE` exists: a count of policy
-domains rendered without it is read as a count of enforcement points, which is the single most
-damaging misreading this repository can ship.
+This paragraph is `egress::INDEPENDENCE_NOTE` in `rust/warrant/src/egress.rs`, required beside the
+count on every surface that prints it -- within twelve lines of it, not merely somewhere in the same
+file -- for the same reason `ENFORCEMENT_NOTE` exists: a bare count is read as containment.
+
+> **Correction, found independently by both adversarial review lenses.** This section, the Rust
+> constant it quotes and the CI rule that pinned it all used to open *"The count above is a count of
+> policy domains, not a count of enforcement points."* That sentence was **false about the number it
+> sat beside, in the unsafe direction.** Every surface the gate polices publishes exactly one
+> number -- `Independence::intercepts` -- and that number **is** the enforcement-point count. The
+> machine record beside it said so in capital letters (`evidence/network-independence.json`: *"The
+> count is a count of ENFORCEMENT POINTS ... not of policy engines"*), while the mandated caveat told
+> the reader the published `1` did not bound enforcement points. The policy-domain clause now belongs
+> to the *engine* count, which is the number it is true of, and
+> `tools/ci/network_independence.py` **fails the build on the withdrawn wording** rather than
+> requiring it. Two Rust tests refuse it as well, because a clause pinned by CI in three places is a
+> clause that comes back. The same paragraph also used to offer a remedy this document disproves
+> three sections earlier -- *"unless you launched the confinement profile yourself"* -- which
+> `sandbox::profile` withholds for exactly the warrants this count is about.
 
 ---
 
@@ -236,6 +272,20 @@ Recorded so that this document names its own exit condition rather than leaving 
 3. Either of those must arrive with its **own** configuration source, telemetry sink and clock, or
    the axis table above simply grows a row and the count stays one.
 
-When any of these lands, `rust/warrant/tests/invariants/i09_failure_is_safe.rs` starts failing on
-purpose: the finding is recorded with `harness::reached_the_boundary_unrefused`, which goes red the
-day the boundary starts refusing. Whoever lands it converts the test and raises the ratchet.
+**Which of these the finding test can actually see, and the correction that says so.** This section
+used to promise that when *any* of the three lands,
+`rust/warrant/tests/invariants/i09_failure_is_safe.rs` starts failing on purpose. That held for exit
+condition 1 in its resolver form and for nothing else. `harness::reached_the_boundary_unrefused` goes
+red when the predicate handed to it flips, and that predicate is closed over the two in-process
+policy engines: a resolver on the egress path flips it, and no kernel layer and no cluster policy is
+an input to it at all. A reviewer demonstrated that by landing exit condition 2 -- a real cluster
+egress `NetworkPolicy` -- whereupon the finding test stayed green, the I-09 corpus stayed at 85
+passed, and the gate went on publishing **1**. The two prose facts in section 3 that carry this
+conclusion (*no `deploy/k8s` directory*, *exactly one `NetworkPolicy` in the tree*) were ungated and
+false throughout that run.
+
+So the cluster half now has its own assertion, in the one place that can read a YAML file:
+`tools/ci/network_independence.py::cluster_layer_absent` fails the build when a `NetworkPolicy` this
+analysis does not know about appears, and when the single one it names disappears. Exit condition 1
+stays carried by the finding test, and exit condition 3 by the axis table above. Whoever lands any of
+them converts the test, moves the count and the record together, and raises the ratchet.

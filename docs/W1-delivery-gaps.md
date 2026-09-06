@@ -977,8 +977,11 @@ analysis proving the two layers do not share a failure domain."* The analysis wa
 the opposite. Full working: [`docs/05-network-common-mode-analysis.md`](05-network-common-mode-analysis.md);
 machine-readable record: [`evidence/network-independence.json`](../evidence/network-independence.json).
 
-A permitted destination is guarded by **one independent intercept, not two**. The two layers the
-product describes are not merely coupled, they are **anti-correlated by one config field**:
+A permitted destination is guarded by **one independent intercept, not two**. That number is a
+count of enforcement points acting on a destination the warrant permits, and it is one: both policy
+engines run inside the Warrantor MCP proxy, so a shell command, a harness built-in, or any socket the
+agent opens itself passes neither of them, and neither resolves DNS. The two layers the product
+describes are not merely coupled, they are **anti-correlated by one config field**:
 
 - `WarrantBounds::egress_hosts` non-empty → the proxy decides per destination, and
   `--unshare-net` is **deliberately not emitted** (`rust/warrant/src/sandbox.rs` lines 333-346),
@@ -1014,17 +1017,30 @@ unchanged at one.
 What it does **not** establish:
 - **L2-03 and L0-10 stay `status="none"`.** Neither is closed and neither may be softened.
 - The cluster layer L2-03 names does not exist. There is no `deploy/k8s`; the one `NetworkPolicy` in
-  the tree is `policyTypes: ["Ingress"]` on trust-core and cannot hold an egress bound.
-- **Tier B, chokepoint, both engines.** Two policy domains at one enforcement point, so the count is
-  a count of policy domains, not a count of enforcement points. A shell command, a harness built-in,
-  or any socket the agent opens itself passes neither. No netns, seccomp filter or firewall is added
-  or enforced by this work.
+  the tree is `policyTypes: ["Ingress"]` on trust-core and cannot hold an egress bound. Both halves
+  of that sentence used to be prose with nothing behind them; they are now asserted by
+  `tools/ci/network_independence.py::cluster_layer_absent`, which fails the build when a
+  `NetworkPolicy` the analysis does not know about appears and when the one it names disappears.
+- **Tier B, chokepoint.** The intercept count is a count of enforcement points and it is one. The
+  *engine* count is the count of policy domains, and it is **one in a shipped run** -- `Proxy::new`
+  wires no secondary filter, `warrantor.rs` never constructs one, and no CLI flag reaches
+  `with_secondary_filter` -- rising to **two** once an operator wires the second, which adds a policy
+  domain and not a boundary. No netns, seccomp filter or firewall is added or enforced by this work.
+  The record now publishes both numbers separately rather than one number with a footnote; README
+  used to publish the operator number as though it were the product's, which is the drift the gate
+  exists to catch and did not.
 - The one Tier A case is not created here: `--unshare-net` for an empty egress bound, which the OS
   enforces — and only if the operator launched the printed profile, which this process cannot observe
   (`sandbox::PROFILE_CAVEAT`).
-- The finding is recorded with `harness::reached_the_boundary_unrefused`, so it goes **red** the day a
-  real second enforcement point lands rather than going stale. Whoever lands it converts the test and
-  raises the ratchet.
+- **The finding test cannot see a second enforcement point, and this entry used to say it could.**
+  It read: *"so it goes red the day a real second enforcement point lands rather than going stale."*
+  `harness::reached_the_boundary_unrefused` goes red only when the predicate handed to it flips, and
+  that predicate is closed over the two in-process policy engines -- so a resolver on the egress path
+  flips it and a kernel or cluster layer cannot. An adversarial reviewer landed a real cluster egress
+  `NetworkPolicy` and the finding test stayed green, the I-09 corpus stayed at 85 passed, and the gate
+  went on publishing 1. The cluster half of the exit condition now has an assertion that can go red
+  (`cluster_layer_absent`, above); the resolver half is still carried by the finding test. Whoever
+  lands either converts the test and raises the ratchet.
 
 ---
 

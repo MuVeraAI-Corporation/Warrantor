@@ -2,9 +2,13 @@
   "format": "warrantor.network-independence/1",
   "anchor": "L2-03 / L0-10",
   "status": "none",
-  "note": "The count is a count of ENFORCEMENT POINTS acting on a destination the warrant permits, not of policy engines: two engines decide and one boundary enforces. L2-03 stays status=none until a second enforcement point acts on a permitted host. See docs/05-network-common-mode-analysis.md.",
+  "note": "The count is a count of ENFORCEMENT POINTS acting on a destination the warrant permits, not of policy engines. 1 policy engine decides in a shipped run and 2 engines decide once an operator wires the second; either way one boundary enforces. L2-03 stays status=none until a second enforcement point acts on a permitted host. See docs/05-network-common-mode-analysis.md.",
   "independent_intercepts_on_a_permitted_host": 1,
-  "policy_engines_on_a_permitted_host": 2,
+  "policy_engines_the_product_runs": 1,
+  "policy_engines_when_an_operator_wires_one": 2,
+  "configuration_sources_the_product_runs": [
+    "warrant_claims"
+  ],
   "axes": [
     "enforcement_point",
     "policy_engine",

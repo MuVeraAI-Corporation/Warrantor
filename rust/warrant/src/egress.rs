@@ -290,7 +290,13 @@ pub enum SecondarySource {
 }
 
 impl SecondarySource {
-    /// The word used in [`Independence`] and in the machine-readable record.
+    /// The word this source appears as in [`Independence::configuration_sources`].
+    ///
+    /// It reaches `evidence/network-independence.json` only for a configuration the *product*
+    /// actually runs, and the product wires no secondary filter today, so the recorded list is
+    /// `["warrant_claims"]` alone. `tools/ci/network_independence.py` derives that rather than
+    /// asserting it: the day a product source calls `Proxy::with_secondary_filter`, the gate
+    /// publishes the second source and refuses the stale record.
     #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -428,17 +434,85 @@ impl SecondaryFilter {
 
 /// What the independence count does NOT cover. Printed under the count on every surface.
 ///
-/// One constant, one place, for the same reason as [`ENFORCEMENT_NOTE`]: a count of policy domains
-/// rendered without this paragraph is read as a count of enforcement points, which is the single
-/// most damaging misreading this repository can ship.
+/// One constant, one place, for the same reason as [`ENFORCEMENT_NOTE`].
+///
+/// # The correction this wording carries
+///
+/// This note used to open *"The count above is a count of policy domains, not a count of enforcement
+/// points."* That was **false about the number it sat beside, in the unsafe direction.** Every
+/// surface `tools/ci/network_independence.py` polices publishes exactly one number — the
+/// [`Independence::intercepts`] count — and that number *is* the enforcement-point count. The old
+/// clause told the reader the published `1` did not bound enforcement points, when the whole finding
+/// of this analysis is that exactly one enforcement point exists. The record the note accompanies
+/// said the opposite in capital letters (`evidence/network-independence.json`: *"The count is a
+/// count of ENFORCEMENT POINTS ... not of policy engines"*), and CI held the wrong wording in place
+/// on three surfaces.
+///
+/// So the clause is now attached to the number it is true of. The intercept count is labeled an
+/// enforcement count; the *engine* count is the one labeled a policy-domain count. Two adversarial
+/// reviewers found this independently, and it is the [[verify attribution, not just numbers]] shape:
+/// the figures were right, the words pinned to them were wrong.
+///
+/// A rendered number and its label must come from the same record, so prefer
+/// [`independence_sentence`] over quoting this constant with a number beside it. This constant
+/// carries only the clauses that hold in every configuration.
 pub const INDEPENDENCE_NOTE: &str =
-    "Two policy engines decide this destination and one boundary enforces them. The count above \
-     is a count of policy domains, not a count of enforcement points: both engines run inside the \
-     Warrantor MCP proxy, so a shell command, a harness built-in, or any socket the agent opens \
-     itself passes neither of them. There is no network namespace, seccomp filter or firewall \
-     behind this count unless you launched the confinement profile yourself, and this process \
-     cannot tell whether you did. A hostname that resolves into a private or metadata range is \
+    "The count above is a count of enforcement points acting on a destination this warrant \
+     permits. Two policy engines decide at that one point, so the engine count is a count of \
+     policy domains and is not a second boundary: both engines run inside the Warrantor MCP proxy, \
+     so a shell command, a harness built-in, or any socket the agent opens itself passes neither \
+     of them. There is no network namespace, seccomp filter or firewall behind this count, and the \
+     confinement profile does not add one for a warrant that permits any host -- it omits \
+     --unshare-net precisely then. A hostname that resolves into a private or metadata range is \
      not caught: neither engine resolves DNS.";
+
+/// The count clause, rendered from the record rather than written beside it.
+///
+/// # Why this exists rather than a second constant
+///
+/// Rule 2 of this repository's content rules: *a rendered sentence must be derived from the record
+/// it describes.* [`INDEPENDENCE_NOTE`] shipped a label for a number it never read, and no test
+/// could catch that because the label was a literal. Here the label attached to each number is
+/// chosen from the field the number was read out of, so a surface cannot print `intercepts` under
+/// the word "engines" or the reverse.
+///
+/// # The empty-bound trap
+///
+/// A warrant permitting no egress has **two** layers standing and *nothing permitted for either of
+/// them to guard*. Rendering that `2` as a double network path would be the exact overclaim this
+/// whole analysis exists to refuse, so this function reads
+/// [`Independence::guards_a_permitted_destination`] and says so instead.
+#[must_use]
+pub fn independence_sentence(measured: &Independence) -> String {
+    let intercepts = measured.intercepts;
+    let engines = measured.engines;
+    let point = if intercepts == 1 { "point" } else { "points" };
+    let acts = if intercepts == 1 { "acts" } else { "act" };
+    let stands = if intercepts == 1 { "stands" } else { "stand" };
+    let decide = if engines == 1 {
+        "engine decides"
+    } else {
+        "engines decide"
+    };
+
+    if !measured.guards_a_permitted_destination {
+        return format!(
+            "{intercepts} enforcement {point} {stands} under this warrant and none of them guards \
+             a permitted destination: the warrant permits no egress at all, which is the one \
+             configuration where the network namespace is emitted. This is not a double network \
+             path -- there is no destination for the two layers to be independent about. \
+             {engines} policy {decide} at them, which is a count of policy domains and not a \
+             count of boundaries.",
+        );
+    }
+
+    format!(
+        "{intercepts} enforcement {point} {acts} on a destination this warrant permits, and \
+         {engines} policy {decide} at {them}. The enforcement count is {intercepts}; the engine \
+         count is a count of policy domains and is not a second boundary.",
+        them = if intercepts == 1 { "it" } else { "them" },
+    )
+}
 
 /// Every axis the independence analysis models, in the order the analysis document tables them.
 ///
@@ -481,6 +555,18 @@ pub struct Independence {
     pub shared_axes: Vec<&'static str>,
     /// The enforcement layers standing under these bounds.
     pub layers: Vec<&'static str>,
+    /// The configuration sources the engines above read, in the order the engines are consulted.
+    ///
+    /// Always begins with `"warrant_claims"`: the broker's catalogue is derived from the signed
+    /// bounds and from nothing else. A wired [`SecondaryFilter`] appends its own
+    /// [`SecondarySource::as_str`], which is the whole reason a second engine buys anything — an
+    /// engine reading the same source as the first would move the `policy_engine` axis on paper and
+    /// share a failure domain in fact.
+    ///
+    /// Added because `SecondarySource::as_str`'s doc claimed the word appeared here and it did not:
+    /// the attribution was declared and dropped, with no reader anywhere in the workspace. A `pub`
+    /// item is invisible to both `dead_code` and `clippy -D warnings`, so nothing signaled it.
+    pub configuration_sources: Vec<&'static str>,
 }
 
 /// Measure the independence of the egress path.
@@ -546,12 +632,22 @@ pub fn independence(bounds: &WarrantBounds, secondary: Option<&SecondaryFilter>)
         }
     }
 
+    // Read off the filter's own recorded source rather than inferred from the fact that one exists.
+    // `SecondaryFilter::from_operator_config` and `SecondaryFilter::default_deny` are different
+    // configuration sources and the axis table treats them differently, so which one it was has to
+    // travel with the measurement.
+    let mut configuration_sources = vec!["warrant_claims"];
+    if let Some(filter) = secondary {
+        configuration_sources.push(filter.source().as_str());
+    }
+
     Independence {
         intercepts,
         engines,
         guards_a_permitted_destination: permits_egress,
         shared_axes,
         layers,
+        configuration_sources,
     }
 }
 

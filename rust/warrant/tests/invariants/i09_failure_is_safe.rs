@@ -219,11 +219,25 @@ fn the_product_links_the_preflight_that_refuses_an_unmeasured_boundary() {
 /// records this exact string as reaching Allow — see the table in
 /// `docs/task-evidence/task-7.1.md`, row `169.254.169.254.nip.io`.
 ///
-/// Written with [`harness::reached_the_boundary_unrefused`] so that it starts **failing** the day
-/// either half is fixed: a resolver on the egress path, or a second enforcement point that acts on a
-/// permitted host. Whoever lands it converts this to `refused_at_the_boundary`, closes `### 3.8` in
-/// `docs/W1-delivery-gaps.md`, and raises the ratchet. A finding that silently goes stale is a
-/// finding nobody will ever close.
+/// Written with [`harness::reached_the_boundary_unrefused`], and this doc comment used to overstate
+/// what that buys.
+///
+/// **CORRECTION.** It read: *"so that it starts failing the day either half is fixed: a resolver on
+/// the egress path, or a second enforcement point that acts on a permitted host."* Only the first
+/// half was ever true. `reached_the_boundary_unrefused` goes red when the predicate below flips, and
+/// that predicate is the closure `broker_allows && filter_allows` -- closed over exactly the two
+/// in-process policy engines. A resolver on the egress path flips it; so does
+/// `169.254.169.254.nip.io` joining `hard_deny`'s hostname list. Nothing outside those two closures
+/// is an input, so **no kernel layer and no cluster policy can flip it**: an adversarial reviewer
+/// added a real cluster egress `NetworkPolicy` -- egress `policyTypes`, the analysis document's own
+/// exit condition 2 -- and this test, the whole I-09 corpus and the CI gate all stayed green.
+///
+/// The cluster half of the exit condition now has an assertion that CAN go red, in the one place that
+/// can see a YAML file: `tools/ci/network_independence.py::cluster_layer_absent` fails the build when
+/// a `NetworkPolicy` this analysis does not know about appears in the tree, and when the single one it
+/// does name disappears. Whoever lands a second enforcement point converts this test to
+/// `refused_at_the_boundary`, closes `### 3.8` in `docs/W1-delivery-gaps.md`, and raises the ratchet.
+/// A finding that silently goes stale is a finding nobody will ever close.
 ///
 /// Fixed by: no task in the 2026-09-02 implementation plan builds a second enforcement point or adds
 /// a resolver; Phase 5's governing rule forbids the first. Recorded 2026-09-05.
@@ -270,10 +284,39 @@ fn a_name_that_encodes_the_metadata_address_passes_both_engines_because_neither_
     // And the same machinery DOES refuse the literal address, so the gap is specifically the
     // resolver and not a missing floor. This is the allowed/refused pair that makes the finding
     // precise rather than alarming.
+    //
+    // CORRECTION. The message here used to credit "the non-amendable floor" while the assertion
+    // observed `CanaryIp`: `169.254.169.254` is in `DEFAULT_CANARY_IPS` and the canary check runs
+    // first, and only the action was asserted. Both halves are now named for what they actually are.
+    let literal = secondary.decide("169.254.169.254");
     assert_eq!(
-        secondary.decide("169.254.169.254").action,
+        literal.action,
         warrantor_egress_filter::Action::Deny,
-        "the literal address is refused by the non-amendable floor; only the NAME gets through",
+        "the literal address is refused and only the NAME gets through: {literal:?}",
+    );
+    assert_eq!(
+        literal.reason,
+        warrantor_egress_filter::DecisionReason::CanaryIp,
+        "and it is the configured canary list that refuses this one, not the floor: {literal:?}",
+    );
+    // The floor, on an address only the floor covers -- link-local, in no canary list, explicitly
+    // allowlisted, with the private check off. This is what makes "a hostname is judged only as a
+    // string" a resolver gap rather than a missing floor.
+    let floor_only = warrantor_warrant::egress::SecondaryFilter::from_policy(
+        warrantor_egress_filter::PolicyBuilder::with_defaults()
+            .allow_ip("169.254.1.1")
+            .deny_private_egress(false)
+            .build()
+            .expect("the operator policy builds"),
+    );
+    let floored = floor_only.decide("169.254.1.1");
+    assert!(
+        matches!(
+            floored.reason,
+            warrantor_egress_filter::DecisionReason::HardDenyFloor { .. }
+        ),
+        "the non-amendable floor must refuse a link-local address no configured field covers, or \
+         `address_floor` is reported shared with nothing behind it: {floored:?}",
     );
 
     // The measured count agrees with the mechanism just demonstrated. Reading it from the same
@@ -389,11 +432,36 @@ fn the_notes_refuse_to_imply_a_second_boundary() {
     );
 
     let independence = warrantor_warrant::egress::INDEPENDENCE_NOTE;
+    // CORRECTION, found by two independent adversarial reviewers. This assertion used to require
+    // "is a count of policy domains, not a count of enforcement points" -- and so pinned a sentence
+    // that mislabeled the number it accompanied, in the UNSAFE direction. Every render target the
+    // gate polices publishes one number, `Independence::intercepts`, and that number IS the
+    // enforcement-point count. The clause told the reader it was not. The record beside it said the
+    // opposite in capital letters. Two Rust tests and one CI gate held the wrong wording in place.
+    //
+    // This is Task 9.1's shape (a word written beside a record rather than derived from it) and
+    // [[verify attribution, not just numbers]]: the figures were right and the labels were wrong.
+    // The clause is now attached to the number it is true of, and the old wording is refused so it
+    // cannot return. `egress::independence_sentence` is the derived form for anything that prints a
+    // number; this constant carries only what holds in every configuration.
     assert!(
-        independence.contains("is a count of policy domains, not a count of enforcement points"),
-        "INDEPENDENCE_NOTE must keep refusing the enforcement-point reading in those words: \
-         tools/ci/network_independence.py requires the clause on every surface that prints the \
-         count, and this is the one place it is authored. It reads: {independence}",
+        independence.contains("is a count of enforcement points"),
+        "INDEPENDENCE_NOTE accompanies the intercept count, which IS the enforcement count, so it \
+         must label it as one. It reads: {independence}",
+    );
+    assert!(
+        !independence.contains("count of policy domains, not a count of enforcement points"),
+        "the withdrawn clause mislabeled the published count and must not come back: {independence}",
+    );
+    assert!(
+        independence.contains("engine count is a count of policy domains"),
+        "the policy-domain clause belongs to the ENGINE count, the number it is true of: \
+         {independence}",
+    );
+    assert!(
+        independence.contains("does not add one for a warrant that permits any host"),
+        "and the note must not offer the confinement profile as a remedy: `sandbox::profile` omits \
+         --unshare-net for exactly the warrants this count is about. It reads: {independence}",
     );
     assert!(
         !independence.contains('\n'),

@@ -12,7 +12,8 @@
 use std::collections::BTreeSet;
 
 use warrantor_warrant::egress::{
-    independence, EgressBroker, EgressVerdict, SecondaryFilter, INDEPENDENCE_NOTE,
+    independence, independence_sentence, EgressBroker, EgressVerdict, SecondaryFilter,
+    INDEPENDENCE_NOTE,
 };
 use warrantor_warrant::proxy::{Decision, Proxy, ProxyMode, ToolCall};
 use warrantor_warrant::staging::EffectRegistry;
@@ -215,6 +216,17 @@ fn the_second_engine_allows_what_the_operator_permitted() {
 
     // And the pair that matters most: an allowlist entry must not punch a hole to the metadata
     // service. This is Task 7.1's non-amendable floor, and it must survive being wired.
+    //
+    // CORRECTION. This assertion used to name `hard_deny::refuse_ip` while observing something else
+    // entirely. `169.254.169.254` is in `DEFAULT_CANARY_IPS`, and `Policy::decide_ip` checks
+    // `canary_ips` BEFORE the floor, so the refusal it saw was `CanaryIp` -- a refusal that reads a
+    // configured field, the exact opposite of what the message claimed. And it asserted only the
+    // action, never the reason, so deleting the entire `hard_deny::refuse_ip` arm from `decide_ip`
+    // left this suite fully green. Task 7.1's own suite caught that with six failures; the
+    // `address_floor` axis THIS branch introduced caught it with none, because the axis was asserted
+    // only by a hardcoded `true` inside `independence()`.
+    //
+    // So: assert the reason, not just the action, and separate the two mechanisms.
     let generous = SecondaryFilter::from_policy(
         warrantor_egress_filter::PolicyBuilder::with_defaults()
             .allow_ip("169.254.169.254")
@@ -222,12 +234,79 @@ fn the_second_engine_allows_what_the_operator_permitted() {
             .build()
             .expect("builds"),
     );
-    let decision = generous.decide("169.254.169.254");
+    let canary = generous.decide("169.254.169.254");
     assert_eq!(
-        decision.action,
+        canary.action,
+        warrantor_egress_filter::Action::Deny,
+        "an allowlist entry must not punch a hole to the metadata service: {canary:?}",
+    );
+    assert_eq!(
+        canary.reason,
+        warrantor_egress_filter::DecisionReason::CanaryIp,
+        "this address is refused by the CANARY list, which the canary check reaches first. Naming \
+         the floor here is what hid the floor's absence: {canary:?}",
+    );
+
+    // The floor itself, on an address only the floor covers. `169.254.1.1` is link-local, so
+    // `hard_deny::refuse_ip` refuses it -- and it is in no `canary_ips` list, the allowlist names
+    // it, and `deny_private_egress(false)` disables the private check. Nothing but the floor can
+    // produce this Deny, so deleting the floor turns this red.
+    let floor_only = SecondaryFilter::from_policy(
+        warrantor_egress_filter::PolicyBuilder::with_defaults()
+            .allow_ip("169.254.1.1")
+            .deny_private_egress(false)
+            .build()
+            .expect("builds"),
+    );
+    let floored = floor_only.decide("169.254.1.1");
+    assert_eq!(
+        floored.action,
         warrantor_egress_filter::Action::Deny,
         "hard_deny::refuse_ip runs before the allowlist AND before the private-range flag; that \
-         must survive wiring. Decision was {decision:?}",
+         must survive wiring. Decision was {floored:?}",
+    );
+    assert!(
+        matches!(
+            floored.reason,
+            warrantor_egress_filter::DecisionReason::HardDenyFloor { .. }
+        ),
+        "and it must be the FLOOR that refused, not a configured field: the floor is the axis \
+         `address_floor` names as shared, so a measurement that reports it shared while nothing \
+         behaviorally depends on it reports a failure domain that may not exist. Decision was \
+         {floored:?}",
+    );
+
+    // The IPv6 half of the same floor, which no configured list covers either.
+    let ula = floor_only.decide("fd00:beef::1");
+    assert!(
+        matches!(
+            ula.reason,
+            warrantor_egress_filter::DecisionReason::HardDenyFloor { .. }
+        ),
+        "an IPv6 unique-local address is floor territory too: {ula:?}",
+    );
+
+    // THE ALLOWED CONTROL for the floor. A floor that refused every address would satisfy both
+    // assertions above and prove nothing, so an ordinary routable address the operator allowlisted
+    // must still reach Allow through the same policy.
+    let routable = floor_only.decide("93.184.216.34");
+    assert_eq!(
+        routable.action,
+        warrantor_egress_filter::Action::Deny,
+        "control setup: this address is not in that policy's allowlist",
+    );
+    let allowlisted = SecondaryFilter::from_policy(
+        warrantor_egress_filter::PolicyBuilder::with_defaults()
+            .allow_ip("93.184.216.34")
+            .build()
+            .expect("builds"),
+    );
+    let allowed = allowlisted.decide("93.184.216.34");
+    assert_eq!(
+        allowed.action,
+        warrantor_egress_filter::Action::Allow,
+        "control: the floor must not refuse a routable address, or the two Denies above are a \
+         verifier that refuses everything: {allowed:?}",
     );
 }
 
@@ -393,20 +472,307 @@ fn the_proxy_reports_the_independence_of_the_configuration_it_is_actually_runnin
 
 #[test]
 fn the_note_names_all_three_absent_enforcement_mechanisms() {
-    // No claim without a mechanism. A count of policy domains rendered without this clause is read
-    // as a count of enforcement points.
+    // No claim without a mechanism. The count is published with no enforcement mechanism standing
+    // behind it, so the note must name every mechanism a reader would otherwise assume.
     for absent in ["network namespace", "seccomp filter", "firewall"] {
         assert!(
             INDEPENDENCE_NOTE.contains(absent),
             "INDEPENDENCE_NOTE must name {absent:?} as absent",
         );
     }
+    // CORRECTION. This assertion used to require "not a count of enforcement points", which pinned
+    // a sentence that was FALSE about the number it sat beside: every surface the gate polices
+    // publishes `intercepts`, and `intercepts` IS the enforcement-point count. The label now has to
+    // match the record, and the old wording is refused outright so it cannot come back.
     assert!(
-        INDEPENDENCE_NOTE.contains("not a count of enforcement points"),
-        "the note's job is to refuse the enforcement-point reading, in those words",
+        INDEPENDENCE_NOTE.contains("is a count of enforcement points"),
+        "the note accompanies the INTERCEPT count on every surface, so it must label that count \
+         correctly: {INDEPENDENCE_NOTE}",
+    );
+    assert!(
+        !INDEPENDENCE_NOTE.contains("count of policy domains, not a count of enforcement points"),
+        "that clause mislabels the published number in the unsafe direction -- it tells the reader \
+         the count does not bound enforcement points, when the count IS the enforcement count: \
+         {INDEPENDENCE_NOTE}",
+    );
+    assert!(
+        INDEPENDENCE_NOTE.contains("engine count is a count of policy domains"),
+        "and the policy-domain clause must be attached to the ENGINE count, which is the number it \
+         is true of: {INDEPENDENCE_NOTE}",
+    );
+    // The remedy clause must not offer a remedy this branch proves unavailable. `sandbox::profile`
+    // omits `--unshare-net` for any warrant that permits a host, which is exactly the configuration
+    // this count is about, so "unless you launched the confinement profile yourself" invited the
+    // reader to believe a boundary was one command away.
+    assert!(
+        INDEPENDENCE_NOTE.contains("does not add one for a warrant that permits any host"),
+        "the note must say the confinement profile adds nothing here, not imply it would: \
+         {INDEPENDENCE_NOTE}",
+    );
+    assert!(
+        !INDEPENDENCE_NOTE.contains("unless you launched the confinement profile"),
+        "the withdrawn remedy clause must stay withdrawn: {INDEPENDENCE_NOTE}",
     );
     assert!(
         INDEPENDENCE_NOTE.contains("neither engine resolves DNS"),
         "the shared DNS blind spot is the concrete exploit the anti-correlation opens",
     );
+}
+
+#[test]
+fn the_count_sentence_labels_each_number_with_the_field_it_came_from() {
+    // Rule 2 as a test. `independence_sentence` may not print a number under a word the record does
+    // not support, so each label is checked against the field its number was read from.
+    let permitted = independence(
+        &bounds(&[PERMITTED]),
+        Some(&SecondaryFilter::default_deny()),
+    );
+    let rendered = independence_sentence(&permitted);
+    assert_eq!(permitted.intercepts, 1);
+    assert_eq!(permitted.engines, 2);
+    assert!(
+        rendered.contains("1 enforcement point acts on a destination this warrant permits"),
+        "the intercept count must be rendered as an ENFORCEMENT count: {rendered}",
+    );
+    assert!(
+        rendered.contains("2 policy engines decide"),
+        "the engine count must be rendered as an ENGINE count: {rendered}",
+    );
+    assert!(
+        rendered.contains("engine count is a count of policy domains and is not a second boundary"),
+        "and the engine count must carry its own bounding clause: {rendered}",
+    );
+
+    // THE EMPTY-BOUND CONTROL, and the reason this is a function rather than a second constant. A
+    // no-egress warrant has TWO layers standing. Rendering that 2 as a double network path is the
+    // overclaim the whole analysis refuses, so the sentence must say what the 2 does not buy.
+    let empty = independence(&bounds(&[]), None);
+    let rendered_empty = independence_sentence(&empty);
+    assert_eq!(
+        empty.intercepts, 2,
+        "the netns stands only for an empty bound"
+    );
+    assert!(
+        rendered_empty.contains("none of them guards a permitted destination"),
+        "two layers over nothing must not read as a double path: {rendered_empty}",
+    );
+    assert!(
+        rendered_empty.contains("This is not a double network path"),
+        "and it must refuse that reading in words: {rendered_empty}",
+    );
+    assert!(
+        !rendered_empty.contains("acts on a destination this warrant permits"),
+        "the permitted-destination clause must not fire when nothing is permitted: \
+         {rendered_empty}",
+    );
+}
+
+#[test]
+fn the_measurement_records_which_configuration_source_each_engine_read() {
+    // `SecondarySource::as_str` claimed its word appeared in `Independence`. It did not: the type
+    // had zero readers in the whole workspace, and being `pub` hid that from both `dead_code` and
+    // `clippy -D warnings`. The attribution is now carried, and asserted per source.
+    let alone = independence(&bounds(&[PERMITTED]), None);
+    assert_eq!(
+        alone.configuration_sources,
+        vec!["warrant_claims"],
+        "the broker reads the signed bounds and nothing else",
+    );
+
+    let compiled = independence(
+        &bounds(&[PERMITTED]),
+        Some(&SecondaryFilter::default_deny()),
+    );
+    assert_eq!(
+        compiled.configuration_sources,
+        vec!["warrant_claims", "compiled_default"],
+        "a filter that fell back to the compiled policy must not be recorded as an operator file",
+    );
+
+    let inline = independence(
+        &bounds(&[PERMITTED]),
+        Some(&SecondaryFilter::from_policy(
+            warrantor_egress_filter::PolicyBuilder::with_defaults()
+                .allow_domain(PERMITTED)
+                .build()
+                .expect("builds"),
+        )),
+    );
+    assert_eq!(
+        inline.configuration_sources,
+        vec!["warrant_claims", "inline_policy"],
+        "an in-process policy is its own source and must be distinguishable from the fallback",
+    );
+}
+
+#[test]
+fn the_second_engine_can_be_built_from_a_real_operator_file() {
+    // `from_operator_config` is the reason the second engine buys anything at all -- a source that
+    // did NOT read the warrant's signed claims -- and it had zero callers and no fixture. So the
+    // second engine's whole justification was exercised by no test that opens a real file.
+    let directory =
+        std::env::temp_dir().join(format!("warrantor-secondary-source-{}", std::process::id()));
+    std::fs::create_dir_all(&directory).expect("the temp directory is creatable");
+    let path = directory.join("egress-filter.json");
+    let policy = warrantor_egress_filter::PolicyBuilder::with_defaults()
+        .allow_domain(PERMITTED)
+        .build()
+        .expect("builds");
+    std::fs::write(
+        &path,
+        serde_json::to_string(&policy).expect("a policy serializes"),
+    )
+    .expect("the fixture is writable");
+
+    let from_file = SecondaryFilter::from_operator_config(&path).expect("the fixture parses");
+    let measured = independence(&bounds(&[PERMITTED]), Some(&from_file));
+    assert_eq!(
+        measured.configuration_sources,
+        vec!["warrant_claims", "operator_file"],
+        "a policy read off disk must be recorded as the operator file it came from",
+    );
+
+    // A wiring test, not a constructor test: the engine built from that file actually decides.
+    assert_eq!(
+        from_file.decide(PERMITTED).action,
+        warrantor_egress_filter::Action::Allow,
+        "control: the operator's file permits this host, so the engine built from it must allow it",
+    );
+    assert_eq!(
+        from_file.decide("not-in-the-file.example").action,
+        warrantor_egress_filter::Action::Deny,
+        "and it must still refuse a host the file does not name",
+    );
+
+    // A file that is present and WRONG must be a refusal, never a silent fallback to a filter that
+    // permits more. The doc says so; nothing asserted it.
+    std::fs::write(&path, "{ not json").expect("the fixture is writable");
+    assert!(
+        matches!(
+            SecondaryFilter::from_operator_config(&path),
+            Err(warrantor_warrant::egress::SecondaryConfigError::Malformed { .. })
+        ),
+        "a malformed operator file must refuse to build a filter rather than fall back",
+    );
+
+    std::fs::remove_file(&path).ok();
+    std::fs::remove_dir(&directory).ok();
+}
+
+// ── the record behind a rendered refusal ──────────────────────────────────────────────
+
+#[test]
+fn the_rendered_rule_is_the_engine_s_own_reason_and_not_one_literal() {
+    // `SecondaryRefusal::new`'s comment reads "Derived from the decision, not written beside it",
+    // and the type exists to satisfy Rule 2. Nothing enforced it: only `DefaultDeny` was ever
+    // exercised on this branch, the single assertion was `rule.contains("default_deny")`, and
+    // replacing the two-line serialization with a hardcoded `"\"default_deny\""` literal left all
+    // 833 tests in this package and the CI gate green.
+    //
+    // A derivation is only demonstrated by two different inputs producing two different outputs, so
+    // this drives a SECOND reason through the same path and asserts the rendered rule differs.
+    let mut blocked = proxy_over(
+        &[PERMITTED],
+        Some(SecondaryFilter::from_policy(
+            warrantor_egress_filter::PolicyBuilder::with_defaults()
+                .allow_domain(PERMITTED)
+                .block_domain(PERMITTED)
+                .build()
+                .expect("builds"),
+        )),
+    );
+    let decision = blocked.decide(&call_to(PERMITTED));
+    assert!(
+        matches!(&decision, Decision::Deny { bound, .. } if *bound == "egress_hosts"),
+        "a blocklisted host must be refused by the second engine: {decision:?}",
+    );
+    let recorded = blocked.secondary_refusals();
+    assert_eq!(recorded.len(), 1);
+    assert!(
+        recorded[0].rule.contains("blocked_domain"),
+        "the rule must be THIS decision's reason. A hardcoded \"default_deny\" literal passes the \
+         default-deny test and fails here, which is the point: {:?}",
+        recorded[0].rule,
+    );
+    assert!(
+        !recorded[0].rule.contains("default_deny"),
+        "and it must not carry the other engine's reason: {:?}",
+        recorded[0].rule,
+    );
+    // The rendered sentence is read off the same record, so it must carry the same rule.
+    assert!(
+        recorded[0].sentence().contains("blocked_domain"),
+        "the sentence renders the record's own rule, not a restatement of it: {}",
+        recorded[0].sentence(),
+    );
+
+    // THE PAIRED CASE. The default-deny engine on the same host renders a DIFFERENT rule. Two
+    // inputs, two outputs, from one serialization: that is what "derived" means.
+    let mut defaulted = proxy_over(&[PERMITTED], Some(SecondaryFilter::default_deny()));
+    defaulted.decide(&call_to(PERMITTED));
+    let other = defaulted.secondary_refusals();
+    assert_eq!(other.len(), 1);
+    assert!(
+        other[0].rule.contains("default_deny"),
+        "the fallback engine's own reason: {:?}",
+        other[0].rule,
+    );
+    assert_ne!(
+        recorded[0].rule, other[0].rule,
+        "two engines with two reasons must render two rules. If these are equal, the rule is a \
+         literal and the attribution the type was created for does not exist.",
+    );
+}
+
+#[test]
+fn a_repeated_refusal_is_counted_and_the_most_frequent_is_reported_first() {
+    // `SecondaryRefusal.count` is documented as "how many times this exact refusal happened" and
+    // `secondary_refusals()` as "most frequent first". No test on this branch ever produced a
+    // repeated refusal or a second distinct one, so both mechanisms were decoration: no-oping the
+    // `.and_modify(|existing| existing.count += 1)` in `deny_secondary` AND deleting the whole
+    // `out.sort_by(...)` left all 833 tests in this package green at once. That is verbatim the
+    // defect the previous wave found in the broker's counter.
+    let second = "registry.npmjs.org";
+    let mut proxy = proxy_over(&[PERMITTED, second], Some(SecondaryFilter::default_deny()));
+
+    // Twice for one destination, once for the other. A looping agent is the case the counter is for.
+    proxy.decide(&call_to(PERMITTED));
+    proxy.decide(&call_to(PERMITTED));
+    proxy.decide(&call_to(second));
+
+    let recorded = proxy.secondary_refusals();
+    assert_eq!(
+        recorded.len(),
+        2,
+        "two distinct destinations, deduplicated to two records: {recorded:?}",
+    );
+    assert_eq!(
+        recorded[0].destination, PERMITTED,
+        "most frequent first: the twice-refused destination must lead. A missing sort leaves these \
+         in BTreeMap key order, where {second:?} sorts ahead of {PERMITTED:?}: {recorded:?}",
+    );
+    assert_eq!(
+        recorded[0].count, 2,
+        "the repeat must be counted, not merely deduplicated: {recorded:?}",
+    );
+    assert_eq!(
+        recorded[1].count, 1,
+        "and the once-refused destination must stay at one: {recorded:?}",
+    );
+
+    // The ordering is by count and not by name, which is what distinguishes a real sort from the
+    // map's own order. `api.github.com` < `registry.npmjs.org`, so a key-ordered list would put
+    // PERMITTED first for the wrong reason -- assert the reverse case too.
+    let mut reversed = proxy_over(&[PERMITTED, second], Some(SecondaryFilter::default_deny()));
+    reversed.decide(&call_to(second));
+    reversed.decide(&call_to(second));
+    reversed.decide(&call_to(PERMITTED));
+    let flipped = reversed.secondary_refusals();
+    assert_eq!(
+        flipped[0].destination, second,
+        "with the counts the other way round the order must flip. If it does not, the list is in \
+         key order and the sort is decoration: {flipped:?}",
+    );
+    assert_eq!(flipped[0].count, 2, "{flipped:?}");
+    assert_eq!(flipped[1].count, 1, "{flipped:?}");
 }
