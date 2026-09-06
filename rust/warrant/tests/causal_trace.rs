@@ -76,9 +76,11 @@ fn stored_from(warrant: &Warrant) -> StoredWarrant {
     }
 }
 
-/// A PR, a review on it and a comment on it. The comment is staged LAST but the review is staged
-/// before it, so the release order and the staging order are both PR-first -- the interesting case
-/// is built explicitly in the test below.
+/// A PR, a comment on it and a review on it, staged in that order. The release order and the
+/// staging order are the same here -- and, today, they are the same for every queue: `stage`
+/// refuses a dependency on a handle it has not minted, so no fixture CAN stage a dependent before
+/// its dependency. `a_dependency_on_a_handle_nobody_minted_is_refused_at_stage_so_the_release_order_is_the_staging_order`
+/// pins that, rather than this comment promising an "interesting case" that the API does not allow.
 fn queue_with_three_hops(dir: &Path) -> StagingQueue {
     let mut queue =
         StagingQueue::open(dir.join("q.jsonl"), ID, EffectRegistry::github()).expect("open");
@@ -111,6 +113,57 @@ fn queue_with_one_hop(dir: &Path) -> StagingQueue {
         .stage("github.create_pr", args(&[("title", "Fix")]), NOW)
         .expect("pr");
     queue
+}
+
+/// The invariant `causal_trace`'s choice of `release_order` rests on, pinned rather than asserted
+/// in a doc comment: a hop that depends on a handle no earlier hop minted is refused at `stage`,
+/// so dependencies always point backward and the release order is the staging order. The
+/// mutation-review lane (2026-09-06) found that rendering the staging order instead survives every
+/// test; it survives because the two orders cannot differ through this API, and this is the test
+/// that goes red first if `stage` ever starts accepting a forward reference.
+#[test]
+fn a_dependency_on_a_handle_nobody_minted_is_refused_at_stage_so_the_release_order_is_the_staging_order(
+) {
+    let dir = tempdir("forward");
+    let mut queue =
+        StagingQueue::open(dir.join("q.jsonl"), ID, EffectRegistry::github()).expect("open");
+    let error = queue
+        .stage(
+            "github.comment",
+            args(&[("target", "pr://staged/wrt_causal/1"), ("body", "early")]),
+            NOW,
+        )
+        .expect_err("a comment on a PR that has not been staged yet must be refused at stage");
+    assert!(
+        error.to_string().contains("was not issued by this warrant"),
+        "the refusal must say the handle was never minted, got: {error}"
+    );
+    assert!(
+        queue.is_empty(),
+        "a refused stage writes nothing to the log"
+    );
+
+    // Now the well-formed queue, on the same log: the trace, the release order and the staging
+    // order are one sequence of handles.
+    let queue = queue_with_three_hops(&dir);
+    let staged: Vec<&str> = queue.effects().iter().map(|e| e.handle.as_str()).collect();
+    let release: Vec<&str> = queue
+        .release_order()
+        .expect("order")
+        .into_iter()
+        .map(|e| e.handle.as_str())
+        .collect();
+    let traced: Vec<String> = queue
+        .causal_trace()
+        .expect("trace")
+        .into_iter()
+        .map(|s| s.handle)
+        .collect();
+    assert_eq!(
+        release, staged,
+        "dependencies point backward, so the orders coincide"
+    );
+    assert_eq!(traced, staged);
 }
 
 #[test]

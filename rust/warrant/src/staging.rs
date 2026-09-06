@@ -518,9 +518,16 @@ impl StagingQueue {
     ///
     /// # Why the release order and not the staging order
     ///
-    /// They differ whenever an agent stages out of dependency sequence, and the release order is
-    /// the one `settle` actually executes ([`crate::settle`]). A causal verdict computed over the
-    /// staging order would be a verdict about an order that never runs.
+    /// The release order is the one `settle` actually executes ([`crate::settle`]), so it is the
+    /// only order a route should be signed in. Today the two orders cannot differ: [`Self::stage`]
+    /// refuses a dependency on a handle it has not minted, so dependencies always point backward
+    /// and [`Self::release_order`] returns the staging order. Reading the release order here is
+    /// therefore not a behavior difference but a choice of which invariant this function rests on
+    /// -- if `stage` ever accepts a forward reference, this is the one place that stays correct
+    /// without an edit. The test
+    /// `a_dependency_on_a_handle_nobody_minted_is_refused_at_stage_so_the_release_order_is_the_staging_order`
+    /// pins the invariant; an earlier version of this comment claimed the orders "differ whenever
+    /// an agent stages out of dependency sequence", which the API does not allow.
     ///
     /// The `index` here is the hop's position in the release order, from 1 -- **not**
     /// [`StagedEffect::index`], which is its position in the queue. `causal_verdict` gates the
