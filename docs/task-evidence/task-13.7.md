@@ -2,7 +2,8 @@
 
 Branch `feat/scorer-isolation`, from local `main` at `f9c3523`. Measured on Windows 11, 2026-09-05; **corrected after adversarial review on 2026-09-06**, and
 every number in this file re-measured at the corrected tip. The review and what it changed are the
-next section.
+next section. **Rebased onto `main` at `065961b` by the review lane on 2026-09-06; every
+number re-measured on the rebased tree is in the last section of this file.**
 
 ## The premise correction, before anything else
 
@@ -574,6 +575,10 @@ CORRECTION section's own table above.
 
 ## The base moved under this branch, and every number here is against `f9c3523`
 
+*Superseded on 2026-09-06: the review lane rebased this branch onto `main` at `065961b`, and the
+numbers against the merged tree are in the last section of this file. The paragraph below is left as
+the branch wrote it, because it says what was true at the time and why it mattered.*
+
 `main` was at `f9c3523` when this branch was cut and is at `2ec0638` now: two further merges landed
 from another lane while this work ran (Task 1.2 `feat/egress-capability-catalog`, Task 1.3
 `feat/task-1.3`). This branch is **not** rebased onto them, and `git merge-base main HEAD` is still
@@ -607,3 +612,227 @@ because the usage text named a flag the list did not. The flags are in fact read
 `cmd_scorer`), and what establishes that is the four behavior tests over the real binary added in this
 pass, not that gate.
 
+---
+
+## Rebased onto `main` at `065961b` — the review lane, 2026-09-06
+
+Everything above this line was measured on the branch against its own base. This section is the
+review lane's record: the branch brought onto today's `main`, every number below re-measured on the
+rebased tree, and the plan's exit gate run verbatim rather than inferred from the
+workspace gate. Worktree `M:/wt-w3-13.7`, shared target directory `M:/wt-review-shared-target`.
+
+`main` moved four times while this lane ran (`92b6018` → `775bfeb` → `9bac709` → `9292b03` → `065961b`;
+the second move brought the implementation plan itself onto `main` at `docs/superpowers/plans/`, the
+third is four docs/CI commits and the fourth a US-English sweep over thirty-two documents, none touching
+a Rust file), so the rebase was done four times and the last is the one recorded here.
+`git merge-base HEAD main` is `065961b`. The cargo gate below was run at `53c3d72`, the
+tip after the second rebase; `git diff 53c3d72 HEAD -- rust/` is empty, so its inputs are byte-identical
+to this tip, and the Python gates were re-run at this tip.
+
+### Commits, rebased, in plan-step order
+
+| commit | plan steps | what |
+|---|---|---|
+| `7c6a603` | 3–4 | `eval-guard` refuses to sign four booleans whose source is unnamed (`Provenance` in the signed bytes) |
+| `4fcc92e` | 6 | `sandbox.rs` names the credential a read-only root leaves in reach (`Divergence::Gap` for the store) |
+| `ebf1de2` | 5, 7–11 | the wire, `scorer::{isolation, preflight, trend, escalate}`, the I-09 conversion, ratchet 83/14, ledger I-09 `partial` |
+| `94de02a` | 12 | evidence: the tier table, the deviations, what is not established |
+| `7c6b776` | 12 | evidence: the fresh-worktree gate, red-before-green, two mutation checks |
+| `ecfe996` | review | `Enforced` requires a profile `sandbox::check_worktree` accepts and a placeable store root (CH-1, TR-3) |
+| `6a00b4e` | review | `--confined` requires `--asserted-by`, resolved against the operator registry (CH-6) |
+| `1c1a8b7` | review | four CLI tests through the shipped binary; the scope test drives `handle_scoped` (TR-4, TR-5) |
+| `7c38c38` | review | the record's `confined` header is derived from the same `check_worktree` call |
+| `522cacc` | review | a refused pre-flight exits 1 |
+| `d6474ed` | review | evidence: the eleven findings and the re-measured numbers |
+| `5e5b220` | review | evidence: the us-english count re-measured from a committed tree |
+| `60d6159` | review | evidence: the fresh-worktree check covered seventeen paths |
+| (this file) | this lane | this section |
+
+The SHAs above are the post-rebase ones; the pre-rebase SHAs quoted earlier in this document
+(`b75c194`, `2ebf69b`, `b4873d4`, `7b624d3` …) name the same changes on the branch's original base.
+
+### The exit gate, quoted verbatim from the plan
+
+`### Task 13.7`, `#### Exit gate` (on `main` at `docs/superpowers/plans/2026-09-02-native-ai-platform-os-implementation.md`, byte-identical to the copy at `M:/wt-wave3`):
+
+> `cargo test -p warrantor-warrant --test scorer_isolation --test invariants -j 2 && python tools/ci/wiring_census.py && python tools/ci/check_invariant_ratchet.py`
+> must print three things together: every isolation test passing **with its allowed control also
+> passing**, `wiring census: 10 of 39 crates reachable`, and `invariant ratchet: ok (66 passing at
+> floor 66, 18 recorded findings at ceiling 18)` — and `cargo run -p warrantor-eval-guard --bin
+> eval-guard -- --agent x` must exit non-zero with no attestation on stdout, because a caller who
+> names no provenance can no longer be handed a signature.
+
+The plan's own Step 1 says what to do with its literal numbers: *"If the census prints anything but
+9, another lane has landed a wire and Step 8's expected numbers move by that much — re-derive them,
+do not adjust the assertion to match."* The numbers below are re-derived from the tools on the
+rebased tree; `10 of 39` and `66/18` were the plan's expectation against `origin/main` at `e4b5f10`.
+
+### Status of that acceptance: RUN
+
+Nothing on the branch performs the exit gate as one run: the workspace test gate subsumes the two
+test targets, and no test drives the `eval-guard` binary with `--agent x` (the only binary-driving
+tests, `rust/warrant/tests/scorer_isolation.rs:788`, drive `warrantor`). The transcript earlier in
+this document under "After the fix" was the implementer's manual run on the branch's own base. So
+this lane ran the exit gate verbatim on the rebased tree, each exit code captured before any pipe.
+The transcript is in this section, below, and the raw logs are the lane's scratch output
+(`gate-out3/`, `acceptance-out/`), which is not tracked.
+
+**Clause 1 — the three commands together:**
+
+```
+$ cd rust && cargo test -p warrantor-warrant --test scorer_isolation --test invariants -j 2
+Running tests\invariants\main.rs (M:/wt-review-shared-target\debug\deps\invariants-034918dab9d3a6da.exe)
+test result: ok. 83 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 1.05s
+Running tests\scorer_isolation.rs (M:/wt-review-shared-target\debug\deps\scorer_isolation-83bd63c0f79b2b58.exe)
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+exit 0
+$ python ../tools/ci/wiring_census.py
+wiring census: 14 of 41 crates reachable from warrantor-warrant over 23 path edges
+exit 0
+$ cd .. && python tools/ci/check_invariant_ratchet.py
+(first run, exit 1) ValueError: cargo test produced no `test result:` line; the corpus did not run
+    # raised by the tool before it printed the corpus output, 90 s into a window in which clause 2 below
+    # was `Blocking waiting for file lock on build directory` -- another lane was building into the shared
+    # target directory. Re-run under the same guard after freshening this tree's sources:
+$ python tools/ci/check_invariant_ratchet.py
+test result: ok. 83 passed; 0 failed; 14 ignored; 0 measured; 0 filtered out; finished in 0.91s
+invariant ratchet: ok (83 passing at floor 83, 14 recorded findings at ceiling 14)
+exit 0 (re-run; the first attempt is recorded above)
+```
+
+Every isolation test passes with its allowed control. The controls are assertions inside the same
+test or the test written beside it: `with_no_confinement_nothing_is_enforced_and_one_property_is_held_by_nothing`
+is the unconfined control the plan's Step 9 sketch names for
+`every_property_carries_a_caveat_and_only_an_os_mechanism_earns_enforced`; `an_escalation_is_addressed_to_an_operator_who_cannot_settle_the_warrant_being_graded`
+holds the only-settler refusal; `a_principal_without_settle_scope_cannot_produce_the_state_that_becomes_a_label`
+holds the settle-scoped control that does produce `LabelSource::WarrantVoided`; the four CLI tests
+each drive the shipped `warrantor` with a passing and a refusing invocation.
+
+**Clause 2 — a caller who names no provenance is handed no signature:**
+
+```
+$ cd rust && cargo run -p warrantor-eval-guard --bin eval-guard -- --agent x
+stdout: 0 bytes
+stderr:
+Blocking waiting for file lock on build directory
+error: the following required arguments were not provided:
+  --provenance <measured:<probe> | asserted:<who>>
+
+Usage: eval-guard.exe --agent <AGENT> --provenance <measured:<probe> | asserted:<who>>
+
+For more information, try '--help'.
+error: process didn't exit successfully: `M:/wt-review-shared-target\debug\eval-guard.exe --agent x` (exit code: 2)
+exit 2
+```
+
+Exit 2 is `clap`'s usage-error code: the binary refuses at argument parsing because
+`--provenance` is required, which is stronger than the plan asked for (it asked for non-zero) and is
+the reason nothing reaches stdout. The ledger may cite Task 13.7 as built on the strength of this
+run; what it may not cite is anything the tier table says it does not establish.
+
+### What the rebase changed, and how each conflict was resolved
+
+Two files conflicted, both census artifacts, both resolved the same way: take `main`'s copy, then
+let the tool re-measure. Nothing was picked.
+
+* **`evidence/wiring-coverage.json`.** `main` recorded `13 of 41 over 22 edges` (a crate landed on
+  `main` after this branch was cut, and one more wire); the branch recorded `13 of 40 over 21`
+  against its own base. `python ../tools/ci/wiring_census.py --write` on the merged manifests
+  wrote **`14 of 41 crates reachable from warrantor-warrant over 23 path edges`**. The orphan list
+  is `main`'s minus `warrantor-eval-guard` — 27 orphans, down from 28. The count did not rise.
+* **`README.md`, line 196.** The status-table cell the census gate reads. Transcribed from the tool's
+  output: `**14 of 41**` and `the other 27`. `wiring_census.py` refuses the tree when that cell and
+  its measurement disagree, and it passed.
+* **`docs/task-evidence/task-5.3.md`** did not conflict but is worth naming, because Task 5.3 is
+  already merged and this branch edits its evidence. The edit is the one
+  `adversary::the_documents_ordinal_for_the_next_ignore_is_read_from_the_ratchet_and_not_from_the_plan`
+  requires: that test reads `ignored_ceiling` from the ratchet, counts the corpus's `#[ignore]`
+  attributes, and requires both documents to carry the sentence *"`ignored_ceiling` is N, so ignore
+  number N+1 would raise it"*. `main`'s copy says 15/16; the merged corpus holds 14 ignores; the
+  branch's copy says 14/15 and records that the sentence was rebuilt twice. Verified against `main`
+  rather than re-applied: `git diff main -- docs/task-evidence/task-5.3.md` is the three hunks
+  quoted in the branch's own commit and nothing else.
+* **`tools/ci/invariant-ratchet.json`** merged without conflict at the branch's 83/14, and the
+  ratchet re-measured it on the merged corpus rather than trusting the file — see the gate line
+  below. `main`'s ratchet was still 82/15, so no other lane moved the corpus in between.
+* **No code conflicted.** `rust/warrant/src/bin/warrantor.rs`, `src/lib.rs`, `tests/instructions.rs`
+  and `rust/Cargo.lock` auto-merged; both behaviors are present and the gate below is what shows
+  they compose.
+
+### A finding this lane made about the shared target directory, recorded because it will bite the next lane
+
+The first gate run on the rebased tree failed with errors that were false on their face:
+`unresolved import warrantor_eval_guard::Provenance` (this branch adds it) and
+`missing fields causality and predicate_version in initializer of WarPredicate` (no such fields
+exist on this tree or on `main`; they exist only on another lane's branch, `2576093`). The shared
+target directory held `libwarrantor_evidence-*.rmeta` and `libwarrantor_eval_guard-*.rmeta`
+artifacts stamped within the same minutes as this lane's build.
+
+The mechanism: cargo hashes a path crate's identity **relative to the workspace root**, so every
+`M:/wt-*` worktree with the same layout produces the same artifact filenames in
+`M:/wt-review-shared-target`, and freshness is decided by source mtime against the artifact. A
+worktree whose sources are older than another lane's artifact — every freshly rebased worktree,
+whose checkout predates the other lane's build — silently links the other lane's crate. This is not
+a defect in the branch and it is not fixed here; it is the cost of the shared directory that the
+disk-space rule buys. The workaround this lane used, and every number below is from it: bump this
+tree's source mtimes (`touch` on every `.rs` and `Cargo.toml` under `rust/`) immediately before
+each cargo step, so cargo rebuilds this tree's crates. It leaves git clean (mtimes are not content),
+it costs a rebuild of the workspace crates per step, and it does not protect a lane that builds
+*after* this one — that lane needs the same touch.
+
+### The gate, on the rebased tree, exit codes captured before any pipe
+
+Disk guard before every cargo invocation (`--require 60` and `--require-commit 6`): every attempt
+returned OK on the first try. `CARGO_BUILD_JOBS=2`.
+
+```
+$ cd rust && cargo fmt --all -- --check                              exit 0
+$ cargo clippy --workspace --all-targets -- -D warnings              exit 0
+$ cargo test --workspace --all-targets                               exit 0
+    120 suites: passed=1585 failed=0 ignored=19
+$ cargo test --workspace --doc                                       exit 0
+    40 suites: passed=1 failed=0 ignored=0
+$ python ../tools/ci/wiring_census.py
+wiring census: 14 of 41 crates reachable from warrantor-warrant over 23 path edges                                                       exit 0
+$ cd .. && python tools/ci/check_invariant_ratchet.py --show-findings
+invariant ratchet: ok (83 passing at floor 83, 14 recorded findings at ceiling 14)                                                      exit 0
+$ python tools/ci/check_invariants.py
+invariant ledger: 12 invariants; enforced=2, orphaned=0, partial=9, unimplemented=1                                                       exit 0
+$ python tools/ci/check_docs.py
+RESULT: PASS — 299 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated                                                         exit 0
+$ python tools/ci/check_us_english.py main
+us-english: 4102 added line(s) across 16 file(s), since main; matcher = vendored verify-us-english.mjs
+us-english: ok                                                        exit 0
+```
+
+The ratchet's `--show-findings` run prints `test failed` for the recorded findings by design (they
+fail on purpose); the `invariant ratchet:` line is the verdict. The `git status --porcelain` after
+the run is empty.
+
+### The tier table, restated with what escapes each bound
+
+The full table with the reasons is earlier in this document; this is the one-line form the ledger
+reads, in the Task 0.4 vocabulary, and each `Mediated` row names what escapes it because the
+vocabulary requires it.
+
+| bound | tier | what escapes it |
+|---|---|---|
+| `scorer_inputs_not_writable`, confinement asserted by a registered operator, profile `check_worktree` accepts, store root placeable outside the worktree | Enforced (given a launched profile; the launch is `Provenance::Asserted`) | reads — the root is read-only, not unreadable; and any process outside the profile |
+| `scorer_inputs_not_writable`, otherwise | Observed | every write; a careful edit is invisible, a deleted run file is indistinguishable from no run |
+| `scorer_credentials_not_readable` | no tier — held by nothing | every read of `~/.warrantor/keys/settle.key` at the same UID, inside a profile or out |
+| `scorer_not_reachable_over_network`, zero egress hosts, confinement asserted, profile writable | Enforced (given a launched profile) | anything outside the namespace; the property vanishes the moment one host is granted |
+| `scorer_not_reachable_over_network`, otherwise | Mediated | a shell or a harness built-in reaches past the MCP proxy; no netns, seccomp or firewall stands behind it |
+| the reward-hacking monitor | Observed | everything it did not refuse — it reads logs after the fact and stops nothing |
+| the threshold's before-the-run ordering | Mediated (a refusal in our code at the attempt) | anyone with filesystem access who deletes `scorer/threshold.json` and re-registers |
+| the anti-gaming label boundary (`corpus::rows_from`) | Observed (a convention in one function) | any caller that sets `Row::label` directly; the struct's fields are public |
+| the pre-flight (`scorer::preflight` over `eval-guard`) | Mediated (a refusal in our code; signs an assertion, never a measurement) | a launcher that does not call `warrantor scorer`; and the assertion itself, which no probe checks |
+
+### What this lane does NOT establish
+
+* It re-ran the gates and the exit gate; it did not re-run the nine mutation checks or the
+  red-before-green sequence. Those stand as the branch recorded them.
+* It executed no `bwrap`. Every `Enforced` above is still conditional on a profile this process did
+  not launch, and the box is Windows.
+* It did not verify the branch's claim-by-claim corrections beyond what the gates measure.
+* It did not run the Python unit tests under `tools/ci/test_*.py` (the plan's Step 12 lists them;
+  the lane's gate list does not), nor `ruff`.
