@@ -11,7 +11,10 @@ conditions, in the order they are reported:
    quantization is refused, and the refusal is RECEIPTED -- the decision document records the
    verdict, the reason and a digest. It is not silently dropped: an unreceipted refusal leaves no
    record that anyone was told, and the 2026-08-22 sweep is auditable today precisely because its
-   four refusals were written down.
+   four refusals were written down. Measured twice, because a verdict and an exit code are two
+   different facts: in process through ``parity_gate``, and through the documented CLI
+   ``warrantor-ml-parity``, which must exit 3 and leave the receipt on disk. Each leg carries its
+   own promote control.
 3. A registration attempt with no ``promote`` parity receipt raises ``RegistrationError`` and
    writes neither a registration document nor a Rust adapter.
 4. ``serving.deployed_digest()`` equals the digest recorded in ``deployment-parity.json``, and
@@ -27,6 +30,8 @@ this repository and none is added here.
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import sys
 import tempfile
@@ -143,6 +148,134 @@ def _promotion_refusal_is_receipted() -> str | None:
             "a candidate recorded AT the deployed configuration was not promoted "
             f"({matching.verdict}): {matching.reasons}"
         )
+    return _promotion_refusal_exits_nonzero()
+
+
+def _wildguard_document(directory: Path, quantisation: str) -> Path:
+    """A WildGuardTest result document at ``quantisation``, built by the real producers.
+
+    The ``eval_set`` block comes from ``benchmark_wildguard.build_eval_set_descriptor`` and the
+    ``backend`` block from ``OllamaGuardBackend.descriptor``, so this fixture records what the
+    evaluator records. A hand-written block would be a second shape, which is the defect this
+    whole gate exists to catch.
+    """
+
+    from warrantor_ml.benchmark_wildguard import build_eval_set_descriptor
+    from warrantor_ml.evaluate import DEFAULT_OLLAMA_MODEL, OllamaGuardBackend
+
+    split = directory / "wildguard_test.parquet"
+    split.write_bytes(b"a stand-in for the split; it only has to have a digest")
+    document = {
+        "result_digest": "sha256:" + "9" * 64,
+        "eval_set": build_eval_set_descriptor(split, range(1725), range(1699), []),
+        "backend_errors": {"count": 0},
+        "backend": OllamaGuardBackend(
+            model=DEFAULT_OLLAMA_MODEL, quantisation=quantisation
+        ).descriptor(),
+        "wildguard_breakdowns": {
+            "overall": {
+                "recall": 700 / 753,
+                "confusion_matrix": {
+                    "true_positive": 700,
+                    "false_negative": 53,
+                    "false_positive": 50,
+                    "true_negative": 896,
+                },
+            },
+            "by_subcategory": {
+                "social_stereotypes_and_unfair_discrimination": {"recall": 0.90},
+                "fraud_assisting_illegal_activities": {"recall": 0.90},
+                "others": {"recall": 0.90},
+            },
+        },
+    }
+    path = directory / f"result-{quantisation}.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    return path
+
+
+def _promotion_refusal_exits_nonzero() -> str | None:
+    """The plan's exit criterion 2, measured through the documented CLI rather than in process.
+
+    The checks above call ``parity_gate`` directly and read its verdict, which measures the
+    decision but not the two things the plan's criterion names: a NON-ZERO EXIT and what the
+    refusal leaves on disk. Those live in ``programme.parity_main``, so this drives it.
+
+    On the second clause this branch deviates from the plan deliberately and says so in the
+    evidence file (section 6, item 3): the plan required a refused promotion to write NO decision
+    document, and a refusal that writes nothing is an unreceipted refusal. The refusal here IS
+    receipted -- verdict, naming reasons and a digest -- and what a refusal must not produce is a
+    registration or an adapter, which condition 3 below measures. So this check asserts the exit
+    code the plan requires and the receipt the item requires, and the deviation is visible in the
+    assertion rather than only in prose.
+    """
+
+    from warrantor_ml.programme import parity_main
+
+    insufficient_evidence = 3
+    with tempfile.TemporaryDirectory() as directory:
+        root = Path(directory)
+        training = root / "train.jsonl"
+        training.write_text(json.dumps({"prompt": "a training row"}) + "\n", encoding="utf-8")
+        evaluation = root / "eval.jsonl"
+        evaluation.write_text(json.dumps({"prompt": "a held out row"}) + "\n", encoding="utf-8")
+
+        def argv(result: Path, decision: Path) -> list[str]:
+            return [
+                "--result",
+                str(result),
+                "--recipe",
+                "guard-4b-weak-category",
+                "--lane",
+                "local-rtx5080",
+                "--manifest-digest",
+                "sha256:" + "3" * 64,
+                "--breakdown-key",
+                "wildguard_breakdowns",
+                "--training-corpus",
+                str(training),
+                "--eval-corpus",
+                str(evaluation),
+                "--out",
+                str(decision),
+            ]
+
+        # `parity_main` prints the whole decision document, twice over. The receipt is read from
+        # the file it wrote, not from the log, so its stdout goes to a buffer -- four check lines
+        # under three hundred lines of JSON is a gate nobody reads.
+        printed = io.StringIO()
+        refused_decision = root / "refused-decision.json"
+        with contextlib.redirect_stdout(printed):
+            exit_code = parity_main(argv(_wildguard_document(root, "Q8_0"), refused_decision))
+        if exit_code == 0:
+            return "warrantor-ml-parity exited 0 for a candidate at a quantization we do not serve"
+        if exit_code != insufficient_evidence:
+            return (
+                f"warrantor-ml-parity exited {exit_code} for a configuration mismatch; the "
+                "documented code is 3 (insufficient_evidence), and 1 means the candidate was "
+                "rejected on its measurements, which a CI job would retry differently"
+            )
+        if not refused_decision.exists():
+            return "the refusal wrote no decision document, so it is unreceipted"
+        receipt = json.loads(refused_decision.read_text(encoding="utf-8"))
+        if receipt.get("verdict") != "insufficient_evidence":
+            return f"the refusal receipt records verdict {receipt.get('verdict')!r}"
+        if not str(receipt.get("decision_digest", "")).startswith("sha256:"):
+            return "the refusal receipt carries no decision digest, so it cannot be re-audited"
+        if not any("Q8_0" in reason for reason in receipt.get("reasons", ())):
+            return "the refusal receipt does not name the configuration it refused"
+
+        # The allowed control, through the same CLI: exit 0 at the deployed configuration.
+        promoted_decision = root / "promoted-decision.json"
+        with contextlib.redirect_stdout(printed):
+            promoted = parity_main(
+                argv(_wildguard_document(root, serving.QUANTIZATION), promoted_decision)
+            )
+        if promoted != 0:
+            return (
+                f"warrantor-ml-parity exited {promoted} for a candidate recorded AT the deployed "
+                "configuration; a gate that refuses everything measures nothing"
+            )
     return None
 
 
@@ -292,8 +425,8 @@ def main() -> int:
         failed = True
     else:
         print(
-            "  [2/4] ok: a divergent quantization is refused and receipted; the matching "
-            "control promotes"
+            "  [2/4] ok: a divergent quantization is refused and receipted, in process and "
+            "through warrantor-ml-parity (exit 3, receipt on disk); both controls promote"
         )
 
     if (problem := _registration_refusal_writes_nothing()) is not None:
