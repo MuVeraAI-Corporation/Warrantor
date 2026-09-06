@@ -405,8 +405,14 @@ jobs:
           python tools/ci/check_us_english.py "$BASE_SHA"
       - name: Run documentation checks
         run: python tools/ci/check_docs.py
-      - name: Install pytest for the invariant ledger tests
-        run: python -m pip install --disable-pip-version-check pytest
+      # pytest for the ledger tests, and cryptography because the deployment-parity steps below
+      # import `warrantor_ml.deploy_model`, which imports `model_card`, which imports
+      # `cryptography.exceptions`. On a runner with only the standard library installed those two
+      # steps exit 1 with ModuleNotFoundError before a single check runs, which is a gate that
+      # cannot fail for the reason it exists. Installed here rather than in each step so both the
+      # gate and its pytest file get it.
+      - name: Install pytest and the deployment-parity gate's dependencies
+        run: python -m pip install --disable-pip-version-check pytest cryptography
       - name: Check the invariant ledger against the tree
         run: python tools/ci/check_invariants.py
       - name: Test the invariant ledger checker
