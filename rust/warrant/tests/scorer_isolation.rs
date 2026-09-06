@@ -1355,3 +1355,35 @@ fn a_filesystem_refusal_is_explained_with_the_filesystem_property_and_not_anothe
         "control: {absolute}"
     );
 }
+
+#[test]
+fn the_usage_line_names_the_flag_that_confined_requires() {
+    // The missing-id path printed `[--confined [--kind ...]]` and nothing about `--asserted-by`,
+    // which `--confined` refuses without -- so the usage described an invocation that cannot
+    // succeed, while the help block had the correct form. Both surfaces now say the same thing.
+    let dir = store_dir("cli-usage");
+    let (ok, usage) = run(&dir, &[]);
+    assert!(!ok, "{usage}");
+    assert!(usage.contains("usage: warrantor scorer"), "{usage}");
+    assert!(
+        usage.contains("--confined --asserted-by <operator>"),
+        "the usage must name the flag --confined requires: {usage}"
+    );
+    // CONTROL: the invocation the usage describes is the one the command accepts -- the same
+    // flags, on a real store, get past argument handling to the record.
+    store_with_worktree(&dir, "wrt_scored", WORKTREE);
+    mint_operator(&dir, "env-owner", "stop");
+    let (_, text) = run(
+        &dir,
+        &[
+            "wrt_scored",
+            "--confined",
+            "--asserted-by",
+            "env-owner",
+            "--kind",
+            "firejail",
+        ],
+    );
+    assert!(text.contains("scorer isolation for wrt_scored"), "{text}");
+    assert!(text.contains("firejail -- ASSERTED by you"), "{text}");
+}

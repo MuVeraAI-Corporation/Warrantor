@@ -556,9 +556,17 @@ fn is_rooted(path: &Path) -> bool {
 /// written about process boundaries, and the closest fact this product has is whether the scorer's
 /// signing credential is out of the scored process's reach — which is the property that decides
 /// whether "a separate process" means anything at all here. Since that property is held by nothing,
-/// **`preflight` over this product's own `isolation()` output always refuses**, and it names
-/// `ProcessIsolation` as the boundary that failed. That is the honest answer and it is the point:
-/// invariant I-09 says failure is safe, and a preflight that passed here would be signing the gap.
+/// **`preflight` over this product's own `isolation()` output always refuses**. *Which* boundary it
+/// names depends on the record, because `run_preflight` walks `BoundaryCheck::ALL` in order and
+/// stops at the first that is not `Enforced`: it names `ProcessIsolation` only when the other two
+/// properties are `Enforced` — a confinement asserted, zero egress hosts, a worktree a profile can
+/// name, and a store outside every hole that profile opens. The default invocation, unconfined,
+/// refuses on `NetworkIsolation`, because the network property is `Mediated` and is checked first;
+/// so does any invocation that permits a host or names an unprofilable worktree. This sentence used
+/// to say `ProcessIsolation` unconditionally — the same overstatement the branch corrected in two
+/// CI-read records and left here, and a reviewer caught it. Whatever the boundary, the refusal is
+/// the honest answer and it is the point: invariant I-09 says failure is safe, and a preflight that
+/// passed here would be signing either a gap or a weaker tier.
 ///
 /// The provenance is always [`Provenance::Asserted`] by this function's own construction. A
 /// confinement choice is something an operator tells this process; nothing here measures a kernel.

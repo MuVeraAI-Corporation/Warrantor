@@ -4569,15 +4569,21 @@ fn cmd_sandbox(args: &Args, store: &WarrantStore) -> ExitCode {
 ///
 /// The one place in the product where `warrantor-eval-guard` is called. Until 2026-09-05 that crate
 /// was orphaned: the fail-closed pre-flight that refuses to start an agent against an unmeasured
-/// boundary could not fire for any user of the shipped binary. It fires here, and — because nothing
-/// in this repository holds the credential property — it refuses. That refusal is the honest output,
-/// not a bug in the wiring.
+/// boundary could not fire for any user of the shipped binary. It fires here, and it refuses on
+/// every invocation: on the credential boundary in the best case this product can construct
+/// (confined, zero egress, a profilable worktree, a store outside every hole), because nothing in
+/// this repository holds that property; and on the network boundary in the default unconfined case,
+/// because that property is `Mediated` and is checked first. That refusal is the honest output, not
+/// a bug in the wiring.
 #[allow(clippy::too_many_lines)]
 fn cmd_scorer(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     let Some(id) = args.positional.first() else {
+        // The same form the help block prints. This line omitted `--asserted-by`, which `--confined`
+        // requires, so the usage printed on the missing-id path described an invocation that cannot
+        // succeed.
         return fail(
-            "usage: warrantor scorer <warrant-id> [--confined [--kind bubblewrap|firejail]] \
-             [--register-threshold RATE]",
+            "usage: warrantor scorer <warrant-id> [--confined --asserted-by <operator> \
+             [--kind bubblewrap|firejail]] [--register-threshold RATE]",
         );
     };
     let stored = match store.load(id) {
