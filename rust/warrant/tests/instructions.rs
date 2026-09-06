@@ -267,14 +267,25 @@ fn every_harness_the_registry_lists_can_be_shown() {
         .output()
         .expect("run");
     let text = String::from_utf8_lossy(&listing.stdout).to_string();
+    // A registry row is an ALIGNED line: two-space indent, an id with no internal spaces, then the
+    // column padding (two or more spaces) before the coverage phrase. Prose lines under a section
+    // like COMPUTER USE separate their words with single spaces and never match, so a sentence
+    // beginning "Computer use is..." is not mistaken for a harness called `Computer`. This is the
+    // test's original intent -- an id in the table that `show` refuses -- stated precisely.
     let ids: Vec<String> = text
         .lines()
         .filter_map(|line| {
             let rest = line.strip_prefix("  ")?;
-            let word = rest.split_whitespace().next()?;
-            // Ids only: the listing's other indented lines start with `warrantor` or are prose.
-            (word.contains('-') || word.chars().all(char::is_alphanumeric))
-                .then(|| word.to_string())
+            if rest.starts_with(' ') {
+                return None; // deeper indent: a bullet or a wrapped sentence, not a row
+            }
+            let (id, tail) = rest.split_once("  ")?; // an id, then column padding
+            let id = id.trim();
+            (!tail.trim().is_empty()
+                && !id.is_empty()
+                && !id.contains(' ')
+                && id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'))
+            .then(|| id.to_string())
         })
         .filter(|word| word != "warrantor")
         .collect();
