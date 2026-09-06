@@ -459,10 +459,17 @@ def test_the_document_alone_is_enough_and_precision_may_be_omitted(tmp_path: Pat
     assert body["evidence"]["deployed_configuration_digest"] == serving.deployed_digest()
 
 
-def test_a_document_recording_no_quantization_is_refused_and_writes_nothing(
+def test_a_document_recording_no_quantization_is_refused_and_receipted(
     tmp_path: Path,
 ) -> None:
     """The state of all five committed 2026-08-22 candidate documents.
+
+    Named for what the body asserts. It was called ``..._writes_nothing``, which is the plan's
+    deleted criterion surviving as a label over code that proves the opposite: the assertions
+    below read the decision document back and check its verdict and its recorded configuration,
+    because this branch's rule is that a refusal IS receipted (section 6, item 3 of the evidence).
+    What a refusal must not write is a registration or an adapter, and ``test_deploy_model.py``
+    is where that is asserted.
 
     The model tag matters here: a fine-tuned candidate is pushed under a bare Ollama name with no
     quantization label, so there is no third place for the reader to recover the fact from. Using
