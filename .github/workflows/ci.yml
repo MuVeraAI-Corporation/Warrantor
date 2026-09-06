@@ -217,6 +217,16 @@ jobs:
       - name: Assert the wiring count did not fall
         if: runner.os == 'Linux'
         run: python ../tools/ci/wiring_census.py
+      # The common-mode independence gate (Task 5.4, L2-03 / L0-10). Same shape as the wiring ratchet
+      # above and for the same reason: the number lives in one file and every prose copy is checked
+      # against it. It also fails when a mechanism the record is DERIVED from moves, rather than
+      # quietly publishing a fresh number from a stale derivation.
+      - name: Test the network-independence gate
+        if: runner.os == 'Linux'
+        run: python -m pytest ../tools/ci/test_network_independence.py -q -p no:cacheprovider
+      - name: Assert every rendered independence count matches its record
+        if: runner.os == 'Linux'
+        run: python ../tools/ci/network_independence.py
       # On main, regenerate the record and publish it. The workflow holds `contents: read`, so
       # this cannot commit; the committed copy is raised by the pull request that wires a crate,
       # and this artifact is the copy that never lags the tree.

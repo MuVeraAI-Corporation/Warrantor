@@ -2316,7 +2316,8 @@ pub struct RefusalRecord {
     pub destination: Option<String>,
     /// The argument the destination was named in.
     pub argument: Option<String>,
-    /// The broker's coarse reason word, for an egress refusal.
+    /// The broker's coarse reason word for an egress refusal the broker made, or the second
+    /// engine's own rule for one recorded under [`crate::proxy::SECONDARY_FILTER_BOUND`].
     pub reason: Option<String>,
     /// How many times this exact refusal happened in that session.
     pub count: u32,
@@ -2354,7 +2355,12 @@ pub fn record_refusals(
 ) -> Result<usize, ServeError> {
     let mut records: Vec<RefusalRecord> = Vec::new();
     for request in tool_refusals {
-        if request.bound == "egress_hosts" {
+        // Both egress engines book a refusal twice; both full records are written elsewhere --
+        // the broker's here from `egress_refusals`, the second engine's by
+        // `record_secondary_refusals` -- so neither per-tool counter is written as a bare `Tool`
+        // record without its destination.
+        if request.bound == "egress_hosts" || request.bound == crate::proxy::SECONDARY_FILTER_BOUND
+        {
             continue;
         }
         records.push(RefusalRecord {
@@ -2384,6 +2390,54 @@ pub fn record_refusals(
             count: refusal.count,
         });
     }
+    append_refusal_records(root, warrant_id, &records)
+}
+
+/// Append a finished session's second-engine refusals to the same durable log.
+///
+/// CORRECTION (second adversarial review of Task 5.4). A refusal the second policy engine made
+/// used to be booked under the `egress_hosts` bound, which [`record_refusals`] drops on purpose
+/// because the broker's refusals are written in full from [`EgressRefusal`]; the second engine's
+/// refusals have no [`EgressRefusal`], so they were written nowhere. And the label was wrong:
+/// the warrant's `egress_hosts` bound *permitted* the destination -- the broker returned `Allow`.
+/// Each record here carries the destination, the argument and the engine's own rule, under
+/// [`crate::proxy::SECONDARY_FILTER_BOUND`], so the log attributes the refusal to the engine that
+/// made it and a reader is sent to the operator's filter rather than to the signed warrant.
+///
+/// Separate from [`record_refusals`] so its six existing callers keep their signature; the two
+/// functions append to one file and a session calls both.
+///
+/// # Errors
+/// [`ServeError::Refusals`] if the log cannot be created or appended to.
+pub fn record_secondary_refusals(
+    root: &Path,
+    warrant_id: &str,
+    refusals: &[&crate::egress::SecondaryRefusal],
+    at: u64,
+) -> Result<usize, ServeError> {
+    let records: Vec<RefusalRecord> = refusals
+        .iter()
+        .map(|refusal| RefusalRecord {
+            format: REFUSAL_RECORD_FORMAT.to_string(),
+            warrant_id: warrant_id.to_string(),
+            at,
+            kind: RefusalKind::Egress,
+            tool: refusal.tool.clone(),
+            bound: crate::proxy::SECONDARY_FILTER_BOUND.to_string(),
+            destination: Some(refusal.destination.clone()),
+            argument: Some(refusal.argument.clone()),
+            reason: Some(refusal.rule.clone()),
+            count: refusal.count,
+        })
+        .collect();
+    append_refusal_records(root, warrant_id, &records)
+}
+
+fn append_refusal_records(
+    root: &Path,
+    warrant_id: &str,
+    records: &[RefusalRecord],
+) -> Result<usize, ServeError> {
     if records.is_empty() {
         return Ok(0);
     }
@@ -2398,7 +2452,7 @@ pub fn record_refusals(
         .open(&path)
         .map_err(|e| ServeError::Refusals(format!("open the refusal log: {e}")))?;
     let mut body = String::new();
-    for record in &records {
+    for record in records {
         let line = serde_json::to_string(record)
             .map_err(|e| ServeError::Refusals(format!("encode a refusal record: {e}")))?;
         body.push_str(&line);

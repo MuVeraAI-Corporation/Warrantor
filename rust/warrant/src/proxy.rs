@@ -100,6 +100,18 @@ pub struct AuthorityRequest {
     pub count: u32,
 }
 
+/// The bound label a second-engine refusal is recorded under.
+///
+/// Not `"egress_hosts"`, although the second engine decides the same destination the broker just
+/// decided. The warrant's `egress_hosts` bound **permitted** that destination -- the broker returned
+/// `Allow`, and `Proxy::egress_refusals` stays empty -- so a refusal labeled `egress_hosts` sent
+/// the developer to the signed warrant to widen a bound that was already wide enough, when the
+/// file to change is the operator's secondary filter. The label names what refused. The CLI prints
+/// it, and [`crate::serve::record_secondary_refusals`] writes the refusal down under it with its
+/// destination and the engine's own rule, so the durable record attributes the refusal to the
+/// engine that made it.
+pub const SECONDARY_FILTER_BOUND: &str = "secondary_filter";
+
 /// One broker decision not yet written down. Kept until the endpoint drains it.
 struct PendingDecision {
     tool: String,
@@ -116,6 +128,11 @@ pub struct Proxy {
     registry: EffectRegistry,
     /// The egress bound, as a destination catalogue the broker decides against.
     egress: EgressBroker,
+    /// The second policy engine, when the operator configured one.
+    ///
+    /// A second policy domain at the SAME enforcement point — not a second boundary. `None` is the
+    /// historical behavior: one evaluator. See [`crate::egress::independence`].
+    secondary: Option<crate::egress::SecondaryFilter>,
     /// Tools seen in observe mode, which become the proposed warrant.
     observed_tools: BTreeSet<String>,
     /// Denials, deduplicated by (tool, bound) so a looping agent does not flood the report.
@@ -128,6 +145,11 @@ pub struct Proxy {
     pending: Vec<PendingDecision>,
     /// host → capability name, for the destinations the current call resolved by name.
     resolved_names: BTreeMap<String, String>,
+    /// Second-engine denials, deduplicated by (tool, destination).
+    ///
+    /// A second map in the same process is not a second telemetry path — see
+    /// [`crate::egress::SecondaryRefusal`].
+    secondary_refusals: BTreeMap<(String, String), crate::egress::SecondaryRefusal>,
 }
 
 /// Classes that are refused even in observe mode.
@@ -149,13 +171,44 @@ impl Proxy {
             bounds,
             registry,
             egress,
+            secondary: None,
             observed_tools: BTreeSet::new(),
             requests: BTreeMap::new(),
             egress_refusals: BTreeMap::new(),
             vocabulary: None,
             pending: Vec::new(),
             resolved_names: BTreeMap::new(),
+            secondary_refusals: BTreeMap::new(),
         }
+    }
+
+    /// Add the second policy engine.
+    ///
+    /// Deny-only: [`Self::decide`] runs the broker first and returns on its refusal, so the filter
+    /// can only add a refusal and can never remove one. Wiring it raises the *engine* count and
+    /// leaves the *intercept* count alone, because both engines decide inside this one process at
+    /// this one chokepoint. [`crate::egress::INDEPENDENCE_NOTE`] is the sentence that must
+    /// accompany the count wherever it is shown.
+    #[must_use]
+    pub fn with_secondary_filter(mut self, secondary: crate::egress::SecondaryFilter) -> Self {
+        self.secondary = Some(secondary);
+        self
+    }
+
+    /// The second policy engine, when one is wired.
+    #[must_use]
+    pub fn secondary_filter(&self) -> Option<&crate::egress::SecondaryFilter> {
+        self.secondary.as_ref()
+    }
+
+    /// The measured independence of this proxy's egress path.
+    ///
+    /// Reads [`crate::egress::independence`] against the bounds this proxy is enforcing and the
+    /// secondary engine it actually holds, so a surface cannot render a count for a configuration
+    /// that is not the running one.
+    #[must_use]
+    pub fn egress_independence(&self) -> crate::egress::Independence {
+        crate::egress::independence(&self.bounds, self.secondary.as_ref())
     }
 
     /// The mode this proxy is enforcing.
@@ -286,6 +339,27 @@ impl Proxy {
             .collect()
     }
 
+    /// Record a second-engine refusal, then deny under [`SECONDARY_FILTER_BOUND`].
+    ///
+    /// CORRECTION (second adversarial review). This used to deny under `"egress_hosts"` with the
+    /// comment *"it names the bound that refused, not the engine that decided"*. The warrant's
+    /// `egress_hosts` bound did not refuse: the broker allowed the host and `egress_refusals` stays
+    /// empty, which the suite asserts. So the CLI printed `denied <tool> xN (egress_hosts)` for a
+    /// destination that bound permits, and `record_refusals` -- which drops `egress_hosts` requests
+    /// because the broker's refusals are written in full elsewhere -- dropped this one too, leaving
+    /// no durable record at all. The label now names what refused, and
+    /// [`crate::serve::record_secondary_refusals`] writes the [`crate::egress::SecondaryRefusal`]
+    /// down with its destination and the engine's own rule.
+    fn deny_secondary(&mut self, tool: &str, refusal: crate::egress::SecondaryRefusal) -> Decision {
+        let key = (tool.to_string(), refusal.destination.clone());
+        let sentence = refusal.sentence();
+        self.secondary_refusals
+            .entry(key)
+            .and_modify(|existing| existing.count += 1)
+            .or_insert(refusal);
+        self.deny(tool, SECONDARY_FILTER_BOUND, sentence)
+    }
+
     /// Decide what happens to `call`.
     ///
     /// Returns the decision only; staging is performed by [`Self::apply`] so the caller controls
@@ -348,6 +422,23 @@ impl Proxy {
                 let refusal = EgressRefusal::new(&call.tool, &destination, reason);
                 return self.deny_egress(&call.tool, refusal);
             }
+            // Second engine, second configuration source, SAME chokepoint.
+            //
+            // Deny-only, and structurally so: the broker's arm above returns before this runs, so
+            // there is no branch here that can turn its `Deny` into a `Forward`. There must never
+            // be one -- a warrant bound an operator file could widen is not a bound.
+            //
+            // This is a second POLICY DOMAIN and not a second boundary. It does not raise
+            // `Independence::intercepts`, and no surface may render the engine count as though it
+            // were an enforcement count: see `crate::egress::INDEPENDENCE_NOTE`.
+            if let Some(secondary) = self.secondary.as_ref() {
+                let decision = secondary.decide(&destination.host);
+                if decision.action == warrantor_egress_filter::Action::Deny {
+                    let refusal =
+                        crate::egress::SecondaryRefusal::new(&call.tool, &destination, &decision);
+                    return self.deny_secondary(&call.tool, refusal);
+                }
+            }
         }
 
         if self.bounds.staged_classes.contains(&call.side_effect)
@@ -397,6 +488,23 @@ impl Proxy {
     #[must_use]
     pub fn egress_refusals(&self) -> Vec<&EgressRefusal> {
         let mut out: Vec<&EgressRefusal> = self.egress_refusals.values().collect();
+        out.sort_by(|a, b| {
+            b.count
+                .cmp(&a.count)
+                .then(a.destination.cmp(&b.destination))
+                .then(a.tool.cmp(&b.tool))
+        });
+        out
+    }
+
+    /// Second-engine denials with their destination and rule, most frequent first.
+    ///
+    /// Kept apart from [`Self::egress_refusals`] so a reviewer can tell which evaluator refused, and
+    /// therefore which configuration source to go and read.
+    #[must_use]
+    pub fn secondary_refusals(&self) -> Vec<&crate::egress::SecondaryRefusal> {
+        let mut out: Vec<&crate::egress::SecondaryRefusal> =
+            self.secondary_refusals.values().collect();
         out.sort_by(|a, b| {
             b.count
                 .cmp(&a.count)
