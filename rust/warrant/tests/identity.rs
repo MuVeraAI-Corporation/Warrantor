@@ -59,6 +59,7 @@ fn store_with_warrant(dir: &Path, id: &str) -> WarrantStore {
         expires_at: NOW + 3600,
         budget_cents_observed: None,
         delegation_depth: 1,
+        exec: None,
     };
     let warrant = Warrant::grant(
         id,

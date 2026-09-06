@@ -40,6 +40,7 @@ fn stored(id: &str, state: WarrantState) -> StoredWarrant {
         expires_at: NOW + 3600,
         budget_cents_observed: None,
         delegation_depth: 2,
+        exec: None,
     };
     let mut warrant = Warrant::grant(
         id,

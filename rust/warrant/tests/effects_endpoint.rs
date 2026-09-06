@@ -50,6 +50,7 @@ fn seed_tools(dir: &Path, id: &str, tools: &[&str]) -> StoredWarrant {
         expires_at: NOW + 3600,
         budget_cents_observed: None,
         delegation_depth: 1,
+        exec: None,
     };
     let issuer = SigningKey::from_bytes(&[1; 32]);
     let settle = SigningKey::from_bytes(&[2; 32]);

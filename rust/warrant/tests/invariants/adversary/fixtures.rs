@@ -75,6 +75,7 @@ fn warrant(id: &str, goal: &str) -> Warrant {
         expires_at: NOW + 3_600,
         budget_cents_observed: None,
         delegation_depth: 2,
+        exec: None,
     };
     Warrant::grant(
         id,

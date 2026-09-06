@@ -842,6 +842,7 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         expires_at: now() + deadline,
         budget_cents_observed: budget_cents,
         delegation_depth: 3,
+        exec: None,
     };
 
     let warrant = match Warrant::grant(

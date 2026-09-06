@@ -32,6 +32,7 @@ fn bounds() -> WarrantBounds {
         expires_at: NOW + 8 * HOUR,
         budget_cents_observed: Some(500),
         delegation_depth: 3,
+        exec: None,
     }
 }
 
@@ -544,6 +545,8 @@ fn every_bound_declares_the_tier_that_actually_holds_it() {
         // Nothing refuses an out-of-bounds write; nothing measures the agent's real spend.
         ("write_paths", BoundStrength::Observed),
         ("budget_cents_observed", BoundStrength::Observed),
+        // The supervisor's digest gate, at spawn. Observed until the refusal is seen on CI.
+        ("exec", BoundStrength::Observed),
     ];
     for (name, tier) in expected {
         assert_eq!(
@@ -556,5 +559,72 @@ fn every_bound_declares_the_tier_that_actually_holds_it() {
         strengths.len(),
         expected.len(),
         "a bound was added or removed without deciding which tier holds it"
+    );
+}
+
+// -- L4-05: the exec bound ------------------------------------------------------------
+
+use warrantor_warrant::exec::{ExecAdmission, ExecSurface};
+
+fn admission(seed: char) -> ExecAdmission {
+    ExecAdmission {
+        surface: ExecSurface::Process,
+        sha256: seed.to_string().repeat(64),
+    }
+}
+
+#[test]
+fn a_warrant_without_an_execution_surface_encodes_exactly_as_before() {
+    // Every already-issued warrantor.warrant/1 must keep verifying: the field is absent, not null.
+    let encoded = serde_json::to_string(&bounds()).expect("encode");
+    assert!(!encoded.contains("\"exec\""), "{encoded}");
+    let legacy = r#"{"tools":["git"],"write_paths":[],"egress_hosts":[],"staged_classes":["write"],"expires_at":1,"budget_cents_observed":null,"delegation_depth":1}"#;
+    let parsed: WarrantBounds = serde_json::from_str(legacy).expect("a pre-L4-05 warrant parses");
+    assert_eq!(parsed.exec, None);
+}
+
+#[test]
+fn a_child_cannot_drop_or_widen_a_declared_execution_surface() {
+    let mut parent = bounds();
+    parent.exec = Some([admission('a')].into_iter().collect());
+    let mut child = parent.clone();
+    child.delegation_depth = 1;
+    child.exec = None;
+    let err = parent
+        .contains(&child)
+        .expect_err("dropping the pin is an expansion");
+    assert!(
+        matches!(err, WarrantError::AuthorityExpanded(ref why) if why.contains("exec")),
+        "{err}"
+    );
+
+    child.exec = Some([admission('a'), admission('b')].into_iter().collect());
+    assert!(
+        parent.contains(&child).is_err(),
+        "a digest the parent never admitted"
+    );
+
+    child.exec = Some(BTreeSet::new());
+    parent
+        .contains(&child)
+        .expect("a child that admits nothing is stricter, not wider");
+
+    let mut unpinned_parent = bounds();
+    unpinned_parent.exec = None;
+    let mut pinned_child = unpinned_parent.clone();
+    pinned_child.delegation_depth = 1;
+    pinned_child.exec = Some([admission('a')].into_iter().collect());
+    unpinned_parent
+        .contains(&pinned_child)
+        .expect("pinning under an unpinned parent narrows");
+}
+
+#[test]
+fn the_exec_bound_is_reported_and_starts_observed() {
+    let strengths: std::collections::HashMap<_, _> = bound_strengths().into_iter().collect();
+    assert_eq!(
+        strengths["exec"],
+        BoundStrength::Observed,
+        "promoted to Mediated only after the refusal is seen on both CI runners (Step 15)"
     );
 }

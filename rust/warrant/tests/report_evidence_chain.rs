@@ -58,6 +58,7 @@ fn warrant_with_tools(tools: &[&str]) -> Warrant {
         expires_at: NOW + 3600,
         budget_cents_observed: None,
         delegation_depth: 2,
+        exec: None,
     };
     Warrant::grant(
         ID,

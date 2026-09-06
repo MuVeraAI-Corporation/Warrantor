@@ -54,6 +54,7 @@ fn parent_bounds() -> WarrantBounds {
         expires_at: 2_000_000_000,
         budget_cents_observed: Some(500),
         delegation_depth: 3,
+        exec: None,
     }
 }
 
@@ -66,6 +67,7 @@ fn cases() -> Vec<Case> {
         expires_at: 1_900_000_000,
         budget_cents_observed: Some(100),
         delegation_depth: 2,
+        exec: None,
     };
 
     vec![
@@ -184,6 +186,7 @@ fn cases() -> Vec<Case> {
             parent: parent_bounds(),
             child: WarrantBounds {
                 delegation_depth: 3,
+                exec: None,
                 ..base_child()
             },
         },

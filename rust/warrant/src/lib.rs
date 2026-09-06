@@ -289,6 +289,18 @@ pub struct WarrantBounds {
     pub budget_cents_observed: Option<u64>,
     /// Maximum delegation depth remaining for sub-warrants.
     pub delegation_depth: u32,
+    /// The execution surface this warrant declares (L4-05).
+    ///
+    /// `None`: undeclared. Every spawn is digested and receipted, none refused, and the bound
+    /// reads `Observed`. `Some(set)`: strict. A spawn whose `(surface, sha256)` is not in the set
+    /// is refused before the process exists; an empty set refuses every spawn.
+    ///
+    /// Skipped when `None` so the canonical bytes -- and therefore the signatures -- of every
+    /// warrant issued before this field existed are unchanged. A build older than this field
+    /// re-canonicalizes a pinned warrant without it and fails signature verification, which is
+    /// the correct direction for a bound it does not understand.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exec: Option<BTreeSet<crate::exec::ExecAdmission>>,
 }
 
 impl WarrantBounds {
@@ -366,6 +378,27 @@ impl WarrantBounds {
                 "delegation_depth: child {} must be below parent {}",
                 other.delegation_depth, self.delegation_depth
             )));
+        }
+        // A pin may only tighten. Dropping the parent's declared surface would trade a refusing
+        // gate for a recording one -- the same shape as the staged_classes and budget rules.
+        match (&self.exec, &other.exec) {
+            (Some(_), None) => {
+                return Err(WarrantError::AuthorityExpanded(
+                    "exec: parent declares an execution surface but the child declares none, \
+                     which would turn refusal into recording"
+                        .to_string(),
+                ));
+            }
+            (Some(parent), Some(child)) => {
+                if let Some(extra) = child.difference(parent).next() {
+                    return Err(WarrantError::AuthorityExpanded(format!(
+                        "exec: child admits {}={} which the parent does not",
+                        extra.surface.word(),
+                        extra.sha256
+                    )));
+                }
+            }
+            (None, _) => {}
         }
         Ok(())
     }
@@ -703,6 +736,8 @@ pub fn bound_strengths() -> Vec<(&'static str, BoundStrength)> {
         ("delegation_depth", BoundStrength::Enforced),
         // Parsed from the agent's own usage reporting; defeatable by an agent that does not report.
         ("budget_cents_observed", BoundStrength::Observed),
+        // Checked at the moment Warrantor spawns, by digest. Starts Observed; see Step 15.
+        ("exec", BoundStrength::Observed),
     ]
 }
 

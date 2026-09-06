@@ -80,6 +80,7 @@ fn export_bytes_signed_by(id: &str, goal: &str, signer: &SigningKey) -> Vec<u8> 
         expires_at: NOW + 3600,
         budget_cents_observed: Some(500),
         delegation_depth: 3,
+        exec: None,
     };
     let mut warrant = Warrant::grant(
         id,

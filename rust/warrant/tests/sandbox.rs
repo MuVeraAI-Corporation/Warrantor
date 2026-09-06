@@ -24,6 +24,7 @@ fn bounds(write: &[&str], egress: &[&str]) -> WarrantBounds {
         expires_at: NOW + 3600,
         budget_cents_observed: Some(500),
         delegation_depth: 1,
+        exec: None,
     }
 }
 

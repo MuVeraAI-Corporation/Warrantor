@@ -181,6 +181,9 @@ impl ControlEndpoint {
                 .and_then(Value::as_u64)
                 .and_then(|d| u32::try_from(d).ok())
                 .unwrap_or(1),
+            // MCP-granted warrants are unpinned until the grant schema carries the
+            // field (recorded in docs/W1-delivery-gaps.md, the EXEC section).
+            exec: None,
         };
 
         let warrant = match Warrant::grant(

@@ -34,6 +34,7 @@ fn bounds(hosts: &[&str], tools: &[&str]) -> WarrantBounds {
         expires_at: scenario::NOW + 3_600,
         budget_cents_observed: None,
         delegation_depth: 1,
+        exec: None,
     }
 }
 
@@ -143,10 +144,12 @@ fn a_child_warrant_cannot_widen_the_bounds_it_was_delegated() {
     let parent = bounds(&["api.example.com"], &["read_file"]);
     let narrower = WarrantBounds {
         delegation_depth: 0,
+        exec: None,
         ..bounds(&["api.example.com"], &[])
     };
     let wider = WarrantBounds {
         delegation_depth: 0,
+        exec: None,
         ..bounds(&["api.example.com", "attacker.example.net"], &["read_file"])
     };
 

@@ -86,14 +86,19 @@ impl ExecAdmission {
         let surface = ExecSurface::parse(surface)?;
         let digest = digest.trim();
         let is_lower_hex = digest.len() == 64
-            && digest.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b));
+            && digest
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b));
         if !is_lower_hex {
             return Err(format!(
                 "{digest:?} is not a 64-character lowercase hex SHA-256. An admission names \
                  bytes, not a file: run `warrantor exec digest <path>` and paste the digest."
             ));
         }
-        Ok(Self { surface, sha256: digest.to_string() })
+        Ok(Self {
+            surface,
+            sha256: digest.to_string(),
+        })
     }
 }
 
@@ -254,11 +259,17 @@ pub fn admit(
     let (verdict, gate) = match declared {
         None => (ExecVerdict::Unpinned, None),
         Some(set) => {
-            let wanted = ExecAdmission { surface, sha256: sha256.clone() };
+            let wanted = ExecAdmission {
+                surface,
+                sha256: sha256.clone(),
+            };
             if set.contains(&wanted) {
                 (ExecVerdict::Admitted, None)
             } else {
-                (ExecVerdict::Refused, Some(warrantor_notary::Gate::Artifacts))
+                (
+                    ExecVerdict::Refused,
+                    Some(warrantor_notary::Gate::Artifacts),
+                )
             }
         }
     };
@@ -319,7 +330,8 @@ pub fn record(root: &Path, receipt: &ExecReceipt) -> Result<(), String> {
         .open(&path)
         .map_err(|e| format!("cannot open {}: {e}", path.display()))?;
     writeln!(file, "{line}").map_err(|e| format!("cannot append to {}: {e}", path.display()))?;
-    file.flush().map_err(|e| format!("cannot flush {}: {e}", path.display()))
+    file.flush()
+        .map_err(|e| format!("cannot flush {}: {e}", path.display()))
 }
 
 /// A warrant's receipts, with the count of lines that would not parse (never skipped silently).

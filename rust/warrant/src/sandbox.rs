@@ -379,6 +379,14 @@ pub fn profile(bounds: &WarrantBounds, worktree: &str, confinement: Confinement)
               Stays Enforced."
             .to_string(),
     });
+    divergences.push(Divergence::Gap {
+        bound: "exec".to_string(),
+        why: "the digest gate runs inside the supervisor, before the agent exists; a mount \
+              namespace cannot express which BYTES may execute. Stays as bound_strengths reports \
+              it. To make it enforced, compose with a kernel that verifies executables by digest \
+              (fs-verity/IMA), which no profile this module writes does."
+            .to_string(),
+    });
 
     Profile {
         confinement,
@@ -464,6 +472,7 @@ mod tests {
             expires_at: 1_786_000_000,
             budget_cents_observed: Some(500),
             delegation_depth: 1,
+            exec: None,
         }
     }
 

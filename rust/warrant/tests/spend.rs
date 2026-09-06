@@ -52,6 +52,7 @@ fn bounds(budget_cents: Option<u64>) -> WarrantBounds {
         expires_at: NOW + 3600,
         budget_cents_observed: budget_cents,
         delegation_depth: 2,
+        exec: None,
     }
 }
 
@@ -135,8 +136,8 @@ fn the_budget_bound_is_still_observed_after_wiring() {
     );
     assert_eq!(
         bound_strengths().len(),
-        7,
-        "no bound was added or removed by this wiring"
+        8,
+        "exec is the eighth bound; nothing else was added or removed"
     );
 }
 
