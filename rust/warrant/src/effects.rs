@@ -20,6 +20,8 @@
 //! projects to one class through [`Syscall::projection`]. The table is lossy and documented, and
 //! it never projects *downward*: a multi-syscall decomposition takes its highest-ranked class.
 
+use std::collections::BTreeSet;
+
 use serde::{Deserialize, Serialize};
 
 use crate::SideEffectClass;
@@ -106,5 +108,135 @@ impl Syscall {
             Self::Spend => SideEffectClass::Financial,
             Self::Actuate => SideEffectClass::Destructive,
         }
+    }
+}
+
+/// Strict ordering of classes for [`Decomposition::class`]: a decomposition never projects below
+/// its most consequential syscall.
+const fn rank(class: SideEffectClass) -> u8 {
+    match class {
+        SideEffectClass::Read => 0,
+        SideEffectClass::Write => 1,
+        SideEffectClass::Financial => 2,
+        SideEffectClass::Destructive => 3,
+        SideEffectClass::Physical => 4,
+    }
+}
+
+fn verb_list() -> String {
+    Syscall::ALL
+        .iter()
+        .map(|s| s.as_str())
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// One tool's decomposition into syscalls. Fields are private so a decomposition with no
+/// syscalls — which would project to `Read` by accident — cannot be constructed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Decomposition {
+    tool: String,
+    syscalls: BTreeSet<Syscall>,
+}
+
+impl Decomposition {
+    /// Build a decomposition. Refuses an empty tool name and an empty set.
+    ///
+    /// # Errors
+    /// A sentence naming what was wrong, suitable for the command line.
+    pub fn new(tool: &str, syscalls: BTreeSet<Syscall>) -> Result<Self, String> {
+        let tool = tool.trim();
+        if tool.is_empty() {
+            return Err("a decomposition names no tool".to_string());
+        }
+        if syscalls.is_empty() {
+            return Err(format!(
+                "{tool} decomposes to nothing; a tool with no effect is a tool nobody needs to \
+                 declare, and one with an effect must say which"
+            ));
+        }
+        Ok(Self {
+            tool: tool.to_string(),
+            syscalls,
+        })
+    }
+
+    /// Parse `<tool>=<verb>+<verb>...`. The LAST `=` splits, so a tool name may not contain one
+    /// and a verb list never does.
+    ///
+    /// # Errors
+    /// The first thing wrong with the value, naming the nine verbs when the fault is a verb. A
+    /// typo is refused rather than defaulted: a misspelled `mutate` forwarded as a read is the
+    /// exact failure this registry exists to end.
+    pub fn parse(raw: &str) -> Result<Self, String> {
+        let Some((tool, verbs)) = raw.rsplit_once('=') else {
+            return Err(format!(
+                "--upstream-effects takes tool=verb+verb, e.g. --upstream-effects \
+                 'deploy.to_prod=exec+net+mutate'; got {raw:?}"
+            ));
+        };
+        let tool = tool.trim();
+        if tool.is_empty() {
+            return Err(format!("--upstream-effects {raw:?} names no tool"));
+        }
+        if verbs.trim().is_empty() {
+            return Err(format!(
+                "{tool} decomposes to nothing; a tool with no effect is a tool nobody needs to \
+                 declare, and one with an effect must say which"
+            ));
+        }
+        let mut syscalls = BTreeSet::new();
+        for word in verbs.split('+') {
+            let word = word.trim();
+            let Some(syscall) = Syscall::parse(word) else {
+                return Err(format!(
+                    "{word:?} is not an effect syscall. The nine are: {}. Refusing rather than \
+                     defaulting -- a typo here would forward an effect the warrant never decided.",
+                    verb_list()
+                ));
+            };
+            if !syscalls.insert(syscall) {
+                return Err(format!(
+                    "{tool} lists {word} twice; a decomposition is a set"
+                ));
+            }
+        }
+        Self::new(tool, syscalls)
+    }
+
+    /// The published tool name, `<server>.<tool>`.
+    #[must_use]
+    pub fn tool(&self) -> &str {
+        &self.tool
+    }
+
+    /// The syscalls, in table order.
+    #[must_use]
+    pub fn syscalls(&self) -> &BTreeSet<Syscall> {
+        &self.syscalls
+    }
+
+    /// The class the proxy decides by, until staging moves onto syscalls: the highest-ranked
+    /// projection of any syscall present. Never lower than any member.
+    #[must_use]
+    pub fn class(&self) -> SideEffectClass {
+        let mut best = SideEffectClass::Read;
+        for syscall in &self.syscalls {
+            let class = syscall.projection();
+            if rank(class) > rank(best) {
+                best = class;
+            }
+        }
+        best
+    }
+
+    /// `verb+verb` in set order, so equal decompositions render equal.
+    #[must_use]
+    pub fn render(&self) -> String {
+        self.syscalls
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>()
+            .join("+")
     }
 }
