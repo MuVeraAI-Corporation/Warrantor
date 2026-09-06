@@ -7255,3 +7255,139 @@ mod argument_parsing {
         assert!(!parsed.flags.contains_key("apply"));
     }
 }
+
+/// The `mcp` verb's decomposition flags, tested from the parser because a binary's command line
+/// is not reachable from an integration test without spawning a process.
+#[cfg(test)]
+mod upstream_effects_cli {
+    use super::{parse_tokens, upstream_decompositions, upstream_policy};
+    use warrantor_warrant::effects::{
+        DecompositionRegistry, UnclassifiedPolicy, EFFECT_REGISTRY_FORMAT,
+    };
+
+    fn args(tokens: &[&str]) -> super::Args {
+        parse_tokens(
+            std::iter::once("mcp".to_string())
+                .chain(tokens.iter().map(|t| (*t).to_string()))
+                .collect::<Vec<_>>(),
+        )
+        .expect("a command")
+    }
+
+    #[test]
+    fn nothing_declared_is_the_builtin_registry_under_the_permissive_policy() {
+        let registry = upstream_decompositions(&args(&[])).expect("builtin");
+        assert_eq!(registry, DecompositionRegistry::builtin());
+        assert_eq!(upstream_policy(&args(&[])), UnclassifiedPolicy::GuessRead);
+    }
+
+    #[test]
+    fn declarations_accumulate_and_a_builtin_may_be_restated_but_not_changed() {
+        let registry = upstream_decompositions(&args(&[
+            "--upstream-effects",
+            "files.write_file=mutate",
+            "--upstream-effects",
+            "deploy.to_prod=exec+net+mutate",
+            "--upstream-effects",
+            "github.create_pr=net+mutate",
+        ]))
+        .expect("three declarations");
+        assert_eq!(registry.len(), DecompositionRegistry::builtin().len() + 2);
+        assert_eq!(
+            registry.get("deploy.to_prod").expect("declared").render(),
+            "net+exec+mutate"
+        );
+
+        let error = upstream_decompositions(&args(&["--upstream-effects", "github.create_pr=net"]))
+            .expect_err("a builtin weakened");
+        assert!(error.contains("github.create_pr"), "{error}");
+        let error = upstream_decompositions(&args(&[
+            "--upstream-effects",
+            "t=net",
+            "--upstream-effects",
+            "t=mutate",
+        ]))
+        .expect_err("declared twice");
+        assert!(error.contains("already declared"), "{error}");
+    }
+
+    #[test]
+    fn the_old_class_flag_is_refused_by_name_never_ignored() {
+        let error = upstream_decompositions(&args(&["--upstream-class", "files.write_file=write"]))
+            .expect_err("refused");
+        assert!(
+            error.contains("--upstream-class is no longer read"),
+            "{error}"
+        );
+        assert!(
+            error.contains("--upstream-effects"),
+            "the remedy is named: {error}"
+        );
+    }
+
+    #[test]
+    fn a_registry_file_is_loaded_and_a_foreign_one_is_refused_with_its_path() {
+        let dir =
+            std::env::temp_dir().join(format!("warrantor-effects-cli-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("tempdir");
+        let good = dir.join("registry.json");
+        std::fs::write(
+            &good,
+            format!(
+                r#"{{"format":"{EFFECT_REGISTRY_FORMAT}","tools":{{"files.write_file":["mutate"]}}}}"#
+            ),
+        )
+        .expect("write");
+        let registry = upstream_decompositions(&args(&[
+            "--upstream-effects-file",
+            good.to_str().expect("utf-8 path"),
+        ]))
+        .expect("loads");
+        assert!(registry.get("files.write_file").is_some());
+
+        let bad = dir.join("foreign.json");
+        std::fs::write(
+            &bad,
+            r#"{"format":"warrantor.effect-registry/9","tools":{}}"#,
+        )
+        .expect("write");
+        let error = upstream_decompositions(&args(&[
+            "--upstream-effects-file",
+            bad.to_str().expect("utf-8 path"),
+        ]))
+        .expect_err("refused");
+        assert!(error.contains("foreign.json"), "{error}");
+        assert!(error.contains("warrantor.effect-registry/9"), "{error}");
+    }
+
+    #[test]
+    fn strict_mode_has_a_new_name_and_keeps_its_old_one() {
+        assert_eq!(
+            upstream_policy(&args(&["--upstream-strict"])),
+            UnclassifiedPolicy::Refuse
+        );
+        assert_eq!(
+            upstream_policy(&args(&["--upstream-refuse-unclassified"])),
+            UnclassifiedPolicy::Refuse
+        );
+        // A boolean flag must not swallow the token after it. The plan's version of this
+        // assertion put another FLAG next, which passes whether or not the flag is registered in
+        // VALUELESS_FLAGS -- an unregistered flag is flushed as "true" when the next token starts
+        // with "--". A POSITIONAL is the case the parser comment is actually about, and the case
+        // that fails when the registration is missing.
+        let parsed = args(&["--upstream-strict", "wrt_1"]);
+        assert_eq!(
+            parsed.positional,
+            vec!["wrt_1".to_string()],
+            "--upstream-strict swallowed the positional after it, which means it is missing from                  VALUELESS_FLAGS"
+        );
+        assert_eq!(
+            parsed.flags.get("upstream-strict").map(String::as_str),
+            Some("true")
+        );
+        // And it still reads as strict with a flag following it.
+        let parsed = args(&["--upstream-strict", "--agent", "wrt_1"]);
+        assert_eq!(parsed.flags.get("agent").map(String::as_str), Some("wrt_1"));
+        assert_eq!(upstream_policy(&parsed), UnclassifiedPolicy::Refuse);
+    }
+}
