@@ -308,6 +308,339 @@ pub fn decompositions_of(manifest: &SignedManifest) -> Result<DecompositionRegis
     Ok(registry)
 }
 
+/// What an admission receipt records having decided.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AdmissionDecision {
+    /// The manifest was verified and is now the authority for its server.
+    Admitted,
+    /// The manifest, or one call under it, was refused. The manifest's standing is unchanged.
+    Refused,
+    /// The manifest is withdrawn; its server is refused at attach until re-admitted by name.
+    Revoked,
+}
+
+/// The signed body of a receipt.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReceiptClaims {
+    /// Always [`RECEIPT_FORMAT`].
+    pub format: String,
+    /// Epoch seconds.
+    pub at: u64,
+    /// The upstream name.
+    pub server: String,
+    /// [`manifest_digest`] of the manifest decided on; empty for a revocation of a server
+    /// whose manifest is no longer loadable.
+    pub manifest_digest: String,
+    /// The decision.
+    pub decision: AdmissionDecision,
+    /// Why, in the operator's words or this module's sentence.
+    pub reason: String,
+    /// The pinned name the manifest's issuer resolved through; empty when it did not resolve.
+    pub issuer_name: String,
+    /// The hex key that name resolved to at the moment of decision; empty when it did not.
+    pub issuer_key: String,
+}
+
+/// A receipt signed by THIS machine's issuer key, so a reader elsewhere can check who decided.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Receipt {
+    /// The claims.
+    pub claims: ReceiptClaims,
+    /// Hex signature over `signing_input(RECEIPT_DOMAIN, canonical claims)`.
+    pub signature: String,
+    /// Hex verifying key of the signer, recorded for the reader. Verification takes the key
+    /// from the caller, never from this field.
+    pub signer_key: String,
+}
+
+/// Verify a receipt against the key the caller resolved.
+///
+/// # Errors
+/// [`AdmissionError::Format`] on a foreign format, [`AdmissionError::Signature`] otherwise.
+pub fn verify_receipt(receipt: &Receipt, signer: &VerifyingKey) -> Result<(), AdmissionError> {
+    if receipt.claims.format != RECEIPT_FORMAT {
+        return Err(AdmissionError::Format(format!(
+            "receipt declares {:?}; this build reads {RECEIPT_FORMAT}",
+            receipt.claims.format
+        )));
+    }
+    let body =
+        serde_json::to_vec(&receipt.claims).map_err(|e| AdmissionError::Format(e.to_string()))?;
+    let raw = hex::decode(&receipt.signature).map_err(|_| AdmissionError::Signature)?;
+    let bytes: [u8; 64] = raw
+        .as_slice()
+        .try_into()
+        .map_err(|_| AdmissionError::Signature)?;
+    signer
+        .verify(
+            &signing_input(RECEIPT_DOMAIN, &body),
+            &Signature::from_bytes(&bytes),
+        )
+        .map_err(|_| AdmissionError::Signature)
+}
+
+/// `<root>/admitted/<server>.json`
+#[must_use]
+pub fn admitted_path(root: &Path, server: &str) -> PathBuf {
+    root.join("admitted").join(format!("{server}.json"))
+}
+
+/// `<root>/admitted/<server>.revoked.json`
+#[must_use]
+pub fn revoked_path(root: &Path, server: &str) -> PathBuf {
+    root.join("admitted").join(format!("{server}.revoked.json"))
+}
+
+/// `<root>/admission/ledger.jsonl`: one receipt per line, append-only, `sync_all` per line.
+#[must_use]
+pub fn ledger_path(root: &Path) -> PathBuf {
+    root.join("admission").join("ledger.jsonl")
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+struct Revocation {
+    at: u64,
+    reason: String,
+}
+
+/// The manifests this store has admitted, and the ledger of every decision about them.
+#[derive(Debug, Clone)]
+pub struct AdmittedSet {
+    root: PathBuf,
+}
+
+impl AdmittedSet {
+    /// Open the set under a store root. Nothing is created until a decision is written.
+    #[must_use]
+    pub fn open(root: &Path) -> Self {
+        Self {
+            root: root.to_path_buf(),
+        }
+    }
+
+    fn write_json(path: &Path, body: &[u8]) -> Result<(), AdmissionError> {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| AdmissionError::Io(e.to_string()))?;
+        }
+        let temporary = path.with_extension("json.tmp");
+        std::fs::write(&temporary, body).map_err(|e| AdmissionError::Io(e.to_string()))?;
+        std::fs::rename(&temporary, path).map_err(|e| AdmissionError::Io(e.to_string()))
+    }
+
+    fn receipt(
+        &self,
+        claims: ReceiptClaims,
+        signer: &SigningKey,
+    ) -> Result<Receipt, AdmissionError> {
+        let body =
+            serde_json::to_vec(&claims).map_err(|e| AdmissionError::Format(e.to_string()))?;
+        let signature = signer.sign(&signing_input(RECEIPT_DOMAIN, &body));
+        let receipt = Receipt {
+            claims,
+            signature: hex::encode(signature.to_bytes()),
+            signer_key: hex::encode(signer.verifying_key().to_bytes()),
+        };
+        let path = ledger_path(&self.root);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| AdmissionError::Io(e.to_string()))?;
+        }
+        let line =
+            serde_json::to_string(&receipt).map_err(|e| AdmissionError::Format(e.to_string()))?;
+        use std::io::Write as _;
+        let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .map_err(|e| AdmissionError::Io(format!("open {}: {e}", path.display())))?;
+        writeln!(file, "{line}").map_err(|e| AdmissionError::Io(e.to_string()))?;
+        // Durable before the caller acts on the decision: a receipt still in a buffer when the
+        // process dies is a decision nobody can later find.
+        file.sync_all().map_err(|e| AdmissionError::Io(e.to_string()))?;
+        Ok(receipt)
+    }
+
+    /// Whether a server is revoked, and since when.
+    ///
+    /// # Errors
+    /// [`AdmissionError::Io`] when the revocation record exists and cannot be read.
+    pub fn is_revoked(&self, server: &str) -> Result<Option<(u64, String)>, AdmissionError> {
+        let path = revoked_path(&self.root, server);
+        let Ok(bytes) = std::fs::read(&path) else {
+            return Ok(None);
+        };
+        let revocation: Revocation = serde_json::from_slice(&bytes)
+            .map_err(|e| AdmissionError::Io(format!("{} cannot be read: {e}", path.display())))?;
+        Ok(Some((revocation.at, revocation.reason)))
+    }
+
+    /// The admitted manifest for a server, or `None` when none was admitted or it was revoked.
+    ///
+    /// # Errors
+    /// [`AdmissionError::Io`] when a record exists and cannot be read.
+    pub fn load(&self, server: &str) -> Result<Option<SignedManifest>, AdmissionError> {
+        if self.is_revoked(server)?.is_some() {
+            return Ok(None);
+        }
+        let path = admitted_path(&self.root, server);
+        let Ok(bytes) = std::fs::read(&path) else {
+            return Ok(None);
+        };
+        serde_json::from_slice(&bytes)
+            .map(Some)
+            .map_err(|e| AdmissionError::Io(format!("{} cannot be read: {e}", path.display())))
+    }
+
+    /// Verify a manifest against the pinned directory and, if it holds, make it the authority
+    /// for its server. Every outcome, admitted or refused, is receipted before this returns.
+    ///
+    /// # Errors
+    /// The refusal, after its receipt is durable.
+    pub fn admit(
+        &self,
+        manifest: &SignedManifest,
+        directory: &Directory,
+        signer: &SigningKey,
+        now: u64,
+    ) -> Result<Receipt, AdmissionError> {
+        let server = manifest.claims.server.clone();
+        let issuer_name = manifest.claims.issuer.clone();
+        let resolved = directory.resolve(&issuer_name);
+        let issuer_key = resolved
+            .map(|k| hex::encode(k.to_bytes()))
+            .unwrap_or_default();
+        let outcome = match self.is_revoked(&server)? {
+            Some((at, reason)) => Err(AdmissionError::Revoked {
+                server: server.clone(),
+                at,
+                reason,
+            }),
+            None => match resolved {
+                None => Err(AdmissionError::UnpinnedIssuer(issuer_name.clone())),
+                Some(key) => verify_manifest(manifest, &key, now),
+            },
+        };
+        let (decision, reason) = match &outcome {
+            Ok(()) => (
+                AdmissionDecision::Admitted,
+                format!("issuer {issuer_name:?} pinned; signature verifies"),
+            ),
+            Err(e) => (AdmissionDecision::Refused, e.to_string()),
+        };
+        let receipt = self.receipt(
+            ReceiptClaims {
+                format: RECEIPT_FORMAT.to_string(),
+                at: now,
+                server: server.clone(),
+                manifest_digest: manifest_digest(manifest),
+                decision,
+                reason,
+                issuer_name,
+                issuer_key,
+            },
+            signer,
+        )?;
+        outcome?;
+        let body = serde_json::to_vec_pretty(manifest)
+            .map_err(|e| AdmissionError::Format(e.to_string()))?;
+        Self::write_json(&admitted_path(&self.root, &server), &body)?;
+        Ok(receipt)
+    }
+
+    /// Withdraw a server's manifest. The admitted record stays on disk beside the revocation so
+    /// a reader can see what was withdrawn; `load` returns `None` from here on.
+    ///
+    /// # Errors
+    /// [`AdmissionError::Io`].
+    pub fn revoke(
+        &self,
+        server: &str,
+        reason: &str,
+        signer: &SigningKey,
+        now: u64,
+    ) -> Result<Receipt, AdmissionError> {
+        let digest = self
+            .load(server)?
+            .map(|m| manifest_digest(&m))
+            .unwrap_or_default();
+        let revocation = Revocation {
+            at: now,
+            reason: reason.to_string(),
+        };
+        let body =
+            serde_json::to_vec(&revocation).map_err(|e| AdmissionError::Format(e.to_string()))?;
+        Self::write_json(&revoked_path(&self.root, server), &body)?;
+        self.receipt(
+            ReceiptClaims {
+                format: RECEIPT_FORMAT.to_string(),
+                at: now,
+                server: server.to_string(),
+                manifest_digest: digest,
+                decision: AdmissionDecision::Revoked,
+                reason: reason.to_string(),
+                issuer_name: String::new(),
+                issuer_key: String::new(),
+            },
+            signer,
+        )
+    }
+
+    /// Receipt a call refused under an admitted manifest. The manifest's standing is unchanged:
+    /// the refused thing was the AGENT's argument, not the server's behavior.
+    ///
+    /// # Errors
+    /// [`AdmissionError::Io`].
+    pub fn refuse_call(
+        &self,
+        server: &str,
+        manifest: &SignedManifest,
+        reason: &str,
+        signer: &SigningKey,
+        now: u64,
+    ) -> Result<Receipt, AdmissionError> {
+        self.receipt(
+            ReceiptClaims {
+                format: RECEIPT_FORMAT.to_string(),
+                at: now,
+                server: server.to_string(),
+                manifest_digest: manifest_digest(manifest),
+                decision: AdmissionDecision::Refused,
+                reason: reason.to_string(),
+                issuer_name: manifest.claims.issuer.clone(),
+                issuer_key: String::new(),
+            },
+            signer,
+        )
+    }
+
+    /// Every receipt in the ledger, in order. A line that will not parse refuses the whole read:
+    /// a readable prefix of a ledger is what a truncation looks like.
+    ///
+    /// # Errors
+    /// [`AdmissionError::Io`].
+    pub fn receipts(&self) -> Result<Vec<Receipt>, AdmissionError> {
+        let path = ledger_path(&self.root);
+        let raw = match std::fs::read_to_string(&path) {
+            Ok(raw) => raw,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(e) => return Err(AdmissionError::Io(format!("read {}: {e}", path.display()))),
+        };
+        raw.lines()
+            .filter(|l| !l.trim().is_empty())
+            .enumerate()
+            .map(|(i, line)| {
+                serde_json::from_str(line).map_err(|e| {
+                    AdmissionError::Io(format!(
+                        "{}: line {} will not parse: {e}",
+                        path.display(),
+                        i + 1
+                    ))
+                })
+            })
+            .collect()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
