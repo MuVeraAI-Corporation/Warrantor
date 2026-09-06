@@ -3,10 +3,21 @@
 **Catalog items:** L10-14 (public signed fact/claim/unknown ledger with versioned corrections),
 L10-10 (localized pack verifies against the same receipt digests as the source-language pack).
 
-**Branch:** `feat/public-claim-ledger` · **Worktree:** `M:/wt-w5-14.9` ·
-`CARGO_TARGET_DIR=M:/wt-w5-14.9-target` · **Base:** local `main` at `2ec0638`.
+**Branch:** `feat/public-claim-ledger` · **Base:** local `main` at `2463504`, rebased 2026-09-06.
 
-**Date:** 2026-09-05.
+**Review worktree, and the tip every number under the *Rebase* heading was measured on:**
+`M:/wt-w6-14.9` · `CARGO_TARGET_DIR=M:/wt-rv-14.9-target` · tip `5a0569f`.
+
+**Implementation worktree, and the tip every number above that heading was measured on:**
+`M:/wt-w5-14.9` · `CARGO_TARGET_DIR=M:/wt-w5-14.9-target` · base local `main` at `2ec0638`,
+tips `3c2baa9` and `fb6e45c`.
+
+**Dates:** built 2026-09-05; corrected and re-verified after the rebase 2026-09-06.
+
+Every section below names the commit its numbers came from, because two of them moved on the rebase
+and the ledger refused the branch until they were corrected. The section *Rebase onto local `main` at
+`2463504`* carries the numbers that describe the tip under review; no number above it is claimed of
+that tip.
 
 ---
 
@@ -113,7 +124,7 @@ and the third was already repaired:
 
 | Path | New? | What it is |
 |---|---|---|
-| `evidence/claims.json` | new | The ledger. Format `warrantor.claim-ledger/1`, 17 entries, 11 retained corrections |
+| `evidence/claims.json` | new | The ledger. Format `warrantor.claim-ledger/1`, 17 entries; 11 retained corrections at `fb6e45c`, 13 at `5a0569f` after the rebase |
 | `tools/ci/check_claims.py` | new | The gate: falsifier required, renderings recomputed, the parent revision's published state compared, corrections append-only, two views compared |
 | `tools/ci/test_check_claims.py` | new | 52 pytest cases; every refusal paired with an allowed control |
 | `tools/ci/claim_locales.json` | new | The reviewed label vocabulary. Labels only, and the file says so about itself |
@@ -821,3 +832,282 @@ requests to remove reclaimable directories elsewhere on the disk (including
 `M:/wt-x-149-target`, which the dispatch identified as an orphaned target directory with no worktree)
 were **denied by the permission system, and no attempt was made to work around that**. Nothing outside
 this lane's own target directory was deleted.
+
+---
+
+## Rebase onto local `main` at `2463504` — 2026-09-06
+
+Every number in this section was measured in `M:/wt-w6-14.9` on tip `5a0569f`, with
+`CARGO_TARGET_DIR=M:/wt-rv-14.9-target` and `CARGO_BUILD_JOBS=2`. Nothing here is carried from
+`fb6e45c`; where a number differs from the sections above, both are shown with the commit each was
+read on.
+
+### The exit gate, quoted verbatim from the plan
+
+`### Task 14.9`, the paragraph titled **Exit gate**. This task section has no paragraph titled
+*Acceptance*, so this block is the exit gate:
+
+> **Exit gate.** `python tools/ci/check_claims.py` prints one summary line and exits 0 — with every
+> `fact` entry's expected rendering recomputed from its cited record and found verbatim in every
+> surface it names, every entry carrying a non-empty falsifier, the correction chain verified against
+> `git show HEAD:evidence/claims.json`, and both rendered views carrying byte-identical `head_digest`
+> lines; and, in the same run, `python -m pytest tools/ci/test_check_claims.py -q -p no:cacheprovider`
+> passes with every refusal test paired with its allowed control.
+
+And the sentence in the same section that this rebase is the first real test of:
+
+> **The orphan count does not move.** This task adds no Rust crate, so `9 of 39 crates reachable ...
+> over 17 path edges` must read identically before and after. Step 10 asserts it rather than assuming
+> it.
+
+### Does the branch perform THAT run? RUN
+
+**RUN.** The transcript is the *Every gate on the rebased tip* block below. `check_claims.py` exits 0
+printing one summary line; the correction chain is compared against the parent revision through
+`git show`; both views carry the same `head_digest` line byte for byte; and
+`pytest tools/ci/test_check_claims.py` passes 52 cases in the same run. The exit gate is performed by
+this branch, on this tip, and not merely described by it.
+
+One qualification the exit gate's own wording invites, recorded because it is the difference between a
+gate that runs and a gate that reports success having never run. The gate's phrase is
+`git show HEAD:evidence/claims.json`, and `--parent-ref` defaults to `HEAD`. On a **clean** checkout
+`HEAD` is the commit under test, so that default compares the ledger against itself and the
+append-only comparison is a no-op. The run that actually exercises it here is `--parent-ref HEAD~1`,
+against `0b3818b`, which carries the pre-rebase ledger, and that is the run whose exit code is quoted
+below beside the default one. CI passes the branch base for the same reason, which is why the workflow
+step reads `--parent-ref "$BASE_SHA"` and not `HEAD`.
+
+### The rebase moved two records, and the ledger refused the branch for it
+
+This is the part worth reading. The branch was green at `fb6e45c` and, rebased onto `2463504` with no
+code change of its own, the gate refused it:
+
+```
+$ python tools/ci/check_claims.py                                   # immediately after the rebase
+::error::evidence/claims.json: CL-001: text does not contain the rendering derived from its record: expected '13 of 41 Rust workspace crates are reachable from the warrantor binary over 23 path edges'
+::error::evidence/claims.json: CL-001: does not render in docs/public-claims.md: expected '13 of 41 Rust workspace crates are reachable from the warrantor binary over 23 path edges' verbatim
+::error::evidence/claims.json: CL-001: does not render in docs/public-claims.ar.md: expected '13 of 41 Rust workspace crates are reachable from the warrantor binary over 23 path edges' verbatim
+::error::evidence/claims.json: CL-002: text does not contain the rendering derived from its record: expected '85 checks pass and 15 are recorded findings'
+::error::evidence/claims.json: CL-002: does not render in docs/W1-delivery-gaps.md: expected '85 checks pass and 15 are recorded findings' verbatim
+::error::evidence/claims.json: CL-002: does not render in docs/public-claims.md: expected '85 checks pass and 15 are recorded findings' verbatim
+::error::evidence/claims.json: CL-002: does not render in docs/public-claims.ar.md: expected '85 checks pass and 15 are recorded findings' verbatim
+claim ledger: 7 issue(s); refusing
+CLAIMS=1
+```
+
+Two records moved under two published sentences, and neither sentence knew:
+
+| record | at `fb6e45c` | at `2463504` | what moved it |
+|---|---|---|---|
+| `evidence/wiring-coverage.json` `/edges` | 22 | 23 | Task 5.4's common-mode independence work added a path edge |
+| `tools/ci/invariant-ratchet.json` `/passing_floor` | 82 | 85 | Task 5.4 added three passing tests to the `i09` suite |
+
+Both were corrected in `5a0569f` by **appending** a versioned correction that retains what the parent
+revision published, never by editing the published text: `CL-001` to version 2, `CL-002` to version 3.
+`CL-002`'s falsifier moved with its count, because a falsifier telling a reader to look for 82 would
+send them to the wrong number, so its correction carries `superseded_falsifier` as well, which the
+parent-revision comparison then checks. The retained corrections went from 11 to 13 and `head_digest`
+from `sha256:61cd4be5...` to `sha256:66545e05...`.
+
+**This is the first evidence in this file that the mechanism works on a defect nobody planted.** Every
+earlier refusal in this document was either a defect the lane found by reading prose or a mutation the
+lane applied on purpose. These two were produced by ordinary concurrent work on `main` and caught by a
+recomputation, which is the whole claim of the task and the one thing a mutation battery cannot show.
+
+### The two bounds are still refused, checked on this tip and not assumed
+
+Both controls were applied to `5a0569f`'s own working tree and reverted; the file was restored and the
+gate re-run to 0 afterward, so neither is a claim about a fixture.
+
+```
+$ # A: silent rewrite of a derived number, version and chain left alone
+::error::evidence/claims.json: CL-002: text does not contain the rendering derived from its record: expected '85 checks pass and 15 are recorded findings'
+claim ledger: 4 issue(s); refusing
+EXIT=1
+
+$ # B: a NON-derived text rewritten with no correction appended (CL-013, a `claim`)
+::error::evidence/claims.json: CL-013: status, text or falsifier changed at version 1 with no correction appended: a published entry changes by raising the version and retaining what the parent revision published, which was 'The five papers under docs/content-program/submission/ ...' as claim
+claim ledger: 6 issue(s); refusing
+EXIT=1
+
+$ # C: the control, tree restored
+claim ledger: 17 claims; claim=9, fact=6, unknown=2; 13 retained corrections; head sha256:66545e055368496d5c136598295ef30cf4686b55347c26c987d77b037a3b0cc6
+EXIT=0
+```
+
+Case B is the one that matters for the append-only bound. Case A fires the derived-rendering check
+first, so on its own it would not show that `check_published_state` ran at all — the same redundancy
+the honesty note on case E above records. B has no derived number in it, so only the comparison against
+the parent revision can refuse it, and it did.
+
+### Every rendered number re-derived from its record on this tip, independently of the gate
+
+The reductions were called directly rather than through `check_claim`, so this is a second reader
+agreeing with the first, on `5a0569f`:
+
+```
+wiring_reachability(evidence/wiring-coverage.json)   -> [13, 41, 28, 23]
+invariant_status_census(evidence/invariants.json)    -> [2, 8, 1, 1]
+corpus_finding_census(rust/warrant/tests/invariants) -> [9, 12, 'I-02, I-05 and I-07']
+
+CL-001 -> 13 of 41 Rust workspace crates are reachable from the warrantor binary over 23 path edges
+CL-002 -> 85 checks pass and 15 are recorded findings
+CL-003 -> enforced=2, partial=8, orphaned=1, unimplemented=1
+CL-004 -> I-07 (evidence precedes commitment) is partial
+CL-005 -> 9 of the 12 invariant suites hold at least one recorded finding; I-02, I-05 and I-07 hold none
+CL-016 -> 13 of 41 crates link into the warrantor binary and 28 do not
+```
+
+### The orphan count did not move
+
+Read from the tool, on this tip, not computed:
+
+```
+$ cd rust && python ../tools/ci/wiring_census.py
+wiring census: 13 of 41 crates reachable from warrantor-warrant over 23 path edges
+CENSUS=0
+```
+
+**28 orphans before the rebase and 28 after** — `41 - 13`, and the same 28 names in
+`evidence/wiring-coverage.json`. The plan's sentence quotes an older census (`9 of 39 ... over 17 path
+edges`); the *bound* it states is that this task moves nothing, and nothing moved. The edge count rose
+from 22 to 23 on `main` before this branch was rebased onto it, not on this branch:
+`git diff main...HEAD --stat -- rust/` is empty, `evidence/wiring-coverage.json` is not modified by
+this branch at all, and `git show main:evidence/wiring-coverage.json` reads the same 13 / 41 / 23 with
+28 names in `orphaned`.
+
+### The ratchet, re-measured on this merged tree rather than chosen
+
+The lane rule is that a ratchet number is read from the merged corpus's own `test result:` line and
+never picked or added. Read here:
+
+```
+$ python tools/ci/check_invariant_ratchet.py --show-findings
+test result: ok. 85 passed; 0 failed; 15 ignored; 0 measured; 0 filtered out; finished in 0.81s
+test result: FAILED. 1 passed; 14 failed; 0 ignored; 0 measured; 85 filtered out; finished in 15.39s
+invariant ratchet: ok (85 passing at floor 85, 15 recorded findings at ceiling 15)
+RATCHET=0
+```
+
+**85 passing and 15 ignored, at floor 85 and ceiling 15 — identical to `main` at `2463504`.** This
+branch does not raise the floor and does not lower the ceiling, which is correct for a task that adds
+no Rust and earns no invariant. The second `test result:` line reads `FAILED` **by design**: it is the
+run of the recorded findings, which fail on purpose so that fixing one turns a test green instead of
+letting it go stale. The line to read is `invariant ratchet:`, not an exit code and not that word.
+
+### Every gate on the rebased tip, exit code captured before any pipe
+
+`M:/wt-w6-14.9`, tip `5a0569f`, `git status --porcelain` empty. Both guards were run before every cargo
+invocation. The commit-charge guard refused at 0.4 to 1.3 GB for roughly half an hour while other lanes
+built, and the cargo steps below were run after it cleared to 20.6 GB. Nothing was deleted and no
+process was killed to make room.
+
+```
+$ python tools/ci/disk_guard.py --require 80
+disk guard: 193.1 GB free on M:\, require 80 GB -> OK
+$ python tools/ci/disk_guard.py --require-commit 5
+disk guard: 20.2 GB of commit charge available, require 5 GB -> OK
+
+$ cd rust && cargo fmt --all -- --check
+FMT=0
+
+$ cargo clippy --workspace --all-targets -- -D warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5m 43s
+CLIPPY=0
+(0 lines in the log begin with `warning` or `error`)
+
+$ cargo test --workspace --all-targets
+TEST=0
+suites: 121   (121 `Running`/`Doc-tests` lines, 121 `test result:` lines)
+summed across every `test result:` line: 1580 passed, 0 failed, 20 ignored
+`test result: FAILED` lines: 0
+
+$ cargo test --workspace --doc
+DOC=0
+suites: 40; summed: 1 passed, 0 failed, 0 ignored
+```
+
+Suites and totals are summed across every `test result:` line rather than read from the last one,
+because a lane in this program once reported six failures when eight were failing by reading the final
+line. The count differs from the 150 suites and 1528 passing recorded at `fb6e45c` above for two
+reasons, both of them why the number is re-measured and not copied: `main` moved by Task 5.4 and
+others, and the invocation here is `cargo test --workspace --all-targets` where that section recorded a
+plain `cargo test --workspace -j 2`. A gate reporting exit 0 with zero suites has not run; 121 and 40
+are the counts read.
+
+```
+$ cd rust && python ../tools/ci/wiring_census.py
+wiring census: 13 of 41 crates reachable from warrantor-warrant over 23 path edges
+CENSUS=0
+
+$ python tools/ci/check_invariant_ratchet.py --show-findings
+invariant ratchet: ok (85 passing at floor 85, 15 recorded findings at ceiling 15)
+RATCHET=0
+
+$ python tools/ci/check_invariants.py
+invariant ledger: 12 invariants; enforced=2, orphaned=1, partial=8, unimplemented=1
+INV=0
+
+$ python tools/ci/check_docs.py
+RESULT: PASS - 304 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
+DOCS=0
+
+$ python tools/ci/check_us_english.py main
+us-english: 2854 added line(s) across 8 file(s), since main; matcher = vendored verify-us-english.mjs
+us-english: ok
+USEN=0
+
+$ python tools/ci/check_claims.py                       # --parent-ref defaults to HEAD
+claim ledger: 17 claims; claim=9, fact=6, unknown=2; 13 retained corrections; head sha256:66545e055368496d5c136598295ef30cf4686b55347c26c987d77b037a3b0cc6
+CLAIMS_DEFAULT=0
+
+$ python tools/ci/check_claims.py --parent-ref HEAD~1   # the comparison that is not a no-op
+claim ledger: 17 claims; claim=9, fact=6, unknown=2; 13 retained corrections; head sha256:66545e055368496d5c136598295ef30cf4686b55347c26c987d77b037a3b0cc6
+CLAIMS_VS_PARENT=0
+
+$ python tools/ci/check_claims.py --parent-ref main
+no parent ledger at main; the append-only comparison has nothing to compare, because that revision does not carry the file
+claim ledger: 17 claims; claim=9, fact=6, unknown=2; 13 retained corrections; head sha256:66545e055368496d5c136598295ef30cf4686b55347c26c987d77b037a3b0cc6
+CLAIMS_VS_MAIN=0
+
+$ python -m pytest tools/ci/test_check_claims.py -q -p no:cacheprovider
+52 passed in 1.24s
+PYTEST=0
+
+$ python tools/ci/check_us_english.py --files docs/W1-delivery-gaps.md docs/public-claims.md docs/public-claims.ar.md evidence/claims.json
+us-english: 4 file(s), every line; matcher = vendored verify-us-english.mjs
+us-english: ok
+USEN_FILES=0
+
+$ grep -n '^`head_digest`' docs/public-claims.md docs/public-claims.ar.md
+docs/public-claims.md:6:`head_digest` sha256:66545e055368496d5c136598295ef30cf4686b55347c26c987d77b037a3b0cc6
+docs/public-claims.ar.md:6:`head_digest` sha256:66545e055368496d5c136598295ef30cf4686b55347c26c987d77b037a3b0cc6
+```
+
+`CLAIMS_VS_MAIN=0` is worth naming rather than reporting as a pass. `main` at `2463504` does not carry
+`evidence/claims.json`, so against that ref the append-only comparison **has nothing to compare and
+says so**. That is honest for the commit that introduces the file, and it is also why the run against
+`HEAD~1` is in this transcript: on the very first merge, CI's `--parent-ref "$BASE_SHA"` step exercises
+everything in the checker *except* the append-only comparison. It becomes load-bearing on the second
+change to the ledger, not this one.
+
+### What this rebase does NOT establish
+
+- **It does not show the gate catching a stale number on `main`.** The refusal above happened in a
+  worktree, before the merge. Once merged, `main` carries a ledger whose numbers were correct at the
+  moment of merge; the next lane to move `evidence/wiring-coverage.json` or
+  `tools/ci/invariant-ratchet.json` without touching the ledger is what would show the gate holds in
+  the trunk, and that has not happened yet.
+- **It does not show that these two are the only stale renderings the rebase created.** The checker
+  found the renderings it was told to look for: those named in `derived_from` and `surfaces`. A number
+  published on a surface no entry names is invisible to it, and this rebase did not audit the rest of
+  `main`'s prose for renderings that concurrent work may have desynchronized.
+- **It does not re-verify the mutation battery.** The eleven checker mutations recorded above were run
+  at `fb6e45c` and were **not** re-run on `5a0569f`. `tools/ci/check_claims.py` and its test file are
+  byte-identical between those two commits — `git diff fb6e45c 5a0569f -- tools/ci/check_claims.py
+  tools/ci/test_check_claims.py` is empty — and the 52 pytest cases pass here, which is why they were
+  not repeated. But the battery is evidence about `fb6e45c`, and this section does not claim it of this
+  tip.
+- **It does not change any tier.** No bound label moved. Every row of *The bound, and the word each
+  part of it gets* above still reads as written, and the two corrections added here are two more
+  entries inside a Tier B chokepoint, not a stronger claim about any of them.
