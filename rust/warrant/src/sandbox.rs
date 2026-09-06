@@ -120,6 +120,98 @@ impl Confinement {
     pub const fn platform(self) -> &'static str {
         "linux"
     }
+
+    /// The argument that makes the root read-only, spelled the way this kind's profile spells it.
+    ///
+    /// Named per kind because a sentence about the firejail profile shipped citing `--ro-bind / /`,
+    /// which is bubblewrap's flag and appears nowhere in a firejail argv. A reader who went looking
+    /// for it in the command they were about to paste would not have found it. The profile tests
+    /// pin that this string is in the argv of the kind it names.
+    #[must_use]
+    pub const fn read_only_root_flag(self) -> &'static str {
+        match self {
+            Self::Bubblewrap => "--ro-bind / /",
+            Self::Firejail => "--read-only=/",
+        }
+    }
+}
+
+/// One path a profile mounts read-write, and the argument that opened it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReadWriteHole {
+    /// The path inside the sandbox.
+    pub path: String,
+    /// The argv fragment that opened it, so a reader can find it in the command.
+    pub opened_by: String,
+}
+
+/// Every read-write hole an argv opens, read off the argv itself.
+///
+/// # Why this reads the command rather than the kind
+///
+/// The command is the thing the operator pastes, so a sentence about what it mounts read-write has
+/// to be derived from it or the sentence describes a profile that is not the one launched.
+/// `scorer::isolation` shipped an `Enforced` tier whose mechanism sentence called the worktree "the
+/// only read-write hole" while the same argv carried `--tmpfs /tmp` — a second hole a
+/// derivation-only reading missed, and one the test suite's own helper knew about while the
+/// production check did not. A reviewer caught it. This function is what both now read.
+///
+/// The holes recognized: `--bind <src> <dst>` (the destination is the path inside the sandbox),
+/// `--tmpfs <path>`, `--read-write=<path>`, `--whitelist=<path>`, and `--private-tmp`, which is a
+/// private tmpfs over `/tmp`. A firejail whitelist mounts a host path in; whether it is writable
+/// depends on the `--read-only`/`--read-write` arguments beside it, and this reading takes the
+/// fail-closed side by counting it. Nothing here launches anything: it is a reading of the argv,
+/// and a hole this parser does not know is a hole no sentence built on it will name.
+#[must_use]
+pub fn read_write_holes_in(argv: &[String]) -> Vec<ReadWriteHole> {
+    let mut holes = Vec::new();
+    let mut arguments = argv.iter();
+    while let Some(argument) = arguments.next() {
+        match argument.as_str() {
+            "--bind" => {
+                let source = arguments.next();
+                if let (Some(source), Some(destination)) = (source, arguments.next()) {
+                    holes.push(ReadWriteHole {
+                        path: destination.clone(),
+                        opened_by: format!("--bind {source} {destination}"),
+                    });
+                }
+            }
+            "--tmpfs" => {
+                if let Some(path) = arguments.next() {
+                    holes.push(ReadWriteHole {
+                        path: path.clone(),
+                        opened_by: format!("--tmpfs {path}"),
+                    });
+                }
+            }
+            "--private-tmp" => holes.push(ReadWriteHole {
+                path: "/tmp".to_string(),
+                opened_by: "--private-tmp".to_string(),
+            }),
+            other => {
+                for prefix in ["--read-write=", "--whitelist="] {
+                    if let Some(path) = other.strip_prefix(prefix) {
+                        holes.push(ReadWriteHole {
+                            path: path.to_string(),
+                            opened_by: other.to_string(),
+                        });
+                    }
+                }
+            }
+        }
+    }
+    holes
+}
+
+/// Compare two paths the way a bind mount does: by prefix, separator-insensitively, and
+/// case-insensitively — the last is wrong for a Linux filesystem and is chosen anyway, because the
+/// error it makes refuses an `Enforced` tier rather than granting one.
+fn covers(hole: &str, path: &str) -> bool {
+    let normalize = |p: &str| p.replace('\\', "/").to_lowercase();
+    let (hole, path) = (normalize(hole), normalize(path));
+    let hole = hole.trim_end_matches('/');
+    path == hole || path.starts_with(&format!("{hole}/"))
 }
 
 /// A bound and how the emitted profile relates to it.
@@ -356,20 +448,38 @@ pub fn profile(bounds: &WarrantBounds, worktree: &str, confinement: Confinement)
     //
     // It is a Gap and not an Observed anything: "observed" implies something measures it, and
     // nothing in this repository looks at this read, let alone refuses it.
+    //
+    // Both sentences below are DERIVED from the argv built above rather than written beside it.
+    // This shipped as one constant for both kinds: it cited `--ro-bind / /` under the firejail
+    // profile, whose argv has no such flag, and it said the profile "does stop the agent WRITING
+    // the store" unconditionally -- false for a store under the worktree or under /tmp, both of
+    // which the same argv mounts read-write. A reviewer caught both. `profile` has no store-root
+    // input, so what it can say honestly is which holes it opens and which command decides per
+    // store.
+    let holes = read_write_holes_in(&argv)
+        .into_iter()
+        .map(|hole| format!("{} ({})", hole.path, hole.opened_by))
+        .collect::<Vec<_>>()
+        .join(", ");
     divergences.push(Divergence::Gap {
         bound: "scorer_credentials".to_string(),
-        why: "read-only is not unreadable. `--ro-bind / /` mounts the whole filesystem, $HOME \
-              included, so ~/.warrantor/keys/settle.key -- the key that releases staged effects for \
-              real -- stays READABLE to the confined process, and nothing in this repository \
-              refuses that read at any tier. Same UID is same UID. The profile does stop the \
-              agent WRITING the store, which is what protects the guard and run logs a scorer reads \
-              from being edited by the party being scored; it does nothing about the agent COPYING \
-              the settle key out. What would hold it is a separate user account for the store, or a \
-              sandbox invocation that binds ~/.warrantor as a tmpfs rather than inheriting it from \
-              the read-only root -- neither of which this module emits, because a profile that \
-              hid the store would break `warrantor settle` from inside the sandbox and the \
-              breakage would not look like Warrantor refusing anything."
-            .to_string(),
+        why: format!(
+            "read-only is not unreadable. `{}` mounts the whole filesystem, $HOME included, so \
+             ~/.warrantor/keys/settle.key -- the key that releases staged effects for real -- stays \
+             READABLE to the confined process, and nothing in this repository refuses that read at \
+             any tier. Same UID is same UID. The profile stops the agent WRITING the store -- which \
+             is what protects the guard and run logs a scorer reads from being edited by the party \
+             being scored -- ONLY for a store outside every read-write hole this command opens: \
+             {holes}. A store under one of those is writable by the party being scored, and \
+             `warrantor scorer <id> --confined` is the command that decides which case a given \
+             store is in. Either way the profile does nothing about the agent COPYING the settle \
+             key out. What would hold it is a separate user account for the store, or a sandbox \
+             invocation that binds ~/.warrantor as a tmpfs rather than inheriting it from the \
+             read-only root -- neither of which this module emits, because a profile that hid the \
+             store would break `warrantor settle` from inside the sandbox and the breakage would \
+             not look like Warrantor refusing anything.",
+            confinement.read_only_root_flag()
+        ),
     });
 
     // ── the bounds no filesystem or network confinement can hold ──────────────────────
@@ -431,6 +541,39 @@ impl Profile {
             .iter()
             .filter(|d| matches!(d, Divergence::Held { .. }))
             .collect()
+    }
+
+    /// Every path this profile mounts read-write, read off its own argv. See
+    /// [`read_write_holes_in`] for why the argv and not the kind is the source.
+    #[must_use]
+    pub fn read_write_holes(&self) -> Vec<ReadWriteHole> {
+        read_write_holes_in(&self.argv)
+    }
+
+    /// The read-write hole covering `path`, if this profile opens one.
+    ///
+    /// `Some` means a write to `path` inside the sandbox is not refused by the read-only root — it
+    /// lands in the hole, which for `--bind` is the host filesystem and for a tmpfs is a private
+    /// mount discarded at exit. `None` means the path sits under the read-only root.
+    #[must_use]
+    pub fn hole_over(&self, path: &str) -> Option<ReadWriteHole> {
+        self.read_write_holes()
+            .into_iter()
+            .find(|hole| covers(&hole.path, path))
+    }
+
+    /// Whether this profile unshares the network namespace, read off its own argv.
+    ///
+    /// `--unshare-net` and `--net=none` are emitted only for a warrant that grants no egress, and a
+    /// tier that claims the namespace has to read the argv that would install it rather than
+    /// re-deciding `egress_hosts.is_empty()` beside it — the two conditions were the same
+    /// expression written twice, and a reviewer showed the second copy could be edited with no
+    /// test going red.
+    #[must_use]
+    pub fn unshares_network(&self) -> bool {
+        self.argv
+            .iter()
+            .any(|argument| argument == "--unshare-net" || argument == "--net=none")
     }
 
     /// The command as a single shell line.
@@ -651,6 +794,116 @@ mod tests {
         // The tmpfs is in the argv, so the sentence is describing this profile and not a general
         // fact about bubblewrap.
         assert!(profile.argv.iter().any(|a| a == "--tmpfs"));
+    }
+
+    #[test]
+    fn the_read_write_holes_are_read_off_the_argv_and_both_kinds_open_two() {
+        // The worktree and a private /tmp, for both kinds -- the second is the one a
+        // derivation-only reading of this file missed until somebody ran it, and the one
+        // `scorer::isolation` then missed again by re-deriving "the only read-write hole" beside the
+        // argv instead of reading it. The reading is a parser over the command, so the assertion is
+        // about the command that ships.
+        for kind in [Confinement::Bubblewrap, Confinement::Firejail] {
+            let profile = profile(&bounds(&["src/**"], &[]), "/home/u/wt", kind);
+            let holes = profile.read_write_holes();
+            let paths: Vec<&str> = holes.iter().map(|hole| hole.path.as_str()).collect();
+            assert!(paths.contains(&"/home/u/wt"), "{}: {paths:?}", kind.word());
+            assert!(paths.contains(&"/tmp"), "{}: {paths:?}", kind.word());
+            for hole in &holes {
+                assert!(
+                    profile.shell_line().contains(&hole.opened_by),
+                    "{}: a hole must cite the argument that opened it: {hole:?} not in {}",
+                    kind.word(),
+                    profile.shell_line()
+                );
+            }
+            // Under the worktree and under /tmp: covered. Under $HOME and under /etc: not.
+            assert!(profile.hole_over("/home/u/wt/src/main.rs").is_some());
+            assert_eq!(
+                profile
+                    .hole_over("/tmp/warrantor-store/guard/w1.jsonl")
+                    .map(|h| h.path),
+                Some("/tmp".to_string())
+            );
+            assert!(profile
+                .hole_over("/home/u/.warrantor/guard/w1.jsonl")
+                .is_none());
+            assert!(profile.hole_over("/etc/passwd").is_none());
+            // A sibling that merely shares a prefix string is not under the hole.
+            assert!(profile.hole_over("/tmpfs-not-tmp/x").is_none());
+            assert!(profile.hole_over("/home/u/wt2/x").is_none());
+            // And the read-only root flag this kind's sentences cite is in this kind's argv.
+            assert!(
+                profile.shell_line().contains(kind.read_only_root_flag()),
+                "{}: {}",
+                kind.word(),
+                profile.shell_line()
+            );
+        }
+    }
+
+    #[test]
+    fn unsharing_the_network_is_read_off_the_argv_and_vanishes_with_one_granted_host() {
+        for kind in [Confinement::Bubblewrap, Confinement::Firejail] {
+            let closed = profile(&bounds(&["src/**"], &[]), "/home/u/wt", kind);
+            assert!(
+                closed.unshares_network(),
+                "{}: {:?}",
+                kind.word(),
+                closed.argv
+            );
+            // CONTROL: one granted host and the namespace is deliberately absent.
+            let open = profile(
+                &bounds(&["src/**"], &["api.github.com"]),
+                "/home/u/wt",
+                kind,
+            );
+            assert!(!open.unshares_network(), "{}: {:?}", kind.word(), open.argv);
+        }
+    }
+
+    #[test]
+    fn the_credential_gap_cites_this_kinds_own_flag_and_names_every_hole_it_opens() {
+        // The sentence shipped as a constant: `--ro-bind / /` under the firejail profile, whose argv
+        // has no such flag, and "does stop the agent WRITING the store" for every store, including
+        // one under the worktree or under /tmp. Both halves are now read off the argv.
+        for kind in [Confinement::Bubblewrap, Confinement::Firejail] {
+            let profile = profile(&bounds(&["src/**"], &[]), "/home/u/wt", kind);
+            let Some(Divergence::Gap { why, .. }) = profile
+                .divergences
+                .iter()
+                .find(|d| d.bound() == "scorer_credentials")
+            else {
+                panic!("the store gap must be spoken about");
+            };
+            assert!(
+                why.contains(&format!("`{}`", kind.read_only_root_flag())),
+                "{}: the flag cited must be this kind's: {why}",
+                kind.word()
+            );
+            let other = match kind {
+                Confinement::Bubblewrap => Confinement::Firejail,
+                Confinement::Firejail => Confinement::Bubblewrap,
+            };
+            assert!(
+                !why.contains(other.read_only_root_flag()),
+                "{}: the other kind's flag is not in this argv and must not be cited: {why}",
+                kind.word()
+            );
+            for hole in profile.read_write_holes() {
+                assert!(
+                    why.contains(&hole.opened_by),
+                    "{}: every hole must be named, or 'stops the agent writing the store' reads \
+                     as unconditional: {why}",
+                    kind.word()
+                );
+            }
+            assert!(
+                why.contains("ONLY for a store outside every read-write hole"),
+                "{}: {why}",
+                kind.word()
+            );
+        }
     }
 
     #[test]
