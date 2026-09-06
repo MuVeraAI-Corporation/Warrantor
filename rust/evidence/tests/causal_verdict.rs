@@ -534,6 +534,56 @@ fn an_empty_but_present_causality_section_is_a_pass_and_not_unrepresentable() {
     );
 }
 
+/// A section that is PRESENT under a version this build has no rule for is `Uninterpretable` --
+/// never `Unrepresentable`, whose message says "carries no causality section", and never a pass.
+/// Two records reach this refusal: a version this build does not know, and no version at all beside
+/// a section. The mutation-review lane (2026-09-06) deleted the `Uninterpretable` branch and every
+/// suite stayed green, because nothing exercised it; this is the test that now goes red.
+#[test]
+fn a_causality_section_under_a_version_this_build_cannot_read_is_uninterpretable_not_a_pass() {
+    // A clean three-hop route, so a build that read it under the v2 rule anyway would PASS it --
+    // which is exactly the silent outcome this refusal exists to prevent.
+    let mut newer = predicate(
+        &[CREATE_PR, COMMENT, REQUEST_REVIEW],
+        Some(causality_over(three_hop_steps())),
+    );
+    newer.predicate_version = Some("https://warrantor.dev/ActionReceipt/v9".to_string());
+    match causal_verdict(&newer) {
+        Err(CausalRefusal::Uninterpretable {
+            ref predicate_version,
+        }) => {
+            assert_eq!(predicate_version, "https://warrantor.dev/ActionReceipt/v9");
+            let rendered = causal_verdict(&newer).unwrap_err().to_string();
+            assert!(
+                rendered.contains("carries a causality section")
+                    && !rendered.contains("no causality section"),
+                "the message must be true of a record that HAS a section, got: {rendered}"
+            );
+        }
+        other => panic!("a route under an unknown version must be Uninterpretable, got {other:?}"),
+    }
+    assert!(
+        matches!(
+            causal_verdict_pinned(&newer, QUEUE_HEAD),
+            Err(CausalRefusal::Uninterpretable { .. })
+        ),
+        "the pinned form reads the section before comparing heads, so it refuses the same way"
+    );
+
+    // No version beside a section: nothing says which rule reads it, so it is not read.
+    let mut unversioned = predicate(
+        &[CREATE_PR, COMMENT, REQUEST_REVIEW],
+        Some(causality_over(three_hop_steps())),
+    );
+    unversioned.predicate_version = None;
+    match causal_verdict(&unversioned) {
+        Err(CausalRefusal::Uninterpretable {
+            ref predicate_version,
+        }) => assert_eq!(predicate_version, "absent"),
+        other => panic!("a section with no version must be Uninterpretable, got {other:?}"),
+    }
+}
+
 // ── no claim without a mechanism ─────────────────────────────────────────────────────
 
 /// Rule 3 as a test. Nothing this task wrote may say the pathway was proven, verified or enforced.
