@@ -88,6 +88,22 @@ const el = {
   fleetEmpty: document.getElementById('fleet-empty'),
   fleetError: document.getElementById('fleet-error'),
   fleetUnreadable: document.getElementById('fleet-unreadable'),
+  // Incidents pane (L8-03, L8-25) — Task 11.2. The eighth destination; all five
+  // digits are taken and audit and fleet are already click-only, so this pane
+  // is click-only too. Each bound row carries its tier in two places (a pill
+  // class and a prose sentence), its latency as a DISTRIBUTION (p50, p99,
+  // sample count, disagreement), and the blast-radius figure with its
+  // exercise date — or "not exercised" when the bound has never been
+  // rehearsed. A single-number latency would be the most misleading thing
+  // this estate could display, because the tail is the whole risk.
+  viewIncidents: document.getElementById('view-incidents'),
+  incidents: document.getElementById('incidents'),
+  incidentsHeadline: document.getElementById('incidents-headline'),
+  incidentsSummary: document.getElementById('incidents-summary'),
+  incidentsBounds: document.getElementById('incidents-bounds'),
+  incidentsEmpty: document.getElementById('incidents-empty'),
+  incidentsError: document.getElementById('incidents-error'),
+  incidentsUnreadable: document.getElementById('incidents-unreadable'),
   queue: document.getElementById('queue'),
   queueHeadline: document.getElementById('queue-headline'),
   queueWho: document.getElementById('queue-who'),
@@ -410,7 +426,8 @@ function applyEmptyState(kind) {
   const routing = state.view === 'routing';
   const audit = state.view === 'audit';
   const fleet = state.view === 'fleet';
-  const elsewhere = summary || queue || settings || coverage || routing || audit || fleet;
+  const incidents = state.view === 'incidents';
+  const elsewhere = summary || queue || settings || coverage || routing || audit || fleet || incidents;
   el.summary.hidden = !summary;
   el.queue.hidden = !queue;
   el.settings && (el.settings.hidden = !settings);
@@ -418,6 +435,7 @@ function applyEmptyState(kind) {
   el.routing && (el.routing.hidden = !routing);
   el.audit && (el.audit.hidden = !audit);
   el.fleet && (el.fleet.hidden = !fleet);
+  el.incidents && (el.incidents.hidden = !incidents);
   el.firstRun.hidden = elsewhere || !explain;
   el.detail.hidden = elsewhere || explain;
 
@@ -472,6 +490,7 @@ async function setView(value) {
     [el.viewRouting, 'routing'],
     [el.viewAudit, 'audit'],
     [el.viewFleet, 'fleet'],
+    [el.viewIncidents, 'incidents'],
   ]) {
     if (!button) continue;
     button.classList.toggle('is-on', value === name);
@@ -485,6 +504,7 @@ async function setView(value) {
   if (value === 'routing') await loadRouting();
   if (value === 'audit') await loadAudit();
   if (value === 'fleet') await loadFleet();
+  if (value === 'incidents') await loadIncidents();
 }
 
 // ── the queue: what is waiting on a human, and what THIS reader can do about it ───────
@@ -2327,6 +2347,239 @@ async function loadFleet() {
   renderFleet(fleetFacts(answered, status, payload));
 }
 
+// ── the incidents pane: every blast-radius bound, with the latency that has actually been measured ──
+
+/**
+ * Tier words the renderer recognizes for an incidents bound.
+ *
+ * The union covers every strength word the server is expected to speak (enforced, mediated,
+ * observed), plus the two honest fallbacks (`unknown` when the server did not say,
+ * `unexercised` when the bound has never been rehearsed and its strength cannot be measured).
+ * Anything else falls through to the `tier: not stated` sentence, which is the same
+ * discipline `tierLine` follows: the renderer composes no tier of its own.
+ */
+const INCIDENTS_TIER_WORDS = Object.freeze([
+  'enforced',
+  'mediated',
+  'observed',
+  'unknown',
+  'unexercised',
+]);
+
+/**
+ * Read `/v1/incidents/bounds` into the shape the pane renders.
+ *
+ * @param {boolean} answered whether the route returned at all
+ * @param {number} status the HTTP status, or 0 for a transport failure
+ * @param {unknown} payload the parsed body
+ * @returns {{readable: boolean, bounds: Array, formatError: string|null}}
+ */
+export function incidentsFacts(answered, status, payload) {
+  const unusable = { readable: false, bounds: [], formatError: null };
+  if (!answered || status !== 200) return unusable;
+  const data = payload?.data ?? payload;
+  if (!data || typeof data !== 'object' || !Array.isArray(data.bounds)) {
+    return { readable: false, bounds: [], formatError: 'expected { bounds: [...] }' };
+  }
+  // `kind: 'fixture'` is a marker so the pane (and a future test) can refuse to confuse a
+  // fixture for a server response. Not a hard gate — only the audit and routing panes
+  // enforce it as a refusal — but the field is preserved here for symmetry.
+  return { readable: true, bounds: data.bounds, formatError: null };
+}
+
+/**
+ * Headline sentence for the incidents pane.
+ *
+ * Separates four states, the same discipline `routingHeadline` and `queueHeadline` follow:
+ * the pane could not be read, the pane has no bounds, the pane has bounds that have never
+ * been exercised, and the pane has at least one exercised bound. A single sentence for all
+ * four would teach the operator a wrong mental model about every rehearsal that did not
+ * happen.
+ */
+export function incidentsHeadline(facts) {
+  if (!facts.readable) {
+    return 'This incident pane could not be read. That is not the same as no bounds being configured on this machine.';
+  }
+  if (facts.bounds.length === 0) {
+    return 'No blast-radius bounds are configured on this machine.';
+  }
+  const exercised = facts.bounds.filter((b) => b?.blast_radius?.exercised_at).length;
+  if (exercised === 0) {
+    return `No bound on this pane has been exercised — every latency row below renders as "not exercised", not a value.`;
+  }
+  return `${exercised} of ${facts.bounds.length} bound(s) on this pane have been exercised at least once. The rest render as "not exercised".`;
+}
+
+/**
+ * Tier sentence in prose, beside the row.
+ *
+ * The pill carries the color; the prose carries the word. A reader who cannot resolve the
+ * color still sees the word. Same discipline as `tierLine`, `verdictSentence` and
+ * `fleetTierSentence`. Unknown values fall through to the `tier: not stated` sentence.
+ */
+export function incidentsTierSentence(tier) {
+  const word = typeof tier === 'string' ? tier : 'unknown';
+  if (word === 'enforced') return 'tier: enforced — refused by the broker as it happens';
+  if (word === 'mediated') return 'tier: mediated — refused when the agent traverses the warrant';
+  if (word === 'observed') return 'tier: observed — measured and reported, never refused as it happens';
+  if (word === 'unexercised') return 'tier: unexercised — this bound has never been rehearsed, so its strength has not been measured';
+  return 'tier: not stated — do not read this as the strongest tier';
+}
+
+/**
+ * Sentence for the blast-radius figure and its exercise date.
+ *
+ * Carries the date when the bound was last rehearsed, or the prose "not exercised" when
+ * the bound has never been. A renderer that printed the date and skipped the prose — or
+ * the prose and skipped the date — would have collapsed two different facts into one
+ * sentence and the reader would not be able to tell a stale measurement from a missing one.
+ */
+function blastRadiusSentence(bound) {
+  const radius = bound?.blast_radius;
+  if (!radius || typeof radius !== 'object') {
+    return 'blast radius: not stated — the server did not name a kind for this bound';
+  }
+  const kind = radius.kind ?? 'untyped';
+  const exercisedAt = radius.exercised_at;
+  if (!exercisedAt) {
+    return `blast radius: ${kind} — not exercised. The figure below is what the bound CONTAINS, not what has been MEASURED.`;
+  }
+  return `blast radius: ${kind} — last exercised ${exercisedAt}`;
+}
+
+/**
+ * The latency block — a distribution, never a single number.
+ *
+ * Renders p50, p99, sample count, disagreement, and the measurement timestamp as a list.
+ * A bound that has never been rehearsed (`latency_ms === null`) renders the prose
+ * "not exercised" rather than a value: a single number for an unexercised bound would
+ * be a guess the reader could not audit. The discipline here is the plan's exit gate.
+ */
+function incidentsLatencyBlock(latency) {
+  const frag = document.createDocumentFragment();
+  const block = node('div', 'incidents-latency');
+  if (!latency || typeof latency !== 'object') {
+    const para = node('p', 'incidents-latency-unexercised');
+    para.textContent =
+      'containment latency: not exercised — this bound has never been rehearsed, so there is no distribution to render.';
+    block.append(para);
+    frag.append(block);
+    return frag;
+  }
+  const samples = Number.isFinite(latency.samples) ? latency.samples : null;
+  if (!samples || samples <= 0) {
+    const para = node('p', 'incidents-latency-unexercised');
+    para.textContent =
+      'containment latency: not exercised — the server reported a shape with zero samples, so the distribution is not rendered.';
+    block.append(para);
+    frag.append(block);
+    return frag;
+  }
+  block.append(node('p', 'incidents-latency-head', 'containment latency — the distribution, not a single number'));
+  const list = node('ul', 'incidents-latency-list');
+  const p50 = Number.isFinite(latency.p50) ? `${latency.p50} ms` : 'not stated';
+  const p99 = Number.isFinite(latency.p99) ? `${latency.p99} ms` : 'not stated';
+  list.append(node('li', null, `p50: ${p50}`));
+  list.append(node('li', null, `p99: ${p99}`));
+  list.append(node('li', null, `samples: ${samples}`));
+  const disagreement = Number.isFinite(latency.disagreement)
+    ? `${(latency.disagreement * 100).toFixed(1)}%`
+    : 'not stated';
+  list.append(node('li', null, `disagreement: ${disagreement}`));
+  if (latency.measured_at) {
+    list.append(node('li', null, `measured at: ${latency.measured_at}`));
+  }
+  block.append(list);
+  // The counter-metric note: a single disagreement number is itself a tail risk, because
+  // disagreement means "two observers measured different latencies for the same incident".
+  // The note names the caveat next to the number, the same discipline the queue's latency
+  // block follows.
+  block.append(
+    node(
+      'p',
+      'incidents-latency-note',
+      'Disagreement is the rate at which two observers measured different latencies for the same incident; a single disagreement number is also a tail, and a low disagreement with a small sample count is still a guess.',
+    ),
+  );
+  frag.append(block);
+  return frag;
+}
+
+/** The absences list for one bound — what it does NOT cover. */
+function absencesBlock(absences) {
+  const list = node('ul', 'incidents-absences');
+  list.append(node('li', null, 'Declared absences — what this bound does NOT cover:'));
+  if (Array.isArray(absences)) {
+    for (const absence of absences) {
+      if (typeof absence === 'string' && absence.length > 0) {
+        list.append(node('li', null, absence));
+      }
+    }
+  }
+  if (list.children.length === 1) {
+    list.append(node('li', null, '(none stated by the server)'));
+  }
+  return list;
+}
+
+/** One row in the pane: id, tier (pill + prose), latency, blast radius, absences. */
+function incidentsBoundCard(bound) {
+  const card = node('article', 'incidents-bound');
+  const head = node('div', 'incidents-bound-head');
+  head.append(node('span', 'incidents-bound-id', bound.id ?? '(unnamed)'));
+  // The tier pill carries the color class; `unknown` is the fallback for a tier word the
+  // renderer does not recognize (same discipline `tierLine` and `fleetTierSentence` follow).
+  // `unexercised` is its own word: a bound with no exercise record renders that, not
+  // `unknown`, because the two are different facts the operator must not confuse.
+  const tierWord = INCIDENTS_TIER_WORDS.includes(bound?.tier)
+    ? bound.tier
+    : (bound?.blast_radius?.exercised_at ? 'unknown' : 'unexercised');
+  const tierSpan = node('span', `incidents-bound-tier tier-${tierWord}`);
+  tierSpan.textContent = `tier: ${tierWord}`;
+  head.append(tierSpan);
+  card.append(head);
+
+  card.append(node('p', 'incidents-bound-effect', `effect class: ${bound.effect_class ?? 'unknown'}`));
+  card.append(node('p', 'incidents-bound-tier-sentence', incidentsTierSentence(tierWord)));
+  card.append(node('p', 'incidents-bound-radius', blastRadiusSentence(bound)));
+  card.append(incidentsLatencyBlock(bound.latency_ms));
+  card.append(absencesBlock(bound.absences));
+  return card;
+}
+
+/** Render the incidents pane from the facts. */
+export function renderIncidents(facts) {
+  if (!el.incidents) return;
+  if (!facts || !facts.readable) {
+    el.incidentsError.hidden = false;
+    el.incidentsError.textContent =
+      'This incident pane could not be read. An incident pane that cannot list its bounds cannot tell the operator what would contain an incident, and the page is blank on purpose.';
+    el.incidentsEmpty.hidden = true;
+    el.incidentsUnreadable.textContent = facts?.formatError ?? '';
+    el.incidentsSummary.replaceChildren();
+    el.incidentsBounds.replaceChildren();
+    return;
+  }
+  el.incidentsError.hidden = true;
+  el.incidentsEmpty.hidden = facts.bounds.length > 0;
+  el.incidentsSummary.replaceChildren(node('p', null, incidentsHeadline(facts)));
+  el.incidentsBounds.replaceChildren();
+  for (const bound of facts.bounds) {
+    el.incidentsBounds.append(incidentsBoundCard(bound));
+  }
+}
+
+/** Load bounds from the backend route and paint. */
+async function loadIncidents() {
+  if (!el.incidents) return;
+  const { answered, status, payload } = await call('/v1/incidents/bounds');
+  if (answered && status === 401) {
+    showGate('That token was not accepted.');
+    return;
+  }
+  renderIncidents(incidentsFacts(answered, status, payload));
+}
+
 // ── the summary: bounds that refused, and what a model said about what they allowed ──
 
 /**
@@ -3260,9 +3513,11 @@ export const SHORTCUTS = [
   ['g / G', 'first / last warrant'],
   ['/', 'jump to the state filters'],
   ['1 / 2 / 3 / 4 / 5', 'Warrants / Waiting on you / Refusals & guard / Coverage map / Routing'],
-  // The settings pane is click-only: the source carries six destinations and the
-  // keyboard has only five digits. The pane is reached by clicking the
-  // "Notifications" tab in the right-hand column.
+  // The settings, audit, fleet and incidents panes are click-only: the source carries eight
+  // destinations and the keyboard has only five digits. Each is reached by clicking its
+  // tab in the right-hand column. The prose on the sheet says "five digits" rather than
+  // naming the click-only panes, because a sheet that listed them would invite readers to
+  // hunt for a key that is not bound.
 
   ['?', 'this sheet'],
   ['Escape', 'close this sheet'],
@@ -3529,6 +3784,7 @@ if (el.viewCoverage) el.viewCoverage.addEventListener('click', () => setView('co
 el.viewRouting.addEventListener('click', () => setView('routing'));
 if (el.viewAudit) el.viewAudit.addEventListener('click', () => setView('audit'));
 if (el.viewFleet) el.viewFleet.addEventListener('click', () => setView('fleet'));
+if (el.viewIncidents) el.viewIncidents.addEventListener('click', () => setView('incidents'));
 
 el.summaryForm.addEventListener('submit', (event) => {
   event.preventDefault?.();

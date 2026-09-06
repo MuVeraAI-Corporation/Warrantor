@@ -73,6 +73,7 @@
           <button id="view-routing" class="view" type="button">Routing</button>
           <button id="view-audit" class="view" type="button">Audit</button>
           <button id="view-fleet" class="view" type="button">Fleet</button>
+          <button id="view-incidents" class="view" type="button">Incidents</button>
         </div>
 
         <div class="filters" role="group" aria-label="Filter by state">
@@ -458,6 +459,53 @@
         </p>
 
         <ul id="audit-packs" class="audit-packs"></ul>
+      </section>
+
+      <!-- The incidents pane (L8-03, L8-25).
+           A blast-radius bound that has never been exercised is an estimate.
+           The pane renders each bound once, with the latency as a DISTRIBUTION
+           (p50, p99, samples, disagreement) — never a single number — and the
+           blast-radius figure with its exercise date, or "not exercised" when
+           the bound has never been rehearsed. A single-number latency would
+           be the most misleading thing this estate could display, because the
+           tail is the whole risk.
+
+           The list is read once on activation, never polled. An incident pane
+           that re-rendered under the operator would reorder a row while they
+           were scanning the distribution.
+
+           Order of blocks is part of the contract: the headline, the
+           exercised-state sentence, then one row per bound with its tier
+           (pill + prose), its latency distribution (or "not exercised"), its
+           blast-radius figure with the exercise date, and its declared
+           absences. Reading top-to-bottom walks the reader from "what is
+           enforced" to "what was actually measured" before "what this bound
+           does NOT cover". -->
+      <section id="incidents" class="incidents" hidden aria-labelledby="incidents-headline">
+        <h2 id="incidents-headline">Incidents &mdash; every blast-radius bound, with the containment latency that has actually been measured</h2>
+
+        <p class="note">
+          A bound that has been rehearsed carries a latency DISTRIBUTION &mdash; p50, p99, sample
+          count, disagreement &mdash; not a single number. A bound that has never been exercised
+          carries the prose &ldquo;not exercised&rdquo;, not a value: a single number for an
+          unexercised bound would be a guess the reader could not audit. The blast-radius figure
+          for each bound carries the date it was last exercised; a bound without an exercise date
+          renders the prose the same way.
+        </p>
+
+        <p id="incidents-error" class="empty error" hidden>
+          This incident pane could not be read: the server did not answer, refused, or replied
+          with something this console could not parse. That is not the same as no bounds being
+          configured on this machine.
+        </p>
+        <p id="incidents-unreadable" class="note error" hidden></p>
+        <p id="incidents-empty" class="empty" hidden>
+          No blast-radius bounds are configured on this machine. A pane with no rows is the
+          absence of a registry, not the record &ldquo;nothing to contain&rdquo;.
+        </p>
+
+        <div id="incidents-summary" class="incidents-summary"></div>
+        <ul id="incidents-bounds" class="incidents-bounds"></ul>
       </section>
 
       <!-- The fleet register (L8-02, L8-08).

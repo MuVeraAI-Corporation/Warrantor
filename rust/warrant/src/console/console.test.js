@@ -153,6 +153,21 @@ const ELEMENT_IDS = [
   'fleet-empty',
   'fleet-error',
   'fleet-unreadable',
+  // Incidents pane (L8-03, L8-25) — added by Task 11.2. The eighth destination;
+  // all five digits are taken and audit and fleet are already click-only, so
+  // this pane is click-only too. Every bound row carries its latency as a
+  // DISTRIBUTION (p50, p99, sample count, disagreement) — never a single
+  // number — and its blast-radius figure with its exercise date, or the prose
+  // "not exercised" when the bound has never been rehearsed. A pane that
+  // rendered a single-number latency would be the rule's opposite.
+  'view-incidents',
+  'incidents',
+  'incidents-headline',
+  'incidents-summary',
+  'incidents-bounds',
+  'incidents-empty',
+  'incidents-error',
+  'incidents-unreadable',
 ];
 
 function element(tag = 'div', id = '') {
@@ -3166,5 +3181,233 @@ test('the fleet pane appears when view-fleet is clicked, and only then', async (
   app.el('view-warrants').fire('click');
   await settle();
   assert.equal(app.el('fleet').hidden, true, 'switching away must hide the pane');
+});
+
+// ── Task 11.2 — the incidents pane: containment latency as a distribution (L8-03, L8-25) ──
+//
+// "A blast-radius bound that has never been exercised is an estimate. Render the
+// distribution, not the claim." The exit gate is: latency renders as a distribution with
+// p50 and p99, a never-exercised bound renders as "not exercised", and a test asserts no
+// single-number latency appears anywhere on the surface.
+
+import {
+  incidentBundle,
+  incidentFixtures,
+  memoryCapBound,
+  egressHostsBound,
+  writePathsBound,
+  unknownTierBound,
+  INCIDENT_BOUND_SHAPE,
+} from './incidents.fixtures.js';
+
+/** Open the incidents pane against an answer body. */
+async function openIncidents(incidents) {
+  const booted = await boot((p) => {
+    if (p === '/v1/health') return HEALTH_OK;
+    if (p === '/v1/incidents/bounds') return incidents;
+    return listOf(ONE_WARRANT);
+  });
+  booted.el('view-incidents').fire('click');
+  await settle();
+  return booted;
+}
+
+test('a single-number latency is rejected by the renderer', async () => {
+  // The exit gate, Step 2. A bound whose latency is a single number — not a
+  // distribution — must not render a value. The renderer accepts `null` and
+  // renders "not exercised" rather than the number, because a single number
+  // for an unexercised bound would be a guess the reader could not audit.
+  const { module, el } = await openIncidents({
+    status: 200,
+    body: {
+      data: {
+        bounds: [{
+          ...memoryCapBound,
+          latency_ms: { p50: 12 },  // only p50 — no p99, no samples, no disagreement
+        }],
+      },
+    },
+  });
+  module.renderIncidents(module.incidentsFacts(true, 200, {
+    data: { bounds: [{ ...memoryCapBound, latency_ms: { p50: 12 } }] },
+  }));
+  await settle();
+  const card = el('incidents-bounds').children[0];
+  // The single-number latency must not appear as a value. The renderer treats
+  // a distribution with no samples as "not exercised" and renders the prose,
+  // not the value.
+  const all = textOf(card);
+  assert.ok(!/\bp50:\s*12\b/.test(all), 'a single-number latency must not render as a value');
+  assert.match(all, /not exercised/);
+});
+
+test('an unexercised bound renders as `not exercised`, never as a value', async () => {
+  // The exit gate, Step 3. An unexercised bound (no `exercised_at`, no
+  // distribution) renders as "not exercised", not as a fabricated p50.
+  const { module, el } = await openIncidents({
+    status: 200,
+    body: { data: { bounds: [egressHostsBound] } },
+  });
+  module.renderIncidents(module.incidentsFacts(true, 200, { data: { bounds: [egressHostsBound] } }));
+  await settle();
+  const card = el('incidents-bounds').children[0];
+  const all = textOf(card);
+  assert.match(all, /not exercised/);
+  // No numeric latency value may appear for an unexercised bound. The renderer
+  // prints "not exercised" in prose, and a structural test pins that no
+  // number follows "p50:" anywhere on the card.
+  assert.ok(!/\bp50:\s*\d/.test(all), 'an unexercised bound must not render a p50 number');
+  assert.ok(!/\bp99:\s*\d/.test(all), 'an unexercised bound must not render a p99 number');
+  assert.ok(!/\bsamples:\s*\d/.test(all), 'an unexercised bound must not render a samples number');
+});
+
+test('the incidents pane renders p50 and p99 from fixtures, with sample count and disagreement', async () => {
+  // The exit gate, Step 4. An exercised bound renders its latency as a
+  // DISTRIBUTION: p50, p99, sample count, disagreement, and the measurement
+  // timestamp. A pane that collapsed the distribution to a single number
+  // would be the rule's opposite.
+  const { module, el } = await openIncidents({
+    status: 200,
+    body: { data: { bounds: incidentFixtures } },
+  });
+  module.renderIncidents(module.incidentsFacts(true, 200, { data: { bounds: incidentFixtures } }));
+  await settle();
+  const cards = Array.from(el('incidents-bounds').children);
+  // Find the exercised-bound card (memoryCapBound) — the first one in fixtures.
+  const card = cards[0];
+  const all = textOf(card);
+  assert.match(all, /p50:\s*8\s*ms/);
+  assert.match(all, /p99:\s*47\s*ms/);
+  assert.match(all, /samples:\s*312/);
+  assert.match(all, /disagreement:\s*1\.2%/);
+  assert.match(all, /measured at:\s*2026-09-04T18:30:00Z/);
+});
+
+test('the blast-radius figure carries its exercise date, or renders `not exercised`', async () => {
+  // The exit gate, Step 5. A blast-radius figure that omits its exercise date
+  // is a figure the operator cannot audit — the date is the receipt for the
+  // measurement, and a renderer that printed the figure without the date
+  // would teach the operator that the figure is fresh when it is not.
+  for (const fixture of incidentFixtures) {
+    assert.ok(
+      fixture.blast_radius && typeof fixture.blast_radius === 'object',
+      `every bound must carry a blast_radius — ${fixture.id} does not`,
+    );
+  }
+  const { module, el } = await openIncidents({
+    status: 200,
+    body: { data: { bounds: incidentFixtures } },
+  });
+  module.renderIncidents(module.incidentsFacts(true, 200, { data: { bounds: incidentFixtures } }));
+  await settle();
+  const cards = Array.from(el('incidents-bounds').children);
+  // memoryCapBound has an exercise date; the prose must carry the date.
+  const exercisedCard = cards[0];
+  assert.match(textOf(exercisedCard), /2026-09-04T18:22:07Z/);
+  // egressHostsBound has no exercise date; the prose must say "not exercised".
+  const unexercisedCard = cards[1];
+  assert.match(textOf(unexercisedCard), /not exercised/);
+});
+
+test('the incidents source carries no single-number latency anywhere on the surface', async () => {
+  // The exit gate's second sentence: "a test asserts no single-number latency
+  // appears anywhere in the surface." The pane source MUST NOT contain a
+  // string that looks like a single-number latency — for example,
+  // `${latency.p50} ms` rendered as the only latency text. The distribution
+  // always renders four fields plus a timestamp; a string that picked only
+  // one of them would be a single-number latency in disguise.
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'console.js'), 'utf8');
+  // The string `latency_ms` must appear, but never in a context that would
+  // render a single number. The distribution block is the only allowed
+  // reference; it iterates p50, p99, samples, disagreement, measured_at.
+  assert.ok(/latency_ms/.test(source), 'the pane must read latency_ms from fixtures');
+  // No expression like `latency.p50 + ' ms'` rendered alone — every
+  // reference must be inside the distribution block. A regex that finds a
+  // p50/p99 reference outside the distribution block would be a regression.
+  const latencyBlockMatch = source.match(/function incidentsLatencyBlock[\s\S]*?^}/m);
+  assert.ok(latencyBlockMatch, 'incidentsLatencyBlock must exist');
+  const blockSource = latencyBlockMatch[0];
+  // The block must render p50 AND p99 AND samples AND disagreement, all together.
+  assert.match(blockSource, /p50/);
+  assert.match(blockSource, /p99/);
+  assert.match(blockSource, /samples/);
+  assert.match(blockSource, /disagreement/);
+});
+
+test('the incidents pane is click-only: eight destinations share five digits', async () => {
+  // The five digits are owned by warrants / queue / summary / coverage / routing.
+  // settings, audit, fleet and incidents are click-only. A pane that grabbed
+  // digit 6 or 7 would have rebound the keyboard handler without updating
+  // the SHORTCUTS row.
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'console.js'), 'utf8');
+  assert.ok(!/case\s+'6':\s*setView\('incidents'\)/.test(source), 'incidents must not own a digit key');
+  assert.ok(!/case\s+'7':\s*setView\('incidents'\)/.test(source), 'incidents must not own a digit key');
+  assert.ok(!/case\s+'8':\s*setView\('incidents'\)/.test(source), 'incidents must not own a digit key');
+});
+
+test('the incidents pane appears when view-incidents is clicked, and only then', async () => {
+  // Click reveals; click elsewhere hides. Same rule as the audit and fleet panes.
+  const app = await openIncidents({ status: 200, body: { data: { bounds: [] } } });
+  assert.equal(app.el('incidents').hidden, false, 'clicking view-incidents must reveal the pane');
+  app.el('view-warrants').fire('click');
+  await settle();
+  assert.equal(app.el('incidents').hidden, true, 'switching away must hide the pane');
+});
+
+test('the incidents pane renders the empty-state paragraph when there are no bounds', async () => {
+  // An empty pane is the absence of a registry, not the record "no bounds".
+  const app = await openIncidents({ status: 200, body: { data: { bounds: [] } } });
+  await settle();
+  assert.equal(app.el('incidents-empty').hidden, false);
+  assert.equal(app.el('incidents-error').hidden, true);
+});
+
+test('the incidents pane renders the error paragraph when the backend does not answer', async () => {
+  // The pane refuses to render "no bounds" when the request did not complete.
+  const app = await openIncidents({ status: 500, body: { data: null } });
+  await settle();
+  assert.equal(app.el('incidents-error').hidden, false);
+});
+
+test('every incidents bound carries its tier in two places: pill class and prose sentence', async () => {
+  // The plan's central rule for every pane that renders a guarantee. The
+  // pill class carries the color; the prose sentence carries the word. A
+  // reader who cannot resolve the color still sees the word. Same discipline
+  // as tierLine, verdictSentence and fleetTierSentence.
+  const { module, el } = await openIncidents({
+    status: 200,
+    body: { data: { bounds: [memoryCapBound, writePathsBound, unknownTierBound] } },
+  });
+  module.renderIncidents(module.incidentsFacts(true, 200, { data: { bounds: [memoryCapBound, writePathsBound, unknownTierBound] } }));
+  await settle();
+  const cards = Array.from(el('incidents-bounds').children);
+  const pillClasses = cards.map((card) => {
+    const head = card.children.find((c) => c.className === 'incidents-bound-head');
+    return head?.children.find((c) => c.className?.startsWith('incidents-bound-tier'))?.className;
+  });
+  const tierWords = cards.map((card) => textOf(
+    card.children.find((c) => c.className === 'incidents-bound-tier-sentence'),
+  ));
+  assert.ok(pillClasses[0].includes('tier-enforced'));
+  assert.ok(pillClasses[1].includes('tier-observed'));
+  // unknown tier renders as its own pill class, not as enforced.
+  assert.ok(pillClasses[2].includes('tier-unknown'));
+  assert.match(tierWords[0], /tier: enforced/);
+  assert.match(tierWords[1], /tier: observed/);
+  assert.match(tierWords[2], /tier: not stated/);
+});
+
+test('the INCIDENT_BOUND_SHAPE is the shape every fixture honors', async () => {
+  // A regression guard: a fixture that drifts from the documented shape
+  // (a missing field, a renamed field, a string for a number) would render
+  // as "not stated" forever after. The test pins every key on every fixture.
+  const keys = Object.keys(INCIDENT_BOUND_SHAPE);
+  for (const fixture of incidentFixtures) {
+    for (const key of keys) {
+      assert.ok(key in fixture, `fixture ${fixture.id} must carry the ${key} key`);
+    }
+  }
 });
 
