@@ -46,11 +46,214 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use warrantor_evidence::{Phase, WarReceipt};
 
+use crate::effects::Syscall;
 use crate::WarrantError;
 
 /// Digest that precedes the first entry in a queue.
 pub const GENESIS: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+
+/// Wire format of one line in `receipts/<id>.jsonl`.
+pub const STAGED_RECEIPT_FORMAT: &str = "warrantor.staged-receipt/1";
+
+/// The key under which a staged effect is performed at most once.
+///
+/// Derived, not stored: `StagedEffect` is serialized into the queue's hash chain, so a new field
+/// on it would invalidate every existing log. The key is a digest over the warrant id and the
+/// effect's own position, tool and verbatim arguments — the same bytes the chain already
+/// commits to — so two processes replaying the same log compute the same key without talking.
+#[must_use]
+pub fn idempotency_key(warrant_id: &str, effect: &StagedEffect) -> String {
+    let mut hasher = Sha256::new();
+    for part in [
+        warrant_id.as_bytes(),
+        effect.index.to_string().as_bytes(),
+        effect.tool.as_bytes(),
+    ] {
+        hasher.update((part.len() as u64).to_le_bytes());
+        hasher.update(part);
+    }
+    for (name, value) in &effect.arguments {
+        hasher.update((name.len() as u64).to_le_bytes());
+        hasher.update(name.as_bytes());
+        hasher.update((value.len() as u64).to_le_bytes());
+        hasher.update(value.as_bytes());
+    }
+    hex::encode(hasher.finalize())
+}
+
+/// The recorder's acknowledgment: the position it assigned in its own clock.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RecorderAck {
+    /// 1-based, strictly increasing across every receipt this recorder ever wrote.
+    pub sequence: u64,
+}
+
+/// Phase one of every consequential effect.
+///
+/// `settle` performs nothing until [`Recorder::record`] has returned `Ok` for the pre-commit
+/// receipt of that effect. An `Err` here is a refusal to perform, never a warning: a recorder
+/// that cannot acknowledge is a recorder that cannot testify, and an effect it cannot testify to
+/// is an effect that must not happen (I-07).
+pub trait Recorder {
+    /// Durably record `receipt` under `idempotency_key` and acknowledge with its sequence.
+    ///
+    /// # Errors
+    /// Why the record could not be made durable. The caller treats any error as "not recorded".
+    fn record(&mut self, idempotency_key: &str, receipt: &WarReceipt) -> Result<RecorderAck, String>;
+
+    /// The real id of a performance already recorded under this key, if any.
+    fn performed(&self, idempotency_key: &str) -> Option<String>;
+
+    /// True when a pre-commit was recorded for this key and no post-commit followed: the effect
+    /// may or may not have happened, and only a human can say which.
+    fn unresolved(&self, idempotency_key: &str) -> bool;
+}
+
+/// One line of `receipts/<id>.jsonl`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RecordedReceipt {
+    /// Always [`STAGED_RECEIPT_FORMAT`].
+    pub format: String,
+    /// The recorder's clock.
+    pub sequence: u64,
+    /// The staged effect this receipt is about.
+    pub idempotency_key: String,
+    /// Pre-commit or post-commit, signed by the settling process.
+    pub receipt: WarReceipt,
+}
+
+/// A recorder that appends to one `fsync`'d JSONL file.
+///
+/// **Local, not external.** This file sits beside the staged log on the same disk as the store,
+/// so it proves the protocol, not custody: a host that can rewrite the store can rewrite this.
+/// Task 3.4 puts the flight recorder behind the same trait. The seam is what this delivers.
+#[derive(Debug)]
+pub struct FileRecorder {
+    path: PathBuf,
+    records: Vec<RecordedReceipt>,
+    performed: BTreeMap<String, String>,
+    in_flight: BTreeSet<String>,
+}
+
+impl FileRecorder {
+    /// Open (or create) the log at `path`, replaying it.
+    ///
+    /// # Errors
+    /// [`WarrantError::Invalid`] if a line does not parse, declares another format, or breaks the
+    /// sequence — a gap or a repeat means the log was edited, and a recorder that was edited
+    /// cannot answer `performed` truthfully.
+    pub fn open(path: impl AsRef<Path>) -> Result<Self, WarrantError> {
+        let path = path.as_ref().to_path_buf();
+        let mut recorder = Self {
+            path,
+            records: Vec::new(),
+            performed: BTreeMap::new(),
+            in_flight: BTreeSet::new(),
+        };
+        if recorder.path.exists() {
+            let body = std::fs::read_to_string(&recorder.path)
+                .map_err(|e| WarrantError::Encode(format!("read receipts: {e}")))?;
+            for (line_number, line) in body.lines().enumerate() {
+                if line.trim().is_empty() {
+                    continue;
+                }
+                let record: RecordedReceipt = serde_json::from_str(line).map_err(|e| {
+                    WarrantError::Invalid(format!("receipts line {}: {e}", line_number + 1))
+                })?;
+                if record.format != STAGED_RECEIPT_FORMAT {
+                    return Err(WarrantError::Invalid(format!(
+                        "receipts line {} declares {:?}; this build reads {STAGED_RECEIPT_FORMAT}",
+                        line_number + 1,
+                        record.format
+                    )));
+                }
+                let expected = recorder.records.len() as u64 + 1;
+                if record.sequence != expected {
+                    return Err(WarrantError::Invalid(format!(
+                        "receipts line {} carries sequence {} where {expected} was expected; \
+                         the log was edited and cannot say what was performed",
+                        line_number + 1,
+                        record.sequence
+                    )));
+                }
+                recorder.index(&record);
+                recorder.records.push(record);
+            }
+        }
+        Ok(recorder)
+    }
+
+    /// Every receipt, in the recorder's clock order.
+    #[must_use]
+    pub fn records(&self) -> &[RecordedReceipt] {
+        &self.records
+    }
+
+    fn index(&mut self, record: &RecordedReceipt) {
+        match record.receipt.predicate.binding.phase {
+            Phase::PreCommit => {
+                self.in_flight.insert(record.idempotency_key.clone());
+            }
+            Phase::PostCommit => {
+                self.in_flight.remove(&record.idempotency_key);
+                let real_id = record
+                    .receipt
+                    .predicate
+                    .outcome
+                    .as_ref()
+                    .filter(|outcome| outcome.status == "performed")
+                    .and_then(|outcome| outcome.effects.first());
+                if let Some(real_id) = real_id {
+                    self.performed
+                        .insert(record.idempotency_key.clone(), real_id.clone());
+                }
+            }
+            Phase::Atomic => {}
+        }
+    }
+}
+
+impl Recorder for FileRecorder {
+    fn record(&mut self, idempotency_key: &str, receipt: &WarReceipt) -> Result<RecorderAck, String> {
+        let record = RecordedReceipt {
+            format: STAGED_RECEIPT_FORMAT.to_string(),
+            sequence: self.records.len() as u64 + 1,
+            idempotency_key: idempotency_key.to_string(),
+            receipt: receipt.clone(),
+        };
+        if let Some(parent) = self.path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| format!("create receipts dir: {e}"))?;
+        }
+        let mut file: File = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.path)
+            .map_err(|e| format!("open receipts: {e}"))?;
+        let line = serde_json::to_string(&record).map_err(|e| format!("encode receipt: {e}"))?;
+        file.write_all(line.as_bytes())
+            .and_then(|()| file.write_all(b"\n"))
+            .and_then(|()| file.flush())
+            // The acknowledgment means "on stable storage". Anything less and a crash between
+            // the ack and the effect leaves an effect with no record, which is the thing I-07
+            // forbids.
+            .and_then(|()| file.sync_all())
+            .map_err(|e| format!("append receipt: {e}"))?;
+        let ack = RecorderAck { sequence: record.sequence };
+        self.index(&record);
+        self.records.push(record);
+        Ok(ack)
+    }
+
+    fn performed(&self, idempotency_key: &str) -> Option<String> {
+        self.performed.get(idempotency_key).cloned()
+    }
+
+    fn unresolved(&self, idempotency_key: &str) -> bool {
+        self.in_flight.contains(idempotency_key)
+    }
+}
 
 /// What the store last saw of a warrant's staged-effect chain, recorded outside the log itself.
 ///
@@ -141,6 +344,9 @@ struct QueueRecord {
 pub struct EffectKind {
     /// Tool name, e.g. `github.create_pr`.
     pub tool: String,
+    /// The Part 06 syscall this tool decomposes to, lowercase (`mutate`, `msg`, ...). Recorded as
+    /// `operation.class` on every receipt the effect produces.
+    pub syscall: String,
     /// Scheme this tool's handles use, e.g. `pr`.
     pub mints: String,
     /// Handle schemes accepted in the `target` argument. Empty means the tool takes no target.
@@ -167,19 +373,26 @@ impl EffectRegistry {
     #[must_use]
     pub fn github() -> Self {
         let mut registry = Self::new();
-        registry.register("github.create_pr", "pr", &[]);
-        registry.register("github.comment", "comment", &["pr"]);
-        registry.register("github.request_review", "review", &["pr"]);
-        registry.register("github.add_label", "label", &["pr"]);
+        registry.register_as("github.create_pr", Syscall::Mutate, "pr", &[]);
+        registry.register_as("github.comment", Syscall::Msg, "comment", &["pr"]);
+        registry.register_as("github.request_review", Syscall::Msg, "review", &["pr"]);
+        registry.register_as("github.add_label", Syscall::Mutate, "label", &["pr"]);
         registry
     }
 
-    /// Register an effect kind.
+    /// Register an effect kind under the `mutate` syscall. Kept for callers that predate the
+    /// syscall column; new registrations name their syscall with [`Self::register_as`].
     pub fn register(&mut self, tool: &str, mints: &str, targets: &[&str]) {
+        self.register_as(tool, Syscall::Mutate, mints, targets);
+    }
+
+    /// Register an effect kind and the syscall it decomposes to.
+    pub fn register_as(&mut self, tool: &str, syscall: Syscall, mints: &str, targets: &[&str]) {
         self.kinds.insert(
             tool.to_string(),
             EffectKind {
                 tool: tool.to_string(),
+                syscall: syscall.as_str().to_string(),
                 mints: mints.to_string(),
                 targets: targets.iter().map(|t| (*t).to_string()).collect(),
             },
@@ -471,6 +684,12 @@ impl StagingQueue {
     #[must_use]
     pub fn head_digest(&self) -> &str {
         &self.head
+    }
+
+    /// The effect kind a tool was registered under, syscall included.
+    #[must_use]
+    pub fn kind_of(&self, tool: &str) -> Option<&EffectKind> {
+        self.registry.get(tool)
     }
 
     /// Effects in release order: dependencies before dependents.

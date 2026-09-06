@@ -28,9 +28,8 @@
 
 use std::collections::BTreeMap;
 
-use serde::{Deserialize, Serialize};
-
 use ed25519_dalek::{SigningKey, VerifyingKey};
+use serde::{Deserialize, Serialize};
 use warrantor_evidence as evidence;
 use warrantor_notary as notary;
 
@@ -38,7 +37,7 @@ use crate::report::{
     bounds_policy_digest, gate_name, report_modes, sha256_hex, warrant_authority,
     FRESHNESS_WINDOW_SECONDS,
 };
-use crate::staging::{StagedEffect, StagingQueue};
+use crate::staging::{idempotency_key, Recorder, StagedEffect, StagingQueue};
 use crate::worktree::Worktree;
 use crate::{Warrant, WarrantError, WarrantState};
 
@@ -65,6 +64,112 @@ pub trait EffectPerformer {
 
 /// The method every per-effect receipt records. An effect is only ever performed by settle.
 pub const EFFECT_METHOD: &str = "settle";
+
+/// How long a pre-commit receipt authorizes its effect. A settle is a moment, not a session.
+pub const STAGED_RECEIPT_TTL_SECONDS: u64 = 600;
+
+/// Everything phase one needs: where the record goes, who signs it, and what time it is.
+pub struct CommitGate<'a> {
+    /// Phase one writes here; phase two waits for its `Ok`.
+    pub recorder: &'a mut dyn Recorder,
+    /// The key that signs both receipts. The settling process's key, never the agent's.
+    pub signer: &'a SigningKey,
+    /// Named in the signature envelope so a verifier knows which pinned key to check.
+    pub key_id: &'a str,
+    /// Epoch seconds, injected so tests own the clock.
+    pub now: u64,
+}
+
+/// The pre-commit predicate for one staged effect: identity, intent, verdict, target and the
+/// staged payload's digest — the five things IR-10 says the recorder must hold before commit.
+///
+/// # Errors
+/// [`WarrantError::Encode`] if the arguments or bounds cannot be serialized, or the nonce cannot
+/// be drawn.
+pub fn staged_predicate(
+    warrant: &Warrant,
+    effect: &StagedEffect,
+    syscall: &str,
+    idempotency_key: &str,
+    now: u64,
+) -> Result<evidence::WarPredicate, WarrantError> {
+    let claims = &warrant.claims;
+    let mut nonce = [0u8; 16];
+    getrandom::fill(&mut nonce).map_err(|e| WarrantError::Encode(format!("nonce: {e}")))?;
+    let nonce = hex::encode(nonce);
+    let parameters = serde_json::to_vec(&effect.arguments)
+        .map_err(|e| WarrantError::Encode(format!("encode arguments: {e}")))?;
+    let bounds = serde_json::to_vec(&claims.bounds)
+        .map_err(|e| WarrantError::Encode(format!("encode bounds: {e}")))?;
+    // One true link, built the way report.rs builds it: the issuer delegated exactly these tools
+    // to this subject for this window, and the proof is recomputed by every verifier.
+    let chain = vec![evidence::DelegationLink {
+        issuer: warrant.issuer_key.clone(),
+        subject: claims.subject.clone(),
+        capabilities: claims.bounds.tools.iter().cloned().collect(),
+        not_before: claims.issued_at,
+        not_after: claims.bounds.expires_at,
+        token_digest: format!("sha256:{}", sha256_hex(warrant.signature.as_bytes())),
+    }];
+    Ok(evidence::WarPredicate {
+        binding: evidence::Binding {
+            receipt_id: sha256_hex(format!("{idempotency_key}:{nonce}").as_bytes()),
+            phase: evidence::Phase::PreCommit,
+            parent_receipt: None,
+            nonce,
+            issued_at: now,
+            expires_at: now + STAGED_RECEIPT_TTL_SECONDS,
+            // The performer is a chokepoint the agent cannot reach around, and not an OS bound.
+            enforcement_mode: evidence::EnforcementMode::Mediated,
+        },
+        actor: evidence::Actor {
+            principal: claims.subject.clone(),
+            workload_id: claims.id.clone(),
+            // Same caveat as report.rs: a digest of the subject string, not of an SVID document.
+            svid_digest: format!("sha256:{}", sha256_hex(claims.subject.as_bytes())),
+        },
+        authority: evidence::Authority {
+            effective_capabilities: evidence::recompute_intersection(&chain),
+            intersection_proof: evidence::compute_intersection_proof(&chain),
+            chain,
+        },
+        decision: evidence::Decision {
+            verdict: evidence::Verdict::Allow,
+            engine: "warrantor-settle".to_string(),
+            policy_digest: format!("sha256:{}", sha256_hex(&bounds)),
+            evaluated_at: now,
+        },
+        operation: evidence::Operation {
+            class: syscall.to_string(),
+            target: effect.handle.clone(),
+            method: effect.tool.clone(),
+            parameters_digest: format!("sha256:{}", sha256_hex(&parameters)),
+            reversible: false,
+            consequence_tier: evidence::ConsequenceTier::Elevated,
+        },
+        outcome: None,
+    })
+}
+
+fn performed_outcome(real_id: &str) -> evidence::Outcome {
+    evidence::Outcome {
+        status: "performed".to_string(),
+        outcome_digest: format!("sha256:{}", sha256_hex(real_id.as_bytes())),
+        effects: vec![real_id.to_string()],
+        error: None,
+        rollback_pointer: None,
+    }
+}
+
+fn failed_outcome(reason: &str) -> evidence::Outcome {
+    evidence::Outcome {
+        status: "failed".to_string(),
+        outcome_digest: format!("sha256:{}", sha256_hex(reason.as_bytes())),
+        effects: Vec::new(),
+        error: Some(reason.to_string()),
+        rollback_pointer: None,
+    }
+}
 
 /// Where a receipt becomes durable. `Ok` means "on stable storage"; the performer acts on it.
 pub trait ReceiptSink {
