@@ -987,7 +987,12 @@ us-english: ok
 ```
 
 **Which tip each figure describes.** Everything above was measured on `07e7553`, the last commit
-that changes a file any of these runs reads. The commit that adds this section is Markdown only, so
+that changes a file any of these runs reads. `git diff 07e7553..HEAD` is this Markdown file alone,
+so no cargo run, census, ratchet or ledger reads a byte that moved. A re-run of the ratchet on the
+final tip was attempted and refused by the commit-charge guard -- 1.5, then 0.8, then 0.5 GB
+available against a 5 GB floor while other lanes of the wave held memory -- and was not forced,
+because forcing it is how a rustc dies with 0xc000012d and because the Rust tree it reads is
+byte-identical to the one measured above. The commit that adds this section is Markdown only, so
 it moves exactly two things and neither is a gate result: the byte count of this file and the added
 line count in the `check_us_english` line, which reads 3292 on the tip that carries this paragraph
 and would read higher again if this paragraph grew. `cargo`, the census, the ratchet, the ledger,
