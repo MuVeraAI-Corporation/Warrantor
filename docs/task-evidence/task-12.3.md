@@ -1040,3 +1040,24 @@ which CI runs in the Python job). And the plan's own second clause for criterion
 inverted here (section 6, item 3 — the refusal IS receipted, and what a refusal must not produce is
 a registration or an adapter). The ledger may cite Task 12.3 as built on this record, with those
 two sentences attached.
+
+## Post-merge gate on main `94119fc` (2026-09-06)
+
+The review lane's final, docs-only tip could not re-run the invariant ratchet: the commit-charge
+guard refused three times while other lanes held memory, and the lane reported the value it had
+rather than forcing a run. This is the run on the merged tree, with `CARGO_BUILD_JOBS=2` from
+`rust/` in the shared `M:/wt-merge-target`, every exit code captured before any pipe.
+
+| Check | Result |
+|---|---|
+| `cargo fmt --all -- --check` | 0 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | 0 |
+| `cargo test --workspace --all-targets` | 0; 121 suites, 1582 passed, 0 failed, 20 ignored |
+| `cargo test --workspace --doc` | 0; 40 suites, 1 passed |
+| Wiring census | 13 of 41 crates over 23 edges |
+| Invariant ratchet | ok, 85 passing at floor 85; 15 recorded findings at ceiling 15 |
+| Invariant ledger | 12 invariants; enforced 2, orphaned 1, partial 8, unimplemented 1 |
+| `check_docs.py` | PASS, 302 Markdown files, 58 RFCs, 81 catalogue rows |
+| `check_us_english.py` against `065961b` | ok |
+
+The ratchet figure the lane could not re-measure is confirmed here on the tree that shipped.
