@@ -27,18 +27,35 @@ this prose. A sentence here that disagrees with the code fails the build.
 ### Layer A — the MCP proxy chokepoint
 
 Real, reachable, and the only layer that decides per host. `rust/warrant/src/proxy.rs` lines
-284-308 run every destination a call names through **both** engines:
+391-425 run every destination a call names through **both** engines:
 
 ```rust
 for destination in crate::egress::destinations_of(call) {
-    if let crate::egress::EgressVerdict::Deny { reason } =
-        self.egress.decide(&destination.host)
-    {
+    let verdict = self.egress.decide(&destination.host);
+    self.pending.push(PendingDecision {
+        tool: call.tool.clone(),
+        argument: destination.argument.clone(),
+        capability: self
+            .resolved_names
+            .get(&destination.host)
+            .cloned()
+            .unwrap_or_else(|| capability_for(&destination.host)),
+        destination: destination.host.clone(),
+        verdict: verdict.clone(),
+    });
+    if let EgressVerdict::Deny { reason } = verdict {
         let refusal = EgressRefusal::new(&call.tool, &destination, reason);
         return self.deny_egress(&call.tool, refusal);
     }
-    // Second engine, second configuration source, SAME chokepoint. Deny-only, and
-    // structurally so: the broker's arm above returns before this one runs.
+    // Second engine, second configuration source, SAME chokepoint.
+    //
+    // Deny-only, and structurally so: the broker's arm above returns before this runs, so
+    // there is no branch here that can turn its `Deny` into a `Forward`. There must never
+    // be one -- a warrant bound an operator file could widen is not a bound.
+    //
+    // This is a second POLICY DOMAIN and not a second boundary. It does not raise
+    // `Independence::intercepts`, and no surface may render the engine count as though it
+    // were an enforcement count: see `crate::egress::INDEPENDENCE_NOTE`.
     if let Some(secondary) = self.secondary.as_ref() {
         let decision = secondary.decide(&destination.host);
         if decision.action == warrantor_egress_filter::Action::Deny {
@@ -49,6 +66,16 @@ for destination in crate::egress::destinations_of(call) {
     }
 }
 ```
+
+> **Rebase note (2026-09-06).** The block above is the loop as it stands after this branch was
+> rebased onto `main` at `92b6018`. Task 2.1's decision log landed on `main` in the meantime and
+> inserted the `self.pending.push(...)` at the top of the loop, before either engine can refuse.
+> Two consequences, stated so nobody reads the log as a second telemetry path: the pushed record
+> is the **broker's** verdict, by the definition of `EgressDecision` (*"One broker decision"*),
+> so a call the second engine refuses leaves an `Allow` row in `egress/<warrant>.jsonl` and a row
+> in `Proxy::secondary_refusals`, in the same process; and the pushed record is drained by the
+> same endpoint that holds both maps. The telemetry-path axis stays **shared**. The four line
+> anchors on this page were re-derived by the gate at the rebased tree, not carried forward.
 
 > **Citation correction.** Both adversarial review lenses caught this independently. The block above
 > was quoted from the **pre-change** file — missing the very engine this task added — and all four
@@ -63,10 +90,10 @@ for destination in crate::egress::destinations_of(call) {
 
 Two properties of that loop matter for independence and are easy to misread:
 
-- `NEVER_IN_OBSERVE` (`rust/warrant/src/proxy.rs` lines 129-130) holds exactly
+- `NEVER_IN_OBSERVE` (`rust/warrant/src/proxy.rs` lines 147-148) holds exactly
   `[SideEffectClass::Destructive, SideEffectClass::Financial]`. It contains nothing egress-shaped,
   so **observe mode records every network call and refuses none.**
-- `staged_classes` is consulted *after* the egress loop (lines 310-316), so staging is never a
+- `staged_classes` is consulted *after* the egress loop (lines 427-434), so staging is never a
   substitute for an egress refusal.
 
 ### Layer B — the network namespace
@@ -146,7 +173,7 @@ The anchor's residual makes these the test. Two layers sharing any one of them a
 | **enforcement point** | `Proxy::decide`, in the `warrantor` process | the kernel, *if* an operator launched the printed profile | **shared in practice**: layer B is never emitted alongside a permitted host, so only one point ever acts on one |
 | **credential** | none — `rust/warrant/src/egress.rs` lines 53-56: *"the process that serves a supervised agent deliberately holds no key"* | none | **not shared** — and independent by *absence*, not by design |
 | **configuration source** | `WarrantBounds::egress_hosts`, inside the signed claims | the same field, read with the opposite sense | **shared** |
-| **telemetry path** | `Proxy::egress_refusals`, `Proxy::secondary_refusals` and `Proxy::requests` (`rust/warrant/src/proxy.rs` lines 115-122), in-process, no independent sink | **none at all**: a netns refusal is a `connect()` failure inside the agent that never reaches Warrantor | **shared** |
+| **telemetry path** | `Proxy::egress_refusals`, `Proxy::secondary_refusals` and `Proxy::requests` (`rust/warrant/src/proxy.rs` lines 127-140), in-process, no independent sink | **none at all**: a netns refusal is a `connect()` failure inside the agent that never reaches Warrantor | **shared** |
 
 L0-10's own residual names three more that any analysis must concede: *"an unmodeled shared
 dependency such as a resolver, a clock or a certificate authority is still common-mode."* Two of the
