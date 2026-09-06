@@ -7,8 +7,9 @@ deployment-configuration parity (L9-08).
 
 The task in one sentence: **the promotion gate held the candidate's own recorded serving
 configuration in a field and read nothing out of it, and the deploy step required no parity
-receipt at all.** Both are closed here with the code already on `main`, and the enforced line in
-each case is named below.
+receipt at all.** Both are closed here with the code already on `main`. Every bound below is
+named with the line that refuses and the tier that line earns; none of them is Enforced, because
+none of them is a cryptographic or operating-system refusal (see the tier table in section 5).
 
 ---
 
@@ -364,8 +365,9 @@ Every one of these is a case where the code won.
    digests. A refusal that writes nothing is an unreceipted refusal. **Implemented as: the refusal
    IS receipted** — the decision document records the verdict, the naming reason and a digest — and
    what a refusal must not produce is a *registration* or an *adapter*, which is what
-   `build_registration` enforces and what check 3 of the gate proves. Recorded loudly because the
-   plan's wording, taken literally, would have deleted an existing auditability property.
+   `build_registration` refuses at its Tier B chokepoint and what check 3 of the gate proves.
+   Recorded loudly because the plan's wording, taken literally, would have deleted an existing
+   auditability property.
 
 4. **The plan's expected gate line is wrong: it predicted `2 parity, 5 refused` for a reason that
    does not hold.** With a strict reader — explicit fields only — **all seven** documents refuse,

@@ -288,7 +288,7 @@ def main() -> int:
         print(f"  [1/4] ok: counts match the record ({scanned}/{parity}/{refused})")
 
     if (problem := _promotion_refusal_is_receipted()) is not None:
-        print(f"deployment parity: the promotion refusal is not enforced -- {problem}")
+        print(f"deployment parity: the promotion refusal did not hold -- {problem}")
         failed = True
     else:
         print(
@@ -297,7 +297,7 @@ def main() -> int:
         )
 
     if (problem := _registration_refusal_writes_nothing()) is not None:
-        print(f"deployment parity: the registration refusal is not enforced -- {problem}")
+        print(f"deployment parity: the registration refusal did not hold -- {problem}")
         failed = True
     else:
         print(
