@@ -35,25 +35,54 @@ warrantor-notary = { path = "../notary", version = "1.0.0" }
 # external crate and no new version to Cargo.lock. It decides; it does not enforce: enforcement
 # still terminates at the MCP proxy, exactly where it did before.
 warrantor-egress = { path = "../egress", version = "1.0.0" }
+# THE SECOND POLICY ENGINE, and nothing more than that. `Policy` / `PolicyBuilder` reach the product
+# here as `egress::SecondaryFilter`: a second evaluator, with a different default (DefaultDeny on an
+# empty allowlist) and a different configuration source (an operator file, not the signed warrant
+# claims), consulted deny-only inside the SAME `Proxy::decide` loop as the broker.
+#
+# WHAT THE EDGE DOES NOT BUY. It is not a second enforcement point, so it does not raise the
+# independent-intercept count -- see `egress::independence` and
+# `docs/05-network-common-mode-analysis.md`. And it does not make the two evaluators independent:
+# both consult `warrantor_egress_filter::hard_deny`, because Task 7.1 deliberately put ONE address
+# matcher there and made `warrantor-egress` delegate to it. That is right for drift and wrong for
+# independence, which is why `address_floor` is a permanently shared axis.
+#
+# The crate was already reachable via `warrantor-egress` before this edge, so the wiring census's
+# `reachable` count does not move: this adds a path edge, not a crate. Its dependency set
+# {thiserror, serde, serde_json} is a strict subset of this crate's, so no external crate and no new
+# package enters `rust/Cargo.lock`.
+warrantor-egress-filter = { path = "../egress-filter", version = "1.0.0" }
 # The containment conformance suite, behind `warrantor stop`. It is a report VALIDATOR, not a
 # conformance runner: it cannot measure quiescence and cannot elicit, so what it buys is the
 # anti-sandbagging gate -- a stop record can never claim a passing containment grade, because
 # warrantor never runs an elicitation. Same dependency family minus sha2; no new external crate.
 #
-# `warrantor-kill-switch` is deliberately NOT here. Its Cargo.toml declares tokio, clap, tracing
-# and tracing-subscriber unconditionally, and a path dependency would pull all four into this
-# crate's graph, breaking the tokio-free posture -- for nothing, since grep finds no tokio, no
-# `async fn` and no `.await` anywhere in that crate's src. Nothing is lost: `stop` needs
-# `DaemonState::get` and `supervise::terminate_group`, both already in this crate, and the
-# containment SEAM the kill switch would fill is `notary::VerdictContext.contained_scopes`, a
-# plain `Vec<String>` this crate supplies on its own.
+# `warrantor-kill-switch-core` is the kill switch's process-tree termination, extracted because
+# the full crate declares tokio, clap and tracing unconditionally. The core depends on thiserror
+# only.
 warrantor-containment-conformance = { path = "../containment-conformance", version = "1.0.0" }
+warrantor-kill-switch-core = { path = "../kill-switch-core", version = "1.0.0" }
 # The spend engine, behind the budget bound. It does NOT make that bound enforceable and does not
 # try: model API calls never traverse this process, so every figure it can see is one the agent
 # reported about itself. What it buys is that `budget_cents_observed` becomes TRUE -- before this,
 # nothing in the system read the number at all, so a bound labelled "observed" was observed by
 # nobody. Same dependency family again; no new external crate and no new version in Cargo.lock.
 warrantor-spend = { path = "../spend", version = "1.0.0" }
+# The credential vault, behind invariant I-05's revocation bound. `default-features = false`
+# deliberately: that crate's CLI and its credential scanner are feature-gated, so this edge adds
+# ZERO external packages to this crate's normal-dependency tree and no line to Cargo.lock. The
+# 7-external-dep, tokio-free posture is unchanged. Measured: the tree goes 156 -> 157 packages, and
+# the one added package is `warrantor-credential-vault` itself.
+#
+# What this buys is that I-05 stops being orphaned. The vault's 1-second `REVOKE_BUDGET` and its
+# `fsync`'d, replay-at-open revocation journal were real, tested, and unreachable from the product;
+# `crate::revoke` reads that journal format, so the number binds a shipped code path and the
+# notary's `revoked_svids` seam stops being filled with `Vec::new()`.
+#
+# What it does NOT buy: fan-out. That crate's own comment promises replica propagation via Kafka
+# CloudEvents; no broker is linked here and none is claimed. Propagation stays Observed, and the
+# report says so in as many words.
+warrantor-credential-vault = { path = "../credential-vault", version = "1.0.0", default-features = false }
 
 getrandom = { version = "0.4", features = ["sys_rng"] }
 ureq = { version = "2", default-features = false, features = ["tls", "json"] }

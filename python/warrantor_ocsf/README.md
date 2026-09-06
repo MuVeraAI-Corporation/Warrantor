@@ -21,7 +21,7 @@ the six values OCSF defines for class 6003 — there is no "Access", no
 | `write`, `create`, `append` | `1` (Create)  |
 | `update`, `modify`       | `3` (Update)   |
 | `delete`, `destroy`      | `4` (Delete)   |
-| present but unrecognised | `99` (Other)   |
+| present but unrecognized | `99` (Other)   |
 | absent                   | `0` (Unknown)  |
 
 Attestation verification maps to `99` (Other). OCSF 6003 has no Authenticate

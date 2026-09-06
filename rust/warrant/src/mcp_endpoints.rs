@@ -10,6 +10,7 @@ use ed25519_dalek::SigningKey;
 use serde_json::{json, Value};
 
 use crate::daemon::{process_is_alive, DaemonState, Reconciliation};
+use crate::effects::{Classified, DecompositionRegistry, UnclassifiedPolicy};
 use crate::mcp::{require_str, string_list, Endpoint, ToolResult, ToolSpec};
 use crate::proxy::{Decision, Proxy, ToolCall};
 use crate::settle::{settle, void, EffectPerformer};
@@ -326,11 +327,20 @@ impl ControlEndpoint {
             &self.issuer.verifying_key(),
             (self.now)(),
             &stops.contained_scopes(&id),
-            Some(crate::spend::section(&ledger)),
-            // No custody section here, deliberately: this report is a tool result an AGENT reads,
-            // and the actor log names the humans who acted on the warrant. `None` is honest -- the
-            // log was not consulted -- and the limitations line says so.
-            None,
+            crate::report::Observed {
+                spend: Some(crate::spend::section(&ledger)),
+                // No custody section here, deliberately: this report is a tool result an AGENT
+                // reads, and the actor log names the humans who acted on the warrant. `None` is
+                // honest -- the log was not consulted -- and the limitations line says so.
+                custody: None,
+                // The revocation source IS consulted here, unlike custody: it names no operator,
+                // and an agent asking whether its own warrant still holds authority must be told
+                // its subject was revoked rather than shown a gate that checked nothing.
+                revocation: crate::revoke::RevocationStore::open(&self.root)
+                    .ok()
+                    .as_ref()
+                    .map(crate::report::RevocationSection::from_store),
+            },
         );
         let mut out = vec![crate::report::render_mcp(built.bundle())];
         out.push(String::new());
@@ -400,11 +410,16 @@ impl ControlEndpoint {
         };
 
         let daemon = daemons.get(&id);
+        let enforcement = crate::conformance::ConformanceStore::open(self.store.root())
+            .ok()
+            .and_then(|c| c.basis_for_this_kernel());
         let mut outcome = crate::stop::execute(
             &mut stored,
             daemon.as_ref(),
             &OsProcessControl,
             &self.store.staged_path(&id),
+            enforcement,
+            (self.now)(),
         );
         if daemon.is_some() && daemons.deregister(&id).is_ok() {
             outcome.deregistered = true;
@@ -682,16 +697,16 @@ pub struct AgentEndpoint {
     /// is the same answer this endpoint has always given — except that the remedy it names is now
     /// a flag that exists.
     upstreams: Option<crate::upstream::UpstreamSet>,
-    /// Side-effect classes an operator declared for upstream tools, by published tool name.
-    ///
-    /// Empty by default, which is the shipped behaviour: everything the staging registry does not
-    /// know is classed `Read`. That fallback is a **guess**, and it became reachable the moment
-    /// forwarding did — an upstream `write_file` is forwarded rather than staged. This map is how
-    /// an operator replaces the guess with a statement.
-    classes: BTreeMap<String, SideEffectClass>,
-    /// Whether a tool with no declared class is refused rather than guessed at.
-    refuse_unclassified: bool,
-    /// Tools this session decided by the fallback, so the closing line can name them.
+    /// What every forwarded tool decomposes to, by published name. Starts as
+    /// [`DecompositionRegistry::builtin`] — the four tools this build can stage — and grows only
+    /// by what an operator declared: a class map inside signed claims would mean re-issuing a
+    /// warrant whenever a server added a tool.
+    decompositions: DecompositionRegistry,
+    /// What happens to a tool nobody declared. [`UnclassifiedPolicy::GuessRead`] is the shipped
+    /// default and it is a guess; `--upstream-strict` selects [`UnclassifiedPolicy::Refuse`].
+    unclassified_policy: UnclassifiedPolicy,
+    /// Tools this session decided by the guess, or refused for want of a declaration, so the
+    /// closing line can name them.
     unclassified: std::collections::BTreeSet<String>,
     /// How many calls this session actually forwarded, and how many failed in transport.
     ///
@@ -701,6 +716,11 @@ pub struct AgentEndpoint {
     /// well-bounded agent.
     forwarded: usize,
     forward_failures: usize,
+    /// The store root the egress decision log lives under, when a catalog was attached.
+    ///
+    /// Absent means decisions are drained and dropped — the pre-catalog behavior, which is what
+    /// every test that predates the catalog runs under and what an observe-mode session does.
+    egress_root: Option<std::path::PathBuf>,
     now: fn() -> u64,
 }
 
@@ -721,12 +741,13 @@ impl AgentEndpoint {
             allowed,
             guard: None,
             witness: None,
-            classes: BTreeMap::new(),
-            refuse_unclassified: false,
+            decompositions: DecompositionRegistry::builtin(),
+            unclassified_policy: UnclassifiedPolicy::GuessRead,
             unclassified: std::collections::BTreeSet::new(),
             upstreams: None,
             forwarded: 0,
             forward_failures: 0,
+            egress_root: None,
             now,
         }
     }
@@ -744,21 +765,51 @@ impl AgentEndpoint {
         self
     }
 
-    /// Declare side-effect classes for upstream tools, and whether an undeclared one is refused.
+    /// Declare what upstream tools decompose to, and what happens to a tool nobody declared.
     ///
     /// A builder, like [`Self::with_upstreams`], and for the same reason: which tools an operator
-    /// has classified is a property of the session they started, not of the signed warrant. Putting
-    /// a class map inside granted claims would mean re-issuing a warrant whenever a server added a
-    /// tool.
+    /// has classified is a property of the session they started, not of the signed warrant.
     #[must_use]
-    pub fn with_classes(
+    pub fn with_decompositions(
         mut self,
-        classes: BTreeMap<String, SideEffectClass>,
-        refuse_unclassified: bool,
+        decompositions: DecompositionRegistry,
+        policy: UnclassifiedPolicy,
     ) -> Self {
-        self.classes = classes;
-        self.refuse_unclassified = refuse_unclassified;
+        self.decompositions = decompositions;
+        self.unclassified_policy = policy;
         self
+    }
+
+    /// Attach the verified per-warrant catalog and the root the decision log lives under.
+    ///
+    /// A builder like [`Self::with_upstreams`]; and like the others it is a property of the
+    /// session, not of the signed warrant — the warrant bounds hosts, the catalog names them.
+    ///
+    /// # Errors
+    /// The catalog names a host outside the warrant's egress bound.
+    pub fn with_catalog(
+        mut self,
+        catalog: &crate::catalog::CapabilityCatalog,
+        root: std::path::PathBuf,
+    ) -> Result<Self, String> {
+        let bounds = self.proxy.bounds().clone();
+        let vocabulary = catalog.vocabulary_within(&bounds)?;
+        self.proxy = self.proxy.with_vocabulary(vocabulary);
+        self.egress_root = Some(root);
+        Ok(self)
+    }
+
+    /// Write every egress decision drained from the proxy, when a log root is attached.
+    ///
+    /// `None` is the pre-catalog state — decisions are drained and dropped, which is what every
+    /// observe-mode session and every test without a catalog has always done.
+    fn flush_egress_log(&mut self) -> Result<usize, String> {
+        let at = (self.now)();
+        let decisions = self.proxy.take_egress_decisions(&self.warrant_id, at);
+        match &self.egress_root {
+            Some(root) => crate::egress::record_decisions(root, &decisions),
+            None => Ok(0),
+        }
     }
 
     /// Tools this session decided by the fallback rather than by a declaration.
@@ -938,6 +989,16 @@ impl AgentEndpoint {
     pub fn egress_refusals(&self) -> Vec<&crate::egress::EgressRefusal> {
         self.proxy.egress_refusals()
     }
+
+    /// Refusals the second policy engine made, with their destination and its own rule.
+    ///
+    /// Empty in every shipped run, because nothing constructs a secondary filter; surfaced so that
+    /// the day a caller wires one, its refusals are written down and printed under their own
+    /// bound rather than lost. See [`crate::proxy::SECONDARY_FILTER_BOUND`].
+    #[must_use]
+    pub fn secondary_refusals(&self) -> Vec<&crate::egress::SecondaryRefusal> {
+        self.proxy.secondary_refusals()
+    }
 }
 
 impl Endpoint for AgentEndpoint {
@@ -946,12 +1007,14 @@ impl Endpoint for AgentEndpoint {
     }
 
     fn tools(&mut self) -> Vec<ToolSpec> {
-        // No upstream: the shipped behaviour since this endpoint existed. The warrant's tool names
+        // No upstream: the shipped behavior since this endpoint existed. The warrant's tool names
         // are published verbatim with an open schema, because there is no server to ask what the
         // real schema is. Kept exactly as it was — a session with nothing attached is what every
-        // test and every `--observe` authoring run has always been.
+        // test and every `--observe` authoring run has always been. The one exception is a
+        // verified catalog under Enforce: even a guessed schema closes its destination arguments,
+        // because the proxy would refuse what the schema invited.
         let Some(upstreams) = &self.upstreams else {
-            return self
+            let mut published: Vec<ToolSpec> = self
                 .allowed
                 .iter()
                 .map(|name| ToolSpec {
@@ -960,6 +1023,14 @@ impl Endpoint for AgentEndpoint {
                     input_schema: json!({"type": "object", "additionalProperties": true}),
                 })
                 .collect();
+            if let Some(vocabulary) = self.proxy.vocabulary() {
+                if self.proxy.mode() == crate::proxy::ProxyMode::Enforce {
+                    for tool in &mut published {
+                        vocabulary.constrain_schema(&mut tool.input_schema);
+                    }
+                }
+            }
+            return published;
         };
 
         let observing = self.proxy.mode() == crate::proxy::ProxyMode::Observe;
@@ -1013,6 +1084,13 @@ impl Endpoint for AgentEndpoint {
                 input_schema: tool.input_schema.clone(),
             });
         }
+        if let Some(vocabulary) = self.proxy.vocabulary() {
+            if self.proxy.mode() == crate::proxy::ProxyMode::Enforce {
+                for tool in &mut published {
+                    vocabulary.constrain_schema(&mut tool.input_schema);
+                }
+            }
+        }
         published
     }
 
@@ -1027,42 +1105,54 @@ impl Endpoint for AgentEndpoint {
             })
             .collect();
 
-        // What CLASS of action is this? The answer decides whether the call is staged, forwarded or
-        // refused, and until forwarding existed the question had one reachable answer, so the guess
-        // below was invisible.
-        //
-        // The order is: what the staging registry knows, then what the operator declared, then the
-        // fallback. The registry wins because those four tools are the ones this build can actually
-        // stage; a declaration that contradicted it would promise staging for something the settle
-        // path cannot perform.
-        let declared = self.classes.get(tool).copied();
-        let side_effect = if EffectRegistry::github().get(tool).is_some() {
-            SideEffectClass::Write
-        } else if let Some(class) = declared {
-            class
-        } else {
-            // UNCLASSIFIED. `Read` is the shipped fallback and it is a guess: an upstream
-            // `write_file` is forwarded rather than staged, and nothing about the call says so.
-            // Counted here so the end of the session can report how many calls were decided by a
-            // guess, and refusable outright with `--upstream-refuse-unclassified`.
-            self.unclassified.insert(tool.to_string());
-            if self.refuse_unclassified {
-                return ToolResult::error(format!(
-                    "{tool} has no declared side-effect class, and this session was started with --upstream-refuse-unclassified. This build can only tell what a call DOES for the tools it stages; for everything else the class is whatever an operator declared, and an undeclared tool would be forwarded as if it only read. Declare it: --upstream-class '{tool}=write' (or =read, =destructive, =financial)."
-                ));
+        // What does this tool DO? The decomposition registry answers, or refuses to. The builtin
+        // four are in the registry already, so the settle path's own tools are never guessed at;
+        // a declaration that contradicted them was refused at the command line.
+        let side_effect = match self.decompositions.classify(tool, self.unclassified_policy) {
+            Ok(Classified::Declared(decomposition)) => decomposition.class(),
+            Ok(Classified::Guessed) => {
+                // Recorded so the end of the session can NAME what was guessed at.
+                self.unclassified.insert(tool.to_string());
+                SideEffectClass::Read
             }
-            SideEffectClass::Read
+            Err(refusal) => {
+                self.unclassified.insert(tool.to_string());
+                return ToolResult::error(refusal.to_string());
+            }
         };
 
-        let call = ToolCall {
+        let mut call = ToolCall {
             tool: tool.to_string(),
             arguments: flattened,
             side_effect,
         };
 
+        // L4-23: under a verified catalog, a destination argument is a capability NAME or the call
+        // is refused here, before the broker — a raw address never reaches a verdict at all.
+        if let Err(Decision::Deny { reason, bound }) = self.proxy.resolve_destinations(&mut call) {
+            // A refusal is still a decision worth a line; if the line cannot be written the
+            // refusal stands regardless, so the error is reported and not turned into a forward.
+            if let Err(e) = self.flush_egress_log() {
+                eprintln!(
+                    "warrantor: could not record an egress refusal for {}: {e}",
+                    self.warrant_id
+                );
+            }
+            return ToolResult::error(format!("refused by the warrant's {bound} bound: {reason}"));
+        }
+
         // The warrant decides first, and its decision is never reconsidered below: no arm of the
         // guard can turn a denial into an allow, because a denial returns without ever reaching it.
-        match self.proxy.decide(&call) {
+        let decision = self.proxy.decide(&call);
+        // BEFORE any effect, and refusing if it cannot be written: a decision that exists only in
+        // this process's memory is not evidence, and I-07 says the record comes first.
+        if let Err(e) = self.flush_egress_log() {
+            return ToolResult::error(format!(
+                "{tool} was decided but the egress decision could not be recorded ({e}); the call \
+                 is refused rather than forwarded unrecorded"
+            ));
+        }
+        match decision {
             // A bound refused this, so the call did NOT happen -- and an unhappened call is not
             // something to classify. Handing its arguments to the classifier would put a signal in
             // `<root>/guard/` for a call the refusal log already records as refused, double-counting
@@ -1157,7 +1247,18 @@ impl Endpoint for AgentEndpoint {
                     // a sentence instead of a panic in a supervised agent's session.
                     return ToolResult::error(format!("{tool}: no upstream is attached"));
                 };
-                match upstreams.call(tool, arguments) {
+                // Forward the RESOLVED arguments: a destination the agent named as a capability
+                // goes over the wire as the URL the catalog resolved it to, or the upstream would
+                // receive a name only it could not understand.
+                let mut forwarded = arguments.clone();
+                for key in crate::egress::DESTINATION_KEYS {
+                    if let Some(v) = call.arguments.get(*key) {
+                        if forwarded.contains_key(*key) {
+                            forwarded.insert((*key).to_string(), Value::String(v.clone()));
+                        }
+                    }
+                }
+                match upstreams.call(tool, &forwarded) {
                     Ok(result) => {
                         self.forwarded += 1;
                         result

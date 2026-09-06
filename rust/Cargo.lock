@@ -2747,6 +2747,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "warrantor-delegation-chain"
+version = "1.0.0"
+dependencies = [
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+]
+
+[[package]]
 name = "warrantor-egress"
 version = "1.0.0"
 dependencies = [
@@ -2756,6 +2766,7 @@ dependencies = [
  "serde_json",
  "sha2 0.11.0",
  "thiserror",
+ "warrantor-egress-filter",
 ]
 
 [[package]]
@@ -2792,6 +2803,7 @@ dependencies = [
  "serde_json",
  "sha2 0.11.0",
  "thiserror",
+ "warrantor-delegation-chain",
 ]
 
 [[package]]
@@ -2862,6 +2874,14 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "warrantor-kill-switch-core",
+]
+
+[[package]]
+name = "warrantor-kill-switch-core"
+version = "1.0.0"
+dependencies = [
+ "thiserror",
 ]
 
 [[package]]
@@ -3096,8 +3116,11 @@ dependencies = [
  "ureq",
  "warrantor-authority-spec",
  "warrantor-containment-conformance",
+ "warrantor-credential-vault",
  "warrantor-egress",
+ "warrantor-egress-filter",
  "warrantor-evidence",
+ "warrantor-kill-switch-core",
  "warrantor-notary",
  "warrantor-spend",
  "warrantor-trust-core",

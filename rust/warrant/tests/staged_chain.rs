@@ -392,10 +392,9 @@ fn a_deleted_log_reaches_the_report_as_unavailable_and_denies() {
         &issuer().verifying_key(),
         NOW + 60,
         &[],
-        None,
-        // No custody section: this test is about the staged chain, and a report with an
-        // unconsulted actor log is the shape every pre-existing export has.
-        None,
+        // Nothing observed: this test is about the staged chain, and a report with an unconsulted
+        // actor log and no revocation source is the shape every pre-existing export has.
+        report::Observed::default(),
     );
     let bundle = built.bundle();
 

@@ -31,7 +31,7 @@ We plan to launch a bug bounty program on HackerOne by Q2 2027 (post-Series A). 
 
 ## Response SLAs
 
-| Severity | Acknowledgement | Initial Assessment | Fix / Mitigation | Public Disclosure |
+| Severity | Acknowledgment | Initial Assessment | Fix / Mitigation | Public Disclosure |
 |----------|----------------|-------------------|-------------------|-------------------|
 | **Critical** (RCE, auth bypass, data exposure) | 4 hours | 24 hours | 7 days | 30 days |
 | **High** (privilege escalation, DoS) | 8 hours | 72 hours | 30 days | 60 days |

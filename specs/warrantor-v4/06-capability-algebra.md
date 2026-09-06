@@ -178,7 +178,7 @@ examples in §4 and §8 reproduce exactly.
 This is a check over a sample, not a proof over the domain. Promoting it to a proof — including the
 action and constraint dimensions, and the full set-meet of §6 — is the concrete scope of the
 machine-checked specification (`R9`, Tier C). The property is now small and precise enough that
-proving it is a bounded task rather than an open-ended research programme, which is the main reason
+proving it is a bounded task rather than an open-ended research program, which is the main reason
 this document was worth writing before any implementation.
 
 ---

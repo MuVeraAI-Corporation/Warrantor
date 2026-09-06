@@ -75,7 +75,7 @@ FIPS-140 validated hardware or in a qualified cloud HSM. Even OV therefore requi
 or a signing service — a `.p12` on a laptop is no longer an option for anyone. Practical routes:
 
 - **Azure Trusted Signing** — subscription-based, no token to mail, integrates with
-  electron-builder's `win.azureSignOptions`. Requires a verified organisation.
+  electron-builder's `win.azureSignOptions`. Requires a verified organization.
 - **DigiCert KeyLocker** or **SSL.com eSigner** — cloud HSM plus a signing client.
 - A physical USB token — cheapest, and the worst fit for CI, because a token cannot be plugged into
   a GitHub-hosted runner.

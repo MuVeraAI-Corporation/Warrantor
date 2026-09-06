@@ -44,12 +44,14 @@
     {
       "id": "I-05",
       "statement": "Revocation latency is bounded. Identity revocation (I1) propagates to all replicas in <5s; credential revocation (R4) in <1s.",
-      "status": "orphaned",
+      "status": "partial",
       "enforced_by": [
         {"crate": "credential-vault", "symbol": "warrantor_credential_vault::REVOKE_BUDGET", "test": "rust/credential-vault/src/lib.rs::revoke_all_meets_budget", "note": "1 s budget; over-budget revocation is an error"},
-        {"crate": "credential-vault", "symbol": "warrantor_credential_vault::Vault", "test": "rust/credential-vault/src/lib.rs::revocation_survives_an_actual_restart_ax40", "note": "asserts 'a revoked credential MUST stay revoked across a restart (I-05)'"}
+        {"crate": "credential-vault", "symbol": "warrantor_credential_vault::Vault", "test": "rust/credential-vault/src/lib.rs::revocation_survives_an_actual_restart_ax40", "note": "asserts 'a revoked credential MUST stay revoked across a restart (I-05)'"},
+        {"crate": "warrant", "symbol": "warrantor_warrant::revoke::RevocationStore", "test": "rust/warrant/tests/revocation.rs::a_revoked_subject_is_refused_at_the_identity_gate_on_the_products_own_path", "note": "the product's one notary call consults a durable local revocation journal; the refusal is paired with an allowed control"},
+        {"crate": "warrant", "symbol": "warrantor_warrant::IDENTITY_REVOCATION_SLA", "test": "rust/warrant/tests/revocation_latency.rs::a_propagation_slower_than_the_sla_fails_the_measurement", "note": "5 s identity bound, measured; a breach fails the test rather than being logged"}
       ],
-      "gap": "warrantor-credential-vault is not linked by the warrantor binary; identity revocation (<5s) has no implementation at all. Phase 3 custody (L1-07)."
+      "gap": "Partial, not enforced. The refusal is Tier B, a chokepoint in notary::verdict, so an agent that never asks for a verdict is never refused. Propagation is Tier C, observed, and is measured for ONE process and ONE of the two enforcement points: there is no fan-out, no broker and no replica set, so 'propagates to all replicas' is measured against one replica. The revoked set is ONE STORE's journal, not one machine's: --root selects the store, and another root on the same machine reads a different file, so the same subject can be revoked in one store and allowed in another on the same host. The 1-second credential budget is compared only inside Vault::revoke and Vault::revoke_all, which no shipped path calls, so linking credential-vault bought its journal FORMAT and not its budget. egress::decide does not consult the revocation set (Task 7.7); the default subject is DEFAULT_CLI_SUBJECT, a constant, and grant --subject / revoke --svid accept arbitrary strings, until Task 3.1; cross-machine revocation is Task 9.5. Per-point counts are in evidence/revocation-latency.json."
     },
     {
       "id": "I-06",
@@ -68,9 +70,11 @@
       "enforced_by": [
         {"crate": "evidence", "symbol": "warrantor_evidence::verify_chain", "test": "rust/evidence/src/lib.rs::orphan_post_commit_no_parent_rejected", "note": "'post_commit has no parent_receipt (orphan; I-07)'"},
         {"crate": "evidence", "symbol": "warrantor_evidence::verify_chain", "test": "rust/evidence/src/lib.rs::post_commit_wrong_parent_rejected", "note": ""},
-        {"crate": "evidence", "symbol": "warrantor_evidence::issue_pre_commit", "test": "rust/evidence/src/lib.rs::an_expired_pre_commit_sinks_the_chain", "note": ""}
+        {"crate": "evidence", "symbol": "warrantor_evidence::issue_pre_commit", "test": "rust/evidence/src/lib.rs::an_expired_pre_commit_sinks_the_chain", "note": ""},
+        {"crate": "warrant", "symbol": "warrantor_warrant::settle::EvidencedPerformer", "test": "rust/warrant/tests/report_evidence_chain.rs::a_pre_commit_receipt_is_on_disk_before_the_effect_is_performed", "note": "counts the lines already durable in receipts/<id>.jsonl at the instant the adapter is called: 1 then 3"},
+        {"crate": "warrant", "symbol": "warrantor_warrant::report::verify_effect_receipts", "test": "rust/warrant/tests/report_evidence_chain.rs::removing_one_receipt_from_the_export_is_a_commit_gate_violation", "note": "commit-gate violation (I-07): the post-commit receipt for <handle> is missing from the export"}
       ],
-      "gap": "The commit gate is enforced for callers of verify_chain; no live warrantor effect passes through a pre_commit receipt until Task 1.1 wires evidence into the report path. Promote to enforced in that PR, on the live-run receipt."
+      "gap": "Task 1.1 wired the commit gate onto the settle path: EvidencedPerformer takes a notary verdict per effect, makes a pre-commit receipt durable before the adapter runs, and refuses to perform the effect if it cannot. Live run 2026-09-05, warrant wrt_d891c73cbcb70a62. It stays PARTIAL rather than being promoted, for one structural reason: the guarantee is held by a WRAPPER, so it holds at the call sites that wrap -- the CLI settle and the HTTP settle route -- and a caller passing a bare EffectPerformer to settle() still gets one. Promotion needs the wrap to be unavoidable rather than conventional. Task 5.3 strategy A2 records the residue executably: verify_export binds the notary receipt's timestamp to the bundle and does not bind the evidence receipt's binding.issued_at, so a report's evidence half can claim any issuance time. That test starts failing the moment a binding lands, which is when it must be converted to refused_at_the_boundary."
     },
     {
       "id": "I-08",
@@ -102,7 +106,7 @@
         {"crate": "notary", "symbol": "warrantor_notary::Gate::Freshness", "test": "rust/notary/src/lib.rs::gate3_freshness_replayed_nonce_denies", "note": "seen_nonces is a caller-supplied Vec on VerdictContext; no durable nonce store exists in warrant"},
         {"crate": "notary", "symbol": "warrantor_notary::Gate::Freshness", "test": "rust/notary/src/lib.rs::gate3_freshness_stale_timestamp_denies", "note": ""}
       ],
-      "gap": "The gate refuses a replay it is told about; nothing on the warrant path remembers nonces across calls. Phase 3 recorder (L7-20)."
+      "gap": "The gate refuses a replay it is told about; nothing on the warrant path remembers nonces across calls. Phase 3 recorder (L7-20). Task 5.3 strategy A4 records the unrefused case executably against a VerdictContext shaped exactly like the one the product builds (a test fixture, not a product call: the product link is the static count), and counts both call sites -- report.rs and settle.rs -- so closing one and leaving the other cannot read as closed. It starts failing when a nonce store lands."
     },
     {
       "id": "I-11",
@@ -120,10 +124,10 @@
       "status": "partial",
       "enforced_by": [
         {"crate": "notary", "symbol": "warrantor_notary::Gate::Containment", "test": "rust/notary/src/lib.rs::gate1_containment_denies_first", "note": "a contained scope is refused before any other gate runs"},
-        {"crate": "warrant", "symbol": "warrantor_warrant::stop::STOP_ENFORCEMENT_MODE", "test": "rust/warrant/tests/stop.rs::a_live_supervisor_is_terminated_and_confirmed_gone", "note": "STOP_ENFORCEMENT_MODE = \"advisory\" (rust/warrant/src/stop.rs:104)"},
-        {"crate": "warrant", "symbol": "warrantor_warrant::stop::STOP_ENFORCEMENT_MODE", "test": "rust/warrant/tests/stop.rs::a_supervisor_that_will_not_die_is_a_containment_failure_not_a_stop", "note": "a stop that does not stop is scored as a containment failure, never a pass"}
+        {"crate": "warrant", "symbol": "warrantor_warrant::stop::EnforcementMode", "test": "rust/warrant/tests/stop.rs::a_live_supervisor_is_terminated_and_confirmed_gone", "note": "the mode is per kernel since Task 1.3: Enforced only where a conformance drill observed the tree die within budget, Advisory otherwise"},
+        {"crate": "warrant", "symbol": "warrantor_warrant::stop::EnforcementMode", "test": "rust/warrant/tests/stop.rs::a_supervisor_that_will_not_die_is_a_containment_failure_not_a_stop", "note": "a stop that does not stop is scored as a containment failure, never a pass"}
       ],
-      "gap": "The stop verb kills a local process and says so honestly as 'advisory'; the kill-switch crate (its own tokio runtime) is not linked, and no cyber-physical safe-state path exists. Task 1.3 promotes STOP_ENFORCEMENT_MODE only where a refusal is observed on that kernel."
+      "gap": "The stop verb kills a local process through kill-switch-core and derives its mode from a drill receipt per kernel; no drill has been earned on a kernel whose existence checks fit the budget, and no cyber-physical safe-state path exists. Task 1.3 built the receipt; a kernel claims Enforced only by running warrantor conformance run and passing it."
     }
   ]
 }

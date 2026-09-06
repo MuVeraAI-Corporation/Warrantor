@@ -21,7 +21,7 @@ That matters here more than for most projects:
   in 2026 and now directs automated publishing to trusted publishing or staged publishing.
 
 It is also, frankly, the consistent thing to do. This project's whole argument is that authority
-should be bounded, scoped in advance, and answerable afterwards. Publishing it with a permanent
+should be bounded, scoped in advance, and answerable afterward. Publishing it with a permanent
 credential pasted into a secret would undercut the thesis on the first line of the release process.
 
 ---

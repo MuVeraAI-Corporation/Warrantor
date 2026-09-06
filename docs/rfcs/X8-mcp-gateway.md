@@ -47,7 +47,7 @@ the authorized tool SVID. It declares the MCP protocol version, accepts JSON or 
 Events, enforces a timeout, requires HTTPS except for loopback development, matches the response
 ID, validates the JSON-RPC envelope, and converts remote errors into typed gateway failures.
 Only a validated remote result increments the `forwarded` counter; denials and transport failures
-increment `failed` and cannot produce a success acknowledgement.
+increment `failed` and cannot produce a success acknowledgment.
 
 The stdio server implements the modern `2026-07-28` stateless era: every request carries the
 reserved `io.modelcontextprotocol/*` version and client-capability metadata, `server/discover`
@@ -82,7 +82,7 @@ Primary threats and implemented mitigations:
 | Response substitution or stale event is accepted | JSON-RPC version and request-ID matching |
 | Cleartext remote interception | HTTPS required for non-loopback Streamable HTTP endpoints |
 | Hung server consumes the caller's time budget | AbortController timeout and typed retryability |
-| Remote error is hidden behind a synthetic acknowledgement | JSON-RPC errors propagate as `remote_error`; forwarding counters advance only on validated results |
+| Remote error is hidden behind a synthetic acknowledgment | JSON-RPC errors propagate as `remote_error`; forwarding counters advance only on validated results |
 
 Cross-cutting threats and mitigations are summarized in [`02-architecture.md`](../02-architecture.md) §9.
 The 12 formal invariants (I-01…​I-12) that this component must satisfy are listed in

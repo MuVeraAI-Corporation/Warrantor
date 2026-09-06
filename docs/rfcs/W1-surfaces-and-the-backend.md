@@ -16,7 +16,7 @@ Stated first, because everything below is derived from it rather than from a pla
 | **Local agent** | Real, ~10.9k lines | `rust/warrant` — grant, supervise, stage, settle, stop, spend, egress, MCP, and `warrantor serve` |
 | **Browser console** | New, this RFC's companion change | `rust/warrant/src/console/`, served same-origin by the agent |
 | **Desktop app** | Did not exist | one mention of "electron" in the whole repository, in a `serve.rs` comment |
-| **Web app** | Did not exist | `typescript/console` is a 263-line library modelling AARs, Rego policies and tenant-guard — a *different* architecture, consumed by nothing |
+| **Web app** | Did not exist | `typescript/console` is a 263-line library modeling AARs, Rego policies and tenant-guard — a *different* architecture, consumed by nothing |
 | **Model intelligence** | Real, in progress | `python/warrantor_ml`, `ml/` |
 
 `warrantor serve` exposes twelve `/v1` routes over loopback HTTP. Exactly three mutate — `settle`,
@@ -128,8 +128,8 @@ could have edited.
 
 ### Relationship to model intelligence
 
-`python/warrantor_ml` produces judgements about *content*; the warrant substrate produces evidence
-about *authority* and *effects*. They meet at exactly one place: a model's judgement can become a
+`python/warrantor_ml` produces judgments about *content*; the warrant substrate produces evidence
+about *authority* and *effects*. They meet at exactly one place: a model's judgment can become a
 **refusal signal** recorded against a warrant, which is the shape `record_refusals` already expects.
 
 The boundary that matters: **a model's output is never a verdict.** A refusal is evidence that
@@ -143,7 +143,7 @@ must not touch the verification path.
   the console: the assets are `include_str!`-ed and the HTTP layer is the existing one.
 - No JavaScript build step, framework, bundler or package manager. The console is plain ES modules
   and CSS, which keeps the audit surface of the oversight UI readable in full. `node --test` is not
-  a violation of that rule and the console's behaviour tests use it: it is the runtime's own runner,
+  a violation of that rule and the console's behavior tests use it: it is the runtime's own runner,
   it installs nothing, there is no `package.json` beside the assets, and `desktop/test/policy.test.js`
   already runs under it here. Reading the rule as "no test runner either" is what left `emptyKind`
   untested, and three of its four rungs were wrong.

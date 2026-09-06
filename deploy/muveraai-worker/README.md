@@ -12,7 +12,7 @@ Serves the two things the repository's identifiers point at:
 `muveraai.com` is a live production site — 30 pages, a Next.js origin, and Google
 Workspace email. This Worker is attached to **two path prefixes only**, both of
 which returned `404` from the origin before it existed. Every request it does not
-positively recognise is passed to the origin unchanged, so a mistake here degrades
+positively recognize is passed to the origin unchanged, so a mistake here degrades
 to "the site as it was" rather than to an outage.
 
 Three independent things have to hold, and each is checked rather than assumed:
@@ -49,7 +49,7 @@ signal is: every previously-200 path still returns 200, and only paths under
                                 └── prefix ──────────────────┘     └── repo ──────────────────┘ └── subdir ──┘
 ```
 
-The fourth field is a repository subdirectory, recognised since **Go 1.25**. It is
+The fourth field is a repository subdirectory, recognized since **Go 1.25**. It is
 what allows a module to live at `go/agent-identity/` in this monorepo while being
 imported as `muveraai.com/go/agent-identity`.
 
@@ -68,7 +68,7 @@ Worker at the **homepage**. Declaring the prefix equal to the full module path
 skips that check entirely, which is why `/go/*` is a sufficient route.
 
 Consequence worth knowing: a client on Go < 1.25 running `GOPROXY=direct` will not
-recognise the four-field form. The default `GOPROXY=proxy.golang.org` resolves
+recognize the four-field form. The default `GOPROXY=proxy.golang.org` resolves
 server-side and is unaffected, which covers essentially all consumers.
 
 ## Generated, not hand-maintained

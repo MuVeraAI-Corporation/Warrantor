@@ -34,7 +34,7 @@ Worth checking first, because these come up often and each has a real reason beh
 limit means *none* in this system, not *unlimited* — an empty egress list is no network access. This
 is deliberate, and it is what lets the tool state honestly what an agent cannot do.
 
-**"My budget limit did not stop anything."** Budget is *measured*, not *enforced*, and is labelled
+**"My budget limit did not stop anything."** Budget is *measured*, not *enforced*, and is labeled
 that way everywhere it appears. Model API calls do not pass through us, so we can report spend but
 cannot refuse it.
 

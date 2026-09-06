@@ -79,6 +79,8 @@ pub enum Anchored {
     Spend,
     /// A settle report written by the automatic-filing path.
     SettleReport,
+    /// An exported containment-conformance drill receipt.
+    Conformance,
 }
 
 impl Anchored {
@@ -90,6 +92,7 @@ impl Anchored {
             Self::Stop => "stop",
             Self::Spend => "spend",
             Self::SettleReport => "settle-report",
+            Self::Conformance => "conformance",
         }
     }
 }

@@ -46,6 +46,7 @@
 //! separately defines four *platform* invariants P1-P4, which map onto I-02, I-07 and I-11+I-12.
 //! The two sets are never renumbered into each other and this corpus tests only the first.
 
+mod adversary;
 mod fixture;
 mod harness;
 mod round_zero;

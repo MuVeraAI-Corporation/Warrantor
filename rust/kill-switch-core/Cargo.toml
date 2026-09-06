@@ -1,0 +1,14 @@
+[package]
+name = "warrantor-kill-switch-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Sync process-tree termination with safety rails. No tokio, no clap, no tracing: the part of the kill switch the warrant can link."
+
+[lib]
+name = "warrantor_kill_switch_core"
+path = "src/lib.rs"
+
+[dependencies]
+thiserror.workspace = true

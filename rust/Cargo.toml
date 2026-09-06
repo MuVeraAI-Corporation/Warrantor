@@ -8,6 +8,7 @@ members = [
     "nvtrust-bridge",
     "eval-guard",
     "kill-switch",
+    "kill-switch-core",
     "policy-bridge",
     "protocol-contracts",
     "credential-vault",
@@ -40,6 +41,7 @@ members = [
     "csam-defense",
     "misinformation-defense",
     "reputation",
+    "delegation-chain",
 ]
 exclude = [
     "trust-core/fuzz",  # nested cargo-fuzz workspace (own [workspace] table)

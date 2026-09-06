@@ -171,6 +171,13 @@ impl WarrantStore {
         self.root.join("witness").join(format!("{id}.jsonl"))
     }
 
+    /// Path to a warrant's per-effect receipt log. Not under `staged/` or `witness/`: see
+    /// [`crate::receipts`].
+    #[must_use]
+    pub fn receipts_path(&self, id: &str) -> PathBuf {
+        self.root.join("receipts").join(format!("{id}.jsonl"))
+    }
+
     /// Persist a warrant, replacing any existing record for the same id.
     ///
     /// The write is atomic: content goes to a temporary file which is then renamed over the

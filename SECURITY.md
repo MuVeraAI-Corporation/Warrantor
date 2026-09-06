@@ -29,7 +29,7 @@ Include:
 
 ## Response SLAs
 
-| Severity | Acknowledgement | Initial Assessment | Fix / Mitigation | Public Disclosure |
+| Severity | Acknowledgment | Initial Assessment | Fix / Mitigation | Public Disclosure |
 |----------|-----------------|-------------------|-------------------|-------------------|
 | **Critical** (RCE, auth bypass, signature forgery, data exposure) | 4 hours | 24 hours | 7 days | 30 days |
 | **High** (privilege escalation, DoS, sandbox bypass) | 8 hours | 72 hours | 30 days | 60 days |

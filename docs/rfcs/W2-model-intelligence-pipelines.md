@@ -21,7 +21,7 @@ Separately, four capabilities the substrate promises are not backed by a model a
 concrete is `/v1/summary/refusals`, which serves the sentence *"the same wall in more than one
 run is usually a bound that is wrong rather than an agent that is wrong"* — a sentence produced
 by comparing two constants, `REPEATED_OCCURRENCES = 5` and `SPREAD_WARRANTS = 2`. It reads like
-a judgement and is a threshold.
+a judgment and is a threshold.
 
 This RFC specifies the data pipelines, training recipes and blind parity-eval harness for eight
 models, and the refusals that keep them from doing more harm than good. **No training run is
@@ -33,7 +33,7 @@ an orchestrator acts on it.
 W1 governs where verdicts come from, and this RFC is subordinate to it on every point. Two of
 its constraints do structural work here rather than appearing as warnings:
 
-- **A model's output is never a verdict.** Model judgements become *signals* recorded against a
+- **A model's output is never a verdict.** Model judgments become *signals* recorded against a
   warrant. Integrity remains an Ed25519 question with a three-valued answer — `ok`, `failed`,
   `unknown` — and `unknown` is never rendered as `failed`.
 - **Verification happens only in Rust, client-side.** No signature check, no key, and no digest
@@ -63,7 +63,7 @@ how each is made structurally unable to violate them rather than merely instruct
 - Executing a training run, or dispatching one. The orchestrator does that.
 - Wiring any model output into a served API response. That is a Rust change, tracked as a W1
   delivery gap, and deliberately outside this workstream.
-- Clearing ExpGuardMix for commercial use. Its CC-BY-4.0 licence and its research-only gate form
+- Clearing ExpGuardMix for commercial use. Its CC-BY-4.0 license and its research-only gate form
   disagree; that needs counsel, not code.
 
 ## Detailed Design
@@ -79,7 +79,7 @@ how each is made structurally unable to violate them rather than merely instruct
 | 5 | Bound proposer | `qwen3guard-gen-0.6b` | warrants + teacher augmentation | **over-grant rate** |
 | 6 | Refusal triage | `qwen3guard-gen-0.6b` | refusals + the operator's next grant | rate of arguing to widen when the agent was wrong |
 | 7 | Effect-risk classifier | `qwen3guard-gen-0.6b` | schema labels | recall on the consequential set; downgrades counted separately |
-| 8 | Report summariser | `qwen3guard-gen-0.6b` | verified report bundles | faithfulness, not similarity |
+| 8 | Report summarizer | `qwen3guard-gen-0.6b` | verified report bundles | faithfulness, not similarity |
 
 Models 1–4 differ in exactly two variables: the base profile, and which rows are selected. There
 is one corpus builder, one target renderer and one set of hyperparameters, because a
@@ -102,11 +102,11 @@ Every built corpus emits a `DatasetManifest`. Its validator refuses, by name, fi
 
 1. a generated block whose generator is registered with `role='judge'`;
 2. any teacher-generated row assigned to an eval split;
-3. a corpus row with no licence;
+3. a corpus row with no license;
 4. a declared row count that disagrees with the counted rows behind the content digest;
 5. a manifest with no CSAM-exclusion attestation naming its filters.
 
-Licence facts are pulled *from* the dataset registry rather than retyped at the call site, and
+License facts are pulled *from* the dataset registry rather than retyped at the call site, and
 frontier lineage is derived rather than declared — a corpus whose registry notes record upstream
 GPT-4o generation inherits that dependency automatically, so a caller cannot forget it.
 
@@ -156,15 +156,15 @@ is an abstention and never a fall-back to `read` — `SideEffectClass::parse` re
 Rust, and the permissive default is exactly what would narrow `staged_classes`, which the
 substrate classifies as an expansion of authority.
 
-**Model 8, the report summariser.** This is the live hazard: a fluent summary of a tampered
+**Model 8, the report summarizer.** This is the live hazard: a fluent summary of a tampered
 record is more persuasive than the banner beside it. It is handled structurally rather than with
 a conditional. `VerifiedBundleView` has exactly one constructor, which reads the Rust-produced
 envelope and raises unless `integrity == "ok"`, with **distinct messages** for `failed` and
 `unknown` — `unknown` means nothing was checked, and telling its owner it was tampered with is a
-false accusation. The summariser accepts that type and nothing else, so there is no code path
+false accusation. The summarizer accepts that type and nothing else, so there is no code path
 from an unverified bundle to prose. The module performs no digest comparison, imports no crypto,
 and is not even shown the verification verdict, so it cannot describe one. Its output carries the
-`bundle_digest` it summarised, contains no envelope vocabulary as whole words, and must name that
+`bundle_digest` it summarized, contains no envelope vocabulary as whole words, and must name that
 the bundle carries limitations. The eval is a faithfulness check — every number traceable to a
 field — not a similarity score, because a model with fluent prose and one invented figure scores
 well on similarity and is unusable.
@@ -188,7 +188,7 @@ reporting a delta.
 ### The parity gate
 
 Verdicts: `promote`, `reject`, `insufficient_evidence`. Preconditions it refuses on rather than
-guesses about: the eval split must not appear in the training corpus (checked by normalised
+guesses about: the eval split must not appear in the training corpus (checked by normalized
 content digest, because teacher augmentation over a train split is the real leak path, not the
 published split boundary); the positive count must clear a floor; the backend error rate must be
 under a ceiling (fail-closed scores an error as HARMFUL, which *inflates* recall); lane and
@@ -214,7 +214,7 @@ than falling through to the weaker test that would pass:
   test was run at all, and the gate silently becomes the one-sided recall gate it exists to
   refuse.
 - A per-category floor the candidate does not report is not a floor that was cleared. Floors and
-  observed numbers are matched under one normalisation (`baselines.normalise_category`), because
+  observed numbers are matched under one normalization (`baselines.normalise_category`), because
   WildGuard spells classes `fraud_assisting_illegal_activities` while ExpGuard spells the same
   kind of thing `Unqualified Professional Advice`. The promotion reason states how many floors
   were actually checked and never asserts a check that did not run.
@@ -234,7 +234,7 @@ the eval-set digest, the manifest digest, the lane and the precision.
 
 - `warrantor_ml.evaluate`, `benchmark_wildguard`, `benchmark_expguard` — reused, not duplicated.
 - `warrantor_ml.fine_tune` — `PROFILES` and the pure VRAM estimator.
-- `warrantor_ml.datasets` — licence and gating facts, read rather than retyped.
+- `warrantor_ml.datasets` — license and gating facts, read rather than retyped.
 - `warrantor_ml._canonical` — canonical JSON and SHA-256 for every digest.
 - `rust/warrant` — one new example emitting the bounds interop fixture. No library change.
 - Optional extras, none in `dev`: `parquet` (pyarrow), `hub`, `train`, and a new `modal` extra.
@@ -244,22 +244,22 @@ the eval-set digest, the manifest digest, the lane and the precision.
 
 | Threat | Mitigation |
 |---|---|
-| A fluent summary of a tampered bundle reaches a decision-maker | `VerifiedBundleView` has one constructor which refuses unless the Rust verdict is `ok`; the summariser accepts no other type |
+| A fluent summary of a tampered bundle reaches a decision-maker | `VerifiedBundleView` has one constructor which refuses unless the Rust verdict is `ok`; the summarizer accepts no other type |
 | `unknown` integrity rendered as `failed` | Distinct refusal messages; a test asserts the `unknown` message contains no accusation |
 | Python becomes a second verifier | `tasks/summary.py` imports no crypto and no digest helper; asserted against the parsed AST |
-| A model judgement displayed as the system's verdict | `TriageEstimate` is a separate record with a non-constructable `source="model"`; it has no field mapping onto `RefusalGroup.signal` |
+| A model judgment displayed as the system's verdict | `TriageEstimate` is a separate record with a non-constructable `source="model"`; it has no field mapping onto `RefusalGroup.signal` |
 | An absent limit read as unlimited | `BoundProposal` has no optional fields; incompleteness is a counted third outcome; the arithmetic is pinned to Rust by fixture |
 | `staged_classes` narrowed by a model, expanding authority | The expansion rule is mirrored and fixture-tested; an unknown effect class abstains rather than defaulting to the least consequential |
 | Frontier model generates training data | `generate()` refuses any id not in `TEACHERS`, before the backend is touched; `JudgeScore` is not a row type |
-| An eval set that stopped being held out | Normalised-content leakage check; teacher-generated rows are refused in any eval split |
+| An eval set that stopped being held out | Normalized-content leakage check; teacher-generated rows are refused in any eval split |
 | A promotion bought with false positives | Two-sided gate; FPR regression blocks promotion independently of recall |
 | The two-sided gate degrading to a one-sided one | A slice whose baseline or candidate arm has no negatives cannot support the FPR test; the gate returns `insufficient_evidence` instead of falling through to the recall test alone |
 | A promotion on too little evidence | Positive-count floor; `insufficient_evidence` verdict quoting the minimum detectable delta |
 | A confounded cross-lane comparison | Lane and precision recorded and compared; mismatch is a refusal, not a delta |
 | A comparison across two different corpora | `eval_set.source` is bound to the baseline's `(corpus, split)` by digest; a mismatch, or a document that does not say, is refused |
 | A promotion that cannot be re-audited | A result document with no `eval_set.digest` is refused; both benchmark modules emit the SHA-256 of the split they scored |
-| A per-category floor silently not enforced | Floors and observed recall are matched under one normalisation; an unreported floor is `insufficient_evidence`, never a pass, and the promotion reason names the count actually checked |
-| A benign counterweight silently not honoured | `_counterweight` raises when the unselected pool cannot supply the requested rows, rather than returning what it has |
+| A per-category floor silently not enforced | Floors and observed recall are matched under one normalization; an unreported floor is `insufficient_evidence`, never a pass, and the promotion reason names the count actually checked |
+| A benign counterweight silently not honored | `_counterweight` raises when the unselected pool cannot supply the requested rows, rather than returning what it has |
 | Unlinted code shipped under `ml/` | Lane runners are generated from linted package code; tests **execute** the generated runner and drive its real data path with a stub tokenizer, because `compile()` passes on a script that dies at step 0 |
 | Gated-corpus rows committed or redistributed | Built corpora and benchmark result directories are gitignored |
 
@@ -294,7 +294,7 @@ The tests that carry the most weight:
 - **The cross-language bounds fixture.** Twelve vectors decided by Rust, asserted in Python on
   both verdict and blamed bound. It **fails** rather than skips when the fixture is absent — an
   interop test that skips silently is a safety net that reports success without being exercised.
-- **The summariser's structural constraint.** One constructor; `failed` and `unknown` refused
+- **The summarizer's structural constraint.** One constructor; `failed` and `unknown` refused
   with distinct messages; no crypto import, checked against the AST rather than the text.
 - **The two-sided gate.** A candidate with genuinely better recall and a significantly worse
   false-positive rate is rejected, and the reason names the trade. Separately: a candidate with

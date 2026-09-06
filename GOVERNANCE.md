@@ -12,7 +12,7 @@ not reached, the maintainer responsible for that area decides and records why.
 
 ## Becoming a maintainer
 
-Sustained, high-quality contribution and demonstrated judgement about what *not* to build. An
+Sustained, high-quality contribution and demonstrated judgment about what *not* to build. An
 existing maintainer proposes; the others agree. There is no fixed contribution count, because the
 review that catches a subtle authority bug is worth more than twenty typo fixes.
 
@@ -22,7 +22,7 @@ Two maintainers must approve changes to:
 
 - **Authority semantics** — anything touching warrant bounds, capability tokens, or settle authority.
 - **Cryptographic code** — signing, verification, domain separation, key handling.
-- **The staging and settle engine** — release ordering, partial-failure behaviour.
+- **The staging and settle engine** — release ordering, partial-failure behavior.
 - **Process supervision** — the OS lifetime link.
 
 These are the areas where a plausible-looking change can be wrong in a way that tests still pass. A
@@ -52,7 +52,7 @@ the [README](README.md), ranked by what it unblocks.
 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) applies to every project space. Reports go to the address
 listed there.
 
-## Licence and provenance
+## License and provenance
 
 Apache-2.0. Every commit carries a [DCO](https://developercertificate.org/) sign-off, enforced in CI.
 There is no CLA — the DCO is sufficient and does not ask contributors to assign rights.

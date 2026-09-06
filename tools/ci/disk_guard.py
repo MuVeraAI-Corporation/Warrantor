@@ -1,0 +1,240 @@
+#!/usr/bin/env python3
+"""Refuse to start a build wave on a disk that cannot hold it, and say what is holding the rest.
+
+On 2026-09-05 sixty cargo target directories of 10-32 GB each filled a 1.2 TB drive to 100% and
+killed seven build lanes mid-flight. Every lane had been TOLD to check free space and to delete its
+build directory when done; two of seven did. Instruction is not a mechanism. This is the mechanism:
+a workflow runs `--require` before fanning out and does not fan out when it fails, and `--sweep-plan`
+produces the one deletion script that has actually worked here, so nobody hand-writes another.
+
+    python tools/ci/disk_guard.py --require 200        # exit 1 unless >= 200 GB free on the repo drive
+    python tools/ci/disk_guard.py --require-commit 24  # exit 1 unless >= 24 GB of commit charge is free
+    python tools/ci/disk_guard.py --list [--sizes]      # every *-target dir and worktree; sizes are slow
+    python tools/ci/disk_guard.py --sweep-plan 6 --out M:/sweep.ps1   # delete target dirs idle > 6 h
+
+A build tree here is 11-17 GB measured. With N concurrent lanes the floor is N*20 GB plus a margin;
+for six lanes that is about 220 GB. A per-lane check of "40 GB free at my start" is worth nothing
+when five other lanes are building at the same moment, which is the mistake this replaces.
+
+The second ceiling is memory. On 2026-09-06 a gate on a tree with 300 GB of disk free died with
+`os error 1455` and rustc exit 0xc000012d, the Windows commit limit: 94 of 111 GB of commit charge
+was held by other processes. An unthrottled rustc wants 20 GB or more; `--require-commit` refuses
+the wave before that, and every lane sets CARGO_BUILD_JOBS=2 so it fits in what is left.
+"""
+from __future__ import annotations
+
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+# Build trees and worktrees live beside the repository, not inside it: M:/wt-<x> and M:/wt-<x>-target.
+DRIVE_ROOT = Path(REPOSITORY_ROOT.anchor)
+DRIVE_LETTER = DRIVE_ROOT.drive.rstrip(":")  # "" on a non-Windows path
+GB = 1024 ** 3
+
+
+def free_gb() -> float:
+    return shutil.disk_usage(DRIVE_ROOT).free / GB
+
+
+def available_commit_gb() -> float | None:
+    """Commit charge still available (page file + RAM), the figure rustc exhausts. None off Windows."""
+    if os.name != "nt":
+        return None
+    import ctypes
+
+    class MemoryStatusEx(ctypes.Structure):
+        _fields_ = [
+            ("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
+            ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
+            ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
+            ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
+            ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+        ]
+
+    status = MemoryStatusEx()
+    status.dwLength = ctypes.sizeof(status)
+    if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+        return None
+    return status.ullAvailPageFile / GB
+
+
+def newest_mtime(path: Path, depth: int = 2) -> float:
+    """The newest mtime within `depth` levels: a live build touches something near the top."""
+    newest = path.stat().st_mtime
+    frontier = [path]
+    for _ in range(depth):
+        next_frontier: list[Path] = []
+        for d in frontier:
+            try:
+                with os.scandir(d) as it:
+                    for entry in it:
+                        try:
+                            newest = max(newest, entry.stat(follow_symlinks=False).st_mtime)
+                        except OSError:
+                            continue
+                        if entry.is_dir(follow_symlinks=False):
+                            next_frontier.append(Path(entry.path))
+            except OSError:
+                continue
+        frontier = next_frontier
+    return newest
+
+
+def dir_size_gb(path: Path) -> float:
+    total = 0
+    for root, _dirs, files in os.walk(path):
+        for name in files:
+            try:
+                total += os.stat(os.path.join(root, name)).st_size
+            except OSError:
+                continue
+    return total / GB
+
+
+def target_dirs() -> list[Path]:
+    return sorted(p for p in DRIVE_ROOT.glob("*-target") if p.is_dir())
+
+
+def worktrees() -> list[str]:
+    out = subprocess.run(
+        ["git", "worktree", "list", "--porcelain"],
+        cwd=REPOSITORY_ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace",
+    )
+    return [line[len("worktree "):] for line in out.stdout.splitlines() if line.startswith("worktree ")]
+
+
+def cmd_require(need_gb: float) -> int:
+    have = free_gb()
+    ok = have >= need_gb
+    verdict = "OK" if ok else "REFUSE"
+    print(f"disk guard: {have:.1f} GB free on {DRIVE_ROOT}, require {need_gb:.0f} GB -> {verdict}")
+    if not ok:
+        print(
+            f"::error::disk guard: {have:.1f} GB free is below the {need_gb:.0f} GB floor; "
+            "do not start a build wave. Run --list to see what is holding it.",
+            file=sys.stderr,
+        )
+        return 1
+    return 0
+
+
+def cmd_require_commit(need_gb: float) -> int:
+    have = available_commit_gb()
+    if have is None:
+        print(f"disk guard: commit charge is not measurable here; require {need_gb:.0f} GB -> SKIPPED")
+        return 0
+    ok = have >= need_gb
+    verdict = "OK" if ok else "REFUSE"
+    print(f"disk guard: {have:.1f} GB of commit charge available, require {need_gb:.0f} GB -> {verdict}")
+    if not ok:
+        print(
+            f"::error::disk guard: {have:.1f} GB of commit charge is below the {need_gb:.0f} GB floor; "
+            "rustc will die with 0xc000012d. Close sessions or plugins, or lower the lane count.",
+            file=sys.stderr,
+        )
+        return 1
+    return 0
+
+
+def cmd_list(with_sizes: bool) -> int:
+    now = time.time()
+    dirs = target_dirs()
+    print(
+        f"disk guard: {free_gb():.1f} GB free; {len(dirs)} cargo target dir(s); "
+        f"{len(worktrees())} registered worktree(s)"
+    )
+    for d in dirs:
+        idle_h = (now - newest_mtime(d)) / 3600
+        size = f"{dir_size_gb(d):5.1f} GB  " if with_sizes else ""
+        print(f"  {size}idle {idle_h:6.1f} h  {d.name}")
+    return 0
+
+
+def cmd_sweep_plan(idle_hours: float, out: Path | None) -> int:
+    if not DRIVE_LETTER:
+        print("disk guard: not a Windows drive; a PowerShell sweep plan does not apply here")
+        return 0
+    now = time.time()
+    all_dirs = target_dirs()
+    stale = [d for d in all_dirs if (now - newest_mtime(d)) / 3600 >= idle_hours]
+    live = [d for d in all_dirs if d not in stale]
+    lines = [
+        "# Generated by tools/ci/disk_guard.py --sweep-plan. Deletes cargo target directories that",
+        f"# no build has touched for {idle_hours:g} hours. Build artifacts only: no source, no git",
+        "# objects. Errors are reported per directory, never suppressed.",
+        "#",
+        "# PROTECTED (touched more recently, absent from this list):",
+    ]
+    lines += [f"#   {d.name}" for d in live]
+    lines += [
+        "",
+        f"$before = (Get-PSDrive {DRIVE_LETTER}).Free",
+        "$ok = 0; $bad = 0",
+        "$dirs = @(",
+    ]
+    lines += [f"  '{d}'" for d in stale]
+    lines += [
+        ")",
+        "foreach ($d in $dirs) {",
+        '  Write-Host -NoNewline "removing $d ... "',
+        "  try { Remove-Item -LiteralPath $d -Recurse -Force -ErrorAction Stop; Write-Host 'ok'; $ok++ }",
+        '  catch { Write-Host "FAILED: $($_.Exception.Message)"; $bad++ }',
+        "}",
+        f"$after = (Get-PSDrive {DRIVE_LETTER}).Free",
+        'Write-Host "removed $ok, failed $bad"',
+        "Write-Host ('reclaimed {0:N1} GB; {1:N1} GB free now' -f (($after - $before) / 1GB), ($after / 1GB))",
+    ]
+    text = "\n".join(lines) + "\n"
+    print(f"disk guard: {len(stale)} target dir(s) idle >= {idle_hours:g} h, {len(live)} protected")
+    if out is None:
+        print(text)
+        return 0
+    out.write_text(text, encoding="utf-8")
+    print(f"wrote {out}")
+    ps = shutil.which("powershell")
+    if ps:
+        # Validate that the file parses before anyone runs it. A hand-written one-liner with a
+        # quoting error was handed to an operator once; this is why that cannot happen again.
+        check = (
+            "$e=$null;$t=$null;"
+            "[System.Management.Automation.Language.Parser]::ParseFile('"
+            + str(out)
+            + "',[ref]$t,[ref]$e)|Out-Null;"
+            "if($e.Count -eq 0){'PARSE OK'}else{$e|ForEach-Object{'PARSE ERROR: '+$_.Message}}"
+        )
+        r = subprocess.run([ps, "-NoProfile", "-Command", check], capture_output=True, text=True)
+        print(r.stdout.strip() or r.stderr.strip())
+        if "PARSE ERROR" in r.stdout:
+            return 1
+    return 0
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--require", type=float, metavar="GB")
+    ap.add_argument("--require-commit", type=float, metavar="GB")
+    ap.add_argument("--list", action="store_true")
+    ap.add_argument("--sizes", action="store_true")
+    ap.add_argument("--sweep-plan", type=float, metavar="IDLE_HOURS")
+    ap.add_argument("--out", type=Path)
+    a = ap.parse_args()
+    if a.require is not None:
+        return cmd_require(a.require)
+    if a.require_commit is not None:
+        return cmd_require_commit(a.require_commit)
+    if a.list:
+        return cmd_list(a.sizes)
+    if a.sweep_plan is not None:
+        return cmd_sweep_plan(a.sweep_plan, a.out)
+    ap.print_help()
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

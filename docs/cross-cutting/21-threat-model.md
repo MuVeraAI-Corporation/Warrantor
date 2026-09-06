@@ -14,13 +14,13 @@
 ## 0. Why this document exists
 
 An audit on 2026-08-09 found that of eight ways the substrate can be turned against its
-users, **seven had never been analysed anywhere in the repository**. Only confused-deputy
+users, **seven had never been analyzed anywhere in the repository**. Only confused-deputy
 was covered. At the same time, five of the twelve architectural invariants — including
 **I-11, *"an agent cannot modify its own enforcement boundary, policy, or identity"*** —
 had zero implementing code, and 46 of 54 component RFCs deferred their STRIDE analysis to
 a `docs/cross-cutting/` standard that had no filename and did not exist.
 
-A security substrate that has not modelled its own compromise is asking to be trusted on
+A security substrate that has not modeled its own compromise is asking to be trusted on
 the basis that nobody has thought about it carefully. This document is the correction.
 
 ---
@@ -77,7 +77,7 @@ A4 and A5 are the adversaries that determine whether the product is worth deploy
 
 **The load-bearing admission:** B3 is not a boundary. The gateway and the trusted core are
 the same process, so a compromise of either is a compromise of both. Treating them as
-separate in a diagram would be theatre.
+separate in a diagram would be theater.
 
 ---
 
@@ -89,7 +89,7 @@ separate in a diagram would be theatre.
 issued becomes forgeable, and — critically — **indistinguishable from a legitimate one**.
 There is no signal in the artifact itself.
 
-**Current defence:** none. There is no key rotation procedure, no m-of-n quorum on the
+**Current defense:** none. There is no key rotation procedure, no m-of-n quorum on the
 signing key, no transparency-log witness that would let a relying party detect
 retrospective issuance.
 
@@ -109,7 +109,7 @@ not yet — is make it *detectable*:
 stop the system. There is no defined path from "we think the key leaked" to "we are running
 on a new key and old artifacts are correctly re-evaluated."
 
-**Current defence:** none. `T1-trust-core.md` covers KMS on the *signing* side only.
+**Current defense:** none. `T1-trust-core.md` covers KMS on the *signing* side only.
 
 **Requirement:** a rotation procedure must specify what happens to artifacts signed by the
 old key — are they invalid, or valid-until-expiry with a cut-off timestamp? Both are
@@ -117,11 +117,11 @@ defensible; silence is not.
 
 ### 3.3 Malicious or misconfigured policy (A4)
 
-**What happens:** a policy author who can write to the policy corpus can authorise anything.
+**What happens:** a policy author who can write to the policy corpus can authorize anything.
 `policy_digest` in a P2 receipt records *which* policy allowed the action, which is
 excellent for forensics and useless for prevention.
 
-**Current defence:** partial. `policy-bridge` correctly default-denies and rejects
+**Current defense:** partial. `policy-bridge` correctly default-denies and rejects
 fail-open policy documents. But `policies/` was an empty directory until AX-32, and there
 is no signing requirement on a policy file.
 
@@ -135,7 +135,7 @@ control.
 the permission scope at runtime, and the MCP registry Warrantor interoperates with performs no
 signing at all.
 
-**Current defence:** `sandbox-runtime` is real — genuine Wasmtime fuel metering, WASI
+**Current defense:** `sandbox-runtime` is real — genuine Wasmtime fuel metering, WASI
 deliberately unlinked, imports admitted against a signed policy, capabilities
 index-addressed rather than string-addressed. That is the correct enforcement primitive. It
 is not wired to P5's `runtime` enum.
@@ -149,7 +149,7 @@ input rather than as a skill.
 have it. Every downstream check passes, because every downstream check is *designed* to
 trust the issuer.
 
-**Current defence:** partial as of AX-02 — the gateway now binds `keyId → issuer`, so a key
+**Current defense:** partial as of AX-02 — the gateway now binds `keyId → issuer`, so a key
 can only speak for the issuer it is registered against. That contains a *stolen* key to one
 issuer's blast radius. It does nothing against a legitimately-held key used maliciously.
 
@@ -163,7 +163,7 @@ rewrite.
 An adversary who controls the log can present one view to the auditor and another to the
 operator — the classic split-view — and no single party can detect it.
 
-**Current defence:** none. There is no witness, no gossip, no consistency proof, and the
+**Current defense:** none. There is no witness, no gossip, no consistency proof, and the
 Rekor client has never successfully contacted a real transparency log.
 
 **Requirement:** consistency proofs between successive signed tree heads, and at least one
@@ -175,7 +175,7 @@ independent witness. Without a witness, an append-only log is append-only *by as
 closed, availability loss) or proceeds unchecked (fail open, security loss). This is a
 policy decision that must be made explicitly per side-effect class.
 
-**Current defence:** inconsistent, and this is the honest finding. `inference-proxy`'s
+**Current defense:** inconsistent, and this is the honest finding. `inference-proxy`'s
 `DenyAllAuth` default and `policy-bridge`'s `default allow := false` are correct. But four
 paths failed open under dependency failure, of which the attestation path was the worst —
 `warrantor_vllm` returned `verified=True` for any non-empty strings on real hardware until
@@ -190,7 +190,7 @@ transport, and asserts denial in each case.
 **What happens:** the gateway is induced to use its own authority on behalf of a caller who
 lacks it.
 
-**Current defence: GOOD, and the one scenario that was already handled well.** The audience
+**Current defense: GOOD, and the one scenario that was already handled well.** The audience
 check requires the gateway's SVID in `resources`; the tool-side check requires the tool's
 SVID in `tools`; `AUDIENCE_MISMATCH` is a distinct error code; `go/agent-identity` tests the
 empty-`aud` bypass explicitly. `X8-mcp-gateway.md`'s STRIDE table is the model the other 53
@@ -204,7 +204,7 @@ RFCs should follow.
 
 This invariant had **zero implementing code**. It is now enforced at the gateway by treating
 a defined set of resources as *protected*: no authority envelope, however well-signed, may
-authorise a write to the substrate's own enforcement surfaces.
+authorize a write to the substrate's own enforcement surfaces.
 
 Protected surfaces:
 
@@ -239,7 +239,7 @@ Stated explicitly, because a security document without a residual-risk section i
    running with sufficient local privilege.
 4. **A malicious model.** Warrantor constrains what an agent may *do*, not what it may *think*.
    Prompt injection that stays within granted authority is out of scope by design.
-5. **Availability.** There is no DDoS defence, no rate limiting that survives more than one
+5. **Availability.** There is no DDoS defense, no rate limiting that survives more than one
    replica, and no backpressure.
 6. **Side channels.** Timing, cache and speculative-execution attacks are unaddressed.
 7. **Correctness of a TEE vendor's attestation.** Warrantor verifies a quote against a vendor

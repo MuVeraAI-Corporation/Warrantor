@@ -11,6 +11,16 @@ has its CHANGELOG entry populated by the release workflow and reviewed by a main
 
 ### Added — the proxy can forward, and the harnesses that can now be pointed at it
 
+- **Every settled effect is decided, signed before and signed after.** `EvidencedPerformer`
+  wraps the CLI's and the server's performer: notary verdict per effect, pre-commit WAR receipt
+  durable in `receipts/<id>.jsonl` before the adapter runs, post-commit with the outcome after. A
+  pre-commit that cannot be made durable means the effect is not performed, which is the whole of
+  I-07 and the reason the wrapper sits inside `perform`. `report --export` embeds the chain;
+  `verify` checks each pair with `verify_chain` and fails a removed receipt as `commit-gate
+  violation (I-07)` naming the effect that lost its record, rather than as a digest mismatch.
+  Formats unchanged (`default` + `skip_serializing_if`, the `custody` precedent), so every export
+  written before this keeps verifying. Receipts are `advisory`: settle mediates the staged path,
+  not the world, and promotion waits on L4-03. (`tests/report_evidence_chain.rs`)
 - **`--upstream 'name=command args'` on `warrantor mcp`, and `rust/warrant/src/upstream.rs`.**
   `Decision::Forward` has existed since the proxy was written; the endpoint answered it with an
   error telling the operator to start the session with `--upstream`, **a flag that did not exist

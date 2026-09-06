@@ -92,12 +92,23 @@ htmlcov/
 #
 # `/evidence/*` rather than `/evidence/`: git cannot re-include a file whose parent
 # directory is excluded, and files under here are committed on purpose -- the wiring
-# floor that tools/ci/wiring_census.py refuses to let fall, and the invariant ledger
-# that tools/ci/check_invariants.py checks in CI, because a label that lives only on
+# floor that tools/ci/wiring_census.py refuses to let fall, the invariant ledger
+# that tools/ci/check_invariants.py checks in CI, and the per-kernel stop/conformance
+# receipts the delivery-gaps ledger cites, because a label that lives only on
 # one machine's disk cannot be refused by a pull request. Everything else stays out.
 /evidence/*
 !/evidence/wiring-coverage.json
 !/evidence/invariants.json
+# Every new committed evidence artifact needs a line here or `git add` skips it in
+# silence and `git status` still reports a clean tree. That is how Task 9.1 shipped a
+# test reading a file the commit did not contain: the file existed in the implementer's
+# working copy and nowhere else, so their run was green and every other checkout was red.
+!/evidence/revocation-latency.json
+!/evidence/stop-*.json
+!/evidence/conformance-*.json
+# Task 5.4's common-mode independence record. tools/ci/network_independence.py exits 1 when this
+# file is absent, so an untracked copy is the Task 9.1 failure exactly: green here, red everywhere.
+!/evidence/network-independence.json
 
 # Agent hook state -- per-session scratch containing local absolute paths.
 # Never useful to a contributor and noise in a public repo.

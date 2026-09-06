@@ -72,7 +72,7 @@ nobody has looked at. Warrantor reports an interrupted warrant and asks you to s
 
 **They do not resume after a reboot.** Same reason. What the reconcile timer gives you is not
 recovery — it is *visibility*. The failure being fixed is not that a run stopped; the agent died
-with its supervisor, so nothing is running unsupervised. The failure is the silence afterwards,
+with its supervisor, so nothing is running unsupervised. The failure is the silence afterward,
 while you believe work is still progressing.
 
 ```bash

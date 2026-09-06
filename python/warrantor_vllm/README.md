@@ -7,7 +7,7 @@ un-attested serving instance.
 
 ## Run modes
 
-| Mode         | Behaviour                                                                 |
+| Mode         | Behavior                                                                 |
 | ------------ | ------------------------------------------------------------------------- |
 | `mock`       | No real subprocess. Returns synthetic responses and a synthetic, digested attestation envelope. Use in tests and on hosts without a GPU. |
 | `standalone` | Spawns `python -m vllm.entrypoints.openai.api_server` as a subprocess. Requires `vllm` to be importable on the host. |

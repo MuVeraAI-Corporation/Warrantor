@@ -15,6 +15,7 @@ use sha2::{Digest, Sha256};
 use std::collections::HashSet;
 use std::net::IpAddr;
 use thiserror::Error;
+use warrantor_egress_filter::hard_deny::{self, FloorReason, FloorVerdict};
 
 // ---------------------------------------------------------------------------
 // The denial reasons (spec 08 §9) — coarse, identify the gate not the detail
@@ -29,10 +30,31 @@ pub enum DenyReason {
     NotInCatalog,
     /// The endpoint is in the catalog but the delegation chain doesn't grant reachability.
     NotInChainIntersection,
-    /// The resolved address is in a metadata range (169.254.0.0/16 etc.) — never catalog-addable.
+    /// The address is refused by the deny floor — never catalog-addable.
+    ///
+    /// The name is **coarser than the rule it reports**. This variant is the word for every
+    /// `hard_deny::FloorVerdict::Refused` except `AddressShapedButUnparseable`, so it covers the
+    /// metadata services by address and by name, IPv4 `169.254.0.0/16`, IPv6 `fe80::/10` **and IPv6
+    /// unique-local `fc00::/7`**. A unique-local address a warrant names is therefore reported to an
+    /// operator as `metadata_range`, which is misleading and is not fixed here: widening this enum
+    /// would change the reachable-variant list that
+    /// `rust/warrant/tests/invariants/i11_self_change_is_governed.rs` pins, which is a decision of
+    /// its own. `hard_deny::FloorReason::as_str` is the finer record.
     MetadataRange,
     /// The resolved address is in a private range (10.x, 172.16-31.x, 192.168.x) without explicit catalog.
+    ///
+    /// **Declared, rendered, and never constructed.** The rule "private ranges denied unless
+    /// explicitly catalogued" is satisfied vacuously here: an address only reaches the range check
+    /// by having been found in the catalog, so it is catalogued by construction. Giving this variant
+    /// a mechanism means deciding that a catalogued private address is refused anyway, which
+    /// contradicts three tests in this crate and one in `warrantor-egress-filter`. That decision was
+    /// left open by `fix/egress-metadata-floor` and is left open here; the count is pinned at zero
+    /// by `tests/metadata_floor.rs` so it cannot be quietly deleted or quietly given a body.
     PrivateRange,
+    /// The catalog names an address the broker cannot parse, and that could only ever have been an
+    /// address rather than a DNS name -- an out-of-range octet, a `0x` with no digits, a decimal too
+    /// large for 32 bits. Refused rather than passed through: see [`hard_deny::refuse`].
+    UnparseableAddress,
     /// The catalog is unavailable — deny (spec §7).
     CatalogUnavailable,
     /// The catalog signature is invalid — deny + alarm (spec §7).
@@ -127,20 +149,6 @@ pub struct EgressRequest {
 // The broker — the decision engine
 // ---------------------------------------------------------------------------
 
-/// Metadata ranges that are ALWAYS denied and NEVER catalog-addable (spec §3).
-const METADATA_RANGES: &[&str] = &[
-    "169.254.", // AWS/GCP/Azure metadata, link-local
-    "fd00:",    // IPv6 ULA (private)
-    "fe80:",    // IPv6 link-local
-];
-
-/// Private ranges denied unless explicitly catalogued (spec §3).
-const PRIVATE_RANGES: &[&str] = &[
-    "10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.", "172.22.", "172.23.",
-    "172.24.", "172.25.", "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.",
-    "192.168.", "127.", "0.", "::1",
-];
-
 #[derive(Debug, Error)]
 pub enum EgressError {
     #[error("egress broker: {0}")]
@@ -202,21 +210,39 @@ pub fn decide(request: &EgressRequest, catalog: Option<&DestinationCatalog>) -> 
         };
     }
 
-    // 5. Address checks: metadata ranges ALWAYS denied; private ranges denied unless catalogued.
+    // 5. The deny floor (L4-25). Delegated to `warrantor_egress_filter::hard_deny`, which is the
+    //    ONE matcher for this question in the workspace; a second implementation here is a second
+    //    rule waiting to disagree, which is precisely how eight spellings of the metadata service
+    //    reached Allow before `fix/egress-metadata-floor`. `hard_deny::refuse` takes the address and
+    //    nothing else: there is no field of this catalog, this request or any config that could
+    //    change its answer.
+    //
+    //    The private-range half of spec 3 has no branch here, and that absence is deliberate rather
+    //    than an oversight. An address only reaches this loop by having been found in the catalog,
+    //    so "denied unless explicitly catalogued" is satisfied by arrival. What used to stand here
+    //    was an empty `if is_private_range(addr) { }` whose comment reasoned itself into a no-op --
+    //    a rendered refusal (the PrivateRange variant) with no mechanism behind it. The comment is
+    //    gone; the variant stays declared, its construction count stays pinned at zero by
+    //    `tests/metadata_floor.rs`, and the decision to give it a mechanism stays open.
     for addr in &entry.addresses {
-        if is_metadata_range(addr) {
-            return EgressVerdict::Deny {
-                reason: DenyReason::MetadataRange,
-            };
-        }
-        if is_private_range(addr) {
-            // Private ranges are allowed ONLY if explicitly in the catalog — which it is, since we
-            // got here from the catalog. But spec §3 says "Denied unless explicitly catalogued."
-            // Since the address IS in a catalog entry, it's explicitly catalogued → allow.
-            // However, metadata ranges are NEVER catalog-addable (checked above).
+        match hard_deny::refuse(addr) {
+            FloorVerdict::Refused(FloorReason::AddressShapedButUnparseable) => {
+                return EgressVerdict::Deny {
+                    reason: DenyReason::UnparseableAddress,
+                };
+            }
+            // Every other floor reason collapses to one word here, and the word is coarser than the
+            // reason: `MetadataService`, `LinkLocal` and `UniqueLocal` all report `metadata_range`.
+            // A `fc00::/7` destination a warrant legitimately names is refused under the name of a
+            // rule it did not break. Recorded rather than fixed -- see the variant's own doc.
+            FloorVerdict::Refused(_) => {
+                return EgressVerdict::Deny {
+                    reason: DenyReason::MetadataRange,
+                };
+            }
+            FloorVerdict::NotRefused => {}
         }
     }
-
     // 6. Allow — with pinned addresses (DNS resolved by the broker, not the agent).
     EgressVerdict::Allow {
         logical_endpoint: entry.logical_endpoint.clone(),
@@ -224,22 +250,6 @@ pub fn decide(request: &EgressRequest, catalog: Option<&DestinationCatalog>) -> 
         tls_identity: entry.tls_identity.clone(),
         catalog_digest: catalog.digest.clone(),
     }
-}
-
-/// Check whether a raw IP is in a metadata range.
-fn is_metadata_range(addr: &str) -> bool {
-    let clean = addr
-        .trim_start_matches("https://")
-        .trim_start_matches("http://");
-    METADATA_RANGES.iter().any(|r| clean.starts_with(r))
-}
-
-/// Check whether a raw IP is in a private range.
-fn is_private_range(addr: &str) -> bool {
-    let clean = addr
-        .trim_start_matches("https://")
-        .trim_start_matches("http://");
-    PRIVATE_RANGES.iter().any(|r| clean.starts_with(r))
 }
 
 /// Heuristic: does the capability string look like a raw address the agent should not be supplying?
@@ -263,7 +273,7 @@ fn looks_like_address(s: &str) -> bool {
 // Signed egress receipt — the proof of the decision
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct EgressReceiptBody {
     pub verdict: EgressVerdict,
     pub capability: String,
@@ -271,7 +281,7 @@ pub struct EgressReceiptBody {
     pub broker_version: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct EgressReceipt {
     pub body: EgressReceiptBody,
     pub signature_algorithm: String,

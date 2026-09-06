@@ -60,7 +60,7 @@ RealToxicityPrompts and BeaverTails, so it measures *those* distributions, not o
 weaker of the two citations in this plan and it carries the load-bearing model-selection
 decision, which is a reason to run the parity gate rather than a reason to hand-wave.
 
-Licence: **Apache-2.0**, verbatim, no acceptable-use rider, no addendum, no NOTICE file →
+License: **Apache-2.0**, verbatim, no acceptable-use rider, no addendum, no NOTICE file →
 redistributable inside a desktop installer. (Apache-2.0 §3 terminates the patent grant on
 patent litigation over the Work; §6 forbids Alibaba/Qwen trademarks in downstream branding.)
 
@@ -97,7 +97,7 @@ separate injection detector rather than folding injection into the moderation mo
 
 ### Data
 
-| Corpus | Rows | Licence | Gated | Role |
+| Corpus | Rows | License | Gated | Role |
 | --- | --- | --- | --- | --- |
 | WildGuardMix | **88,484** (not 92K) | ODC-By-1.0 | yes (`auto`) | General safety, 13 risk categories |
 | ExpGuardMix | **48,280** (46,005 train + 2,275 test) | CC-BY-4.0 | yes (`auto`) | Finance / healthcare / law — three of the four vertical packs |
@@ -146,7 +146,7 @@ touching a GPU, so the routing question is answerable before anything is downloa
 
 ### `datasets.py` — the registry
 
-Declarative. Licence, click-through terms, gating, splits, cache path — all data. **Nothing
+Declarative. License, click-through terms, gating, splits, cache path — all data. **Nothing
 downloads at import**, which is enforced by a test that poisons `socket.socket` and
 `urllib.request.urlopen` before importing the module.
 
@@ -168,7 +168,7 @@ that cannot be scripted:
 
 ### `evaluate.py` — the important one
 
-Runs a guard model over a labelled set and reports **recall first**, precision, F1, the
+Runs a guard model over a labeled set and reports **recall first**, precision, F1, the
 confusion matrix, per-category recall, and the ids of every missed sample.
 
 ```bash
@@ -380,10 +380,10 @@ A blank field in an accountability artifact is worse than a loud failure.
 It carries what the existing schemas cannot:
 
 - **`model_sbom.ModelInfo.license` is one SPDX string**, consumed by the derived artifact. Base
-  licence, per-dataset licence and derived licence are three different things, so they get
+  license, per-dataset license and derived license are three different things, so they get
   three homes here and the SBOM is emitted as a subordinate document.
-- **`ModelInfo.training_data` is a bare `list[str]`** with no licence slot. The dataset licence
-  table lives here — repo, revision, digest, licence, gated, redistributable, commercial use,
+- **`ModelInfo.training_data` is a bare `list[str]`** with no license slot. The dataset license
+  table lives here — repo, revision, digest, license, gated, redistributable, commercial use,
   and the date the terms were read.
 - **`CarbonFootprint` is per-action inference only.** There is no field anywhere in the
   substrate for training-run energy. It is a card field with no receipt counterpart, and the
@@ -432,7 +432,7 @@ calibration goes quietly wrong.
 
 ### `publish_adapter.py` — the bridge from a trained adapter to a scoreable model
 
-Between training and scoring there was **nothing**. The programme could produce a LoRA adapter
+Between training and scoring there was **nothing**. The program could produce a LoRA adapter
 and could benchmark an Ollama model, and no code path joined them — so no trained adapter could
 be compared with the baseline it was trained to beat, which is the only question the parity gate
 exists to answer. The gate requires the candidate to be measured on the baseline's lane and
@@ -585,7 +585,7 @@ shows exactly that: `Controversial` came back but **overproduced** (187 against 
 49) while `Unsafe` collapsed (367 against 650), and the model began emitting **its own category
 vocabulary in the severity slot** — `non-violent illegal acts`, `others`, `violent`. An
 unsupervised field beside a supervised one did not stay still; it came unmoored and filled with
-the neighbouring field's tokens.
+the neighboring field's tokens.
 
 The default is back to `supervise_severity=True`: the less-bad of two measured losses, and it at
 least keeps the severity line well-formed. **That is not a fix.** The next attempt needs separate
@@ -683,7 +683,7 @@ Two things to know if you change `evaluate.py`:
 
 Stated rather than buried:
 
-- **ExpGuardMix commercial use** — licence and click-through disagree. Needs counsel before the
+- **ExpGuardMix commercial use** — license and click-through disagree. Needs counsel before the
   vertical packs depend on it.
 - **`PlatformComponent` is a closed four-variant enum** with no guard-model slot. Registering
   the model as a governed platform agent requires a reviewed change to a fixed-size array type,
@@ -701,7 +701,7 @@ Stated rather than buried:
 
 ---
 
-## The training programme — nine recipes, three lanes, one gate
+## The training program — nine recipes, three lanes, one gate
 
 Specified in [RFC W2](../docs/rfcs/W2-model-intelligence-pipelines.md). Five more launchers,
 none of which trains anything or dispatches a job:
@@ -753,7 +753,7 @@ Advice` — the weakest measured class at 0.4298 recall — does not exist in th
 is an ExpGuardMix category, and the two corpora have disjoint category vocabularies.
 
 The two WildGuard weak-category recipes used to name it anyway, and that was a declaration nothing
-could honour: `weak_category_subset` refuses only when *no* requested class matches, so a
+could honor: `weak_category_subset` refuses only when *no* requested class matches, so a
 four-class request that matched three built a corpus and the manifest recorded all four as
 targeted. Both halves are fixed. `WILDGUARD_WEAK_CATEGORIES` now declares the three classes
 WildGuardMix carries (`EXPGUARD_ONLY_CATEGORIES` names the exclusion, and the measured table
@@ -808,7 +808,7 @@ embedded a `RUN_MANIFEST` describing a run nobody had planned.
 trained only on the rows the baseline missed buys recall with the false-positive rate measured
 above, and the gate is two-sided precisely so that trade is refused. Zero is a legitimate choice;
 it just has to be written down. If the unselected pool cannot supply the benign rows the ratio
-asks for, the build **raises** — it used to return whatever was available, which honoured the
+asks for, the build **raises** — it used to return whatever was available, which honored the
 ratio in the summary JSON and not in the corpus.
 
 **The lane router refuses.** `ml/lanes.py` will not resolve a recipe that does not fit the lane's
@@ -883,5 +883,5 @@ daemon. The ones that carry the most weight:
   cuts the verdict. `compile()` passed on a script that died at step 0 with "The model did not
   return a loss", and on a Modal entrypoint that raised `NameError: name 'null' is not defined`
   the moment it was imported;
-- the report summariser refuses a `failed` bundle and an `unknown` one with *different*
+- the report summarizer refuses a `failed` bundle and an `unknown` one with *different*
   messages, and the `unknown` message contains no accusation.

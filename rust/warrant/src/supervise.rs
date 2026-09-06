@@ -218,26 +218,13 @@ impl Supervisor {
 }
 
 /// Kill a process group. Best-effort: a process that is already gone is the desired end state.
+///
+/// Delegates to [`warrantor_kill_switch_core::TreeKiller`], which carries the safety rails
+/// (reserved and self pids, critical Windows images, the confirmed-gone poll) the bare
+/// `taskkill`/`kill` calls here had none of. One implementation for the daemon's deadline kill
+/// and the stop verb.
 pub fn terminate_group(pid: u32) {
-    #[cfg(windows)]
-    {
-        let root = std::env::var("SYSTEMROOT").unwrap_or_else(|_| r"C:\Windows".to_string());
-        let taskkill = Path::new(&root).join("System32").join("taskkill.exe");
-        let _ = Command::new(taskkill)
-            .args(["/PID", &pid.to_string(), "/T", "/F"])
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
-    }
-    #[cfg(not(windows))]
-    {
-        // Negative pid addresses the group, which setsid made equal to the agent's pid.
-        let _ = Command::new("kill")
-            .args(["-KILL", &format!("-{pid}")])
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
-    }
+    let _ = warrantor_kill_switch_core::TreeKiller::new().terminate(pid);
 }
 
 /// Spawn a process detached from this console, so closing the terminal does not end it.

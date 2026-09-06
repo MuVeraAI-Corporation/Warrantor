@@ -1,0 +1,46 @@
+{
+  "format": "warrantor.network-independence/1",
+  "anchor": "L2-03 / L0-10",
+  "status": "none",
+  "note": "The count is a count of ENFORCEMENT POINTS acting on a destination the warrant permits, not of policy engines. 1 policy engine decides in a shipped run and 2 engines decide once a caller of the library wires the second (no CLI flag or configuration path reaches Proxy::with_secondary_filter today); either way one boundary enforces. L2-03 stays status=none until a second enforcement point acts on a permitted host. See docs/05-network-common-mode-analysis.md.",
+  "independent_intercepts_on_a_permitted_host": 1,
+  "policy_engines_the_product_runs": 1,
+  "policy_engines_once_the_second_is_wired": 2,
+  "configuration_sources_the_product_runs": [
+    "warrant_claims"
+  ],
+  "axes": [
+    "enforcement_point",
+    "policy_engine",
+    "address_floor",
+    "configuration_source",
+    "credential",
+    "telemetry_path",
+    "clock",
+    "dns_resolution"
+  ],
+  "shared_axes_the_product_runs": [
+    "enforcement_point",
+    "policy_engine",
+    "address_floor",
+    "configuration_source",
+    "telemetry_path",
+    "clock",
+    "dns_resolution"
+  ],
+  "shared_axes_once_the_second_is_wired": [
+    "enforcement_point",
+    "address_floor",
+    "configuration_source",
+    "telemetry_path",
+    "clock",
+    "dns_resolution"
+  ],
+  "layers_on_a_permitted_host": [
+    "mcp_proxy"
+  ],
+  "layers_on_an_empty_bound": [
+    "mcp_proxy",
+    "network_namespace"
+  ]
+}

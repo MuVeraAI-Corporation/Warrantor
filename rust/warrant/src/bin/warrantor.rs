@@ -30,10 +30,12 @@ use warrantor_warrant::archive_client::{self, ArchiveAnswer, ArchiveConfig, Arch
 use warrantor_warrant::autofile;
 use warrantor_warrant::bench;
 use warrantor_warrant::bundle;
+use warrantor_warrant::conformance::{self, ConformanceStore};
 use warrantor_warrant::corpus;
 use warrantor_warrant::daemon::{
     process_is_alive, supervise_run, DaemonState, Reconciliation, SuperviseRequest,
 };
+use warrantor_warrant::effects::{self, Decomposition, DecompositionRegistry, UnclassifiedPolicy};
 use warrantor_warrant::egress::{
     render_decision, EgressBroker, EgressVerdict, BROKER_VERSION, ENFORCEMENT_NOTE,
 };
@@ -44,15 +46,19 @@ use warrantor_warrant::mcp_endpoints::{agent_endpoint_for, ControlEndpoint};
 use warrantor_warrant::notify::{self, Notification, NotifyConfig, NotifyTransport};
 use warrantor_warrant::operators::{self, Act, ApprovalPolicy, Operator, OperatorRegistry, Scope};
 use warrantor_warrant::proxy::{host_of, ProxyMode};
+use warrantor_warrant::receipts::ReceiptLog;
 use warrantor_warrant::report;
 use warrantor_warrant::retention;
+use warrantor_warrant::revoke;
 use warrantor_warrant::runs;
 use warrantor_warrant::sandbox;
 use warrantor_warrant::serve as http;
-use warrantor_warrant::settle::{settle, void, EffectOutcome, EffectPerformer, SettleReport};
+use warrantor_warrant::settle::{
+    settle, void, EffectOutcome, EffectPerformer, EffectWitness, EvidencedPerformer, SettleReport,
+};
 use warrantor_warrant::spend::{self, SpendStore, SpendVerdict};
 use warrantor_warrant::staging::{EffectRegistry, StagedChainMark, StagedEffect, StagingQueue};
-use warrantor_warrant::stop::{self, OsProcessControl, StopStore};
+use warrantor_warrant::stop::{self, HaltContext, HaltScope, OsProcessControl, StopStore};
 use warrantor_warrant::store::{StoredWarrant, WarrantStore};
 use warrantor_warrant::supervise::{describe_linkage, spawn_detached};
 use warrantor_warrant::trust;
@@ -264,6 +270,7 @@ const VALUELESS_FLAGS: &[&str] = &[
     "allow-settle",
     "allow-notify-command",
     "i-accept-cleartext-on-this-network",
+    "upstream-strict",
     "upstream-refuse-unclassified",
     "upstream-allow-lifecycle-tools-i-accept-this",
     "guard-enforce-untested-do-not-use",
@@ -382,43 +389,55 @@ fn csv(value: Option<&String>) -> BTreeSet<String> {
         .unwrap_or_default()
 }
 
-/// Read `--upstream-class '<published.tool>=<class>'` into a map.
+/// Build the session's decomposition registry: builtin, then every `--upstream-effects-file`,
+/// then every `--upstream-effects '<tool>=<verb>+<verb>'`, refusing conflicts and the old flag.
 ///
-/// The class an operator declares is what decides whether a call is staged, forwarded or refused,
-/// and until forwarding existed the question had one reachable answer — so the fallback that classes
-/// everything unknown as a read was invisible. It is not any more: an upstream `write_file` is
-/// forwarded rather than staged unless somebody says otherwise here.
+/// `--upstream-class` is refused by name rather than ignored. An ignored flag would forward as a
+/// read the very tool the operator typed the flag to protect, which is the guess this registry
+/// exists to end.
 ///
 /// # Errors
-/// The first malformed value, naming the four classes. A typo silently granting a weaker class is
-/// the failure this refusal exists to prevent.
-fn upstream_classes(args: &Args) -> Result<BTreeMap<String, SideEffectClass>, String> {
-    let mut classes = BTreeMap::new();
-    for raw in args.all("upstream-class") {
-        let Some((tool, word)) = raw.rsplit_once('=') else {
-            return Err(format!(
-                "--upstream-class takes tool=class, e.g. --upstream-class 'files.write_file=write';                  got {raw:?}"
-            ));
-        };
-        let class = match word.trim() {
-            "read" => SideEffectClass::Read,
-            "write" => SideEffectClass::Write,
-            "destructive" => SideEffectClass::Destructive,
-            "financial" => SideEffectClass::Financial,
-            other => {
-                return Err(format!(
-                    "{other:?} is not a side-effect class. The four are: read, write, destructive,                      financial. Refusing rather than defaulting -- a typo here would class a write                      as a read, and this build would forward it without staging."
-                ))
-            }
-        };
-        if classes.insert(tool.trim().to_string(), class).is_some() {
-            return Err(format!(
-                "{} is declared twice in --upstream-class. Two classes for one tool means whichever                  was parsed last decides what happens to it, which is not a decision anybody made.",
-                tool.trim()
-            ));
-        }
+/// The first malformed value, unreadable file, foreign format, or conflicting declaration.
+fn upstream_decompositions(args: &Args) -> Result<DecompositionRegistry, String> {
+    if let Some(raw) = args.all("upstream-class").first() {
+        return Err(format!(
+            "--upstream-class is no longer read; got --upstream-class {raw:?}. Tools are declared \
+             as effect syscalls now: --upstream-effects '<tool>=<verb>+<verb>' with verbs net, \
+             cred, exec, mutate, msg, spend, delegate, actuate, attest -- a former 'write' is \
+             usually 'mutate', a former 'destructive' is 'mutate+actuate', a former 'financial' \
+             is 'spend'. Refusing rather than ignoring: an ignored flag would forward the tool it \
+             named as a read."
+        ));
     }
-    Ok(classes)
+    let mut registry = DecompositionRegistry::builtin();
+    for path in args.all("upstream-effects-file") {
+        let body = std::fs::read_to_string(path)
+            .map_err(|e| format!("--upstream-effects-file {path}: {e}"))?;
+        let loaded = DecompositionRegistry::from_json(&body)
+            .map_err(|e| format!("--upstream-effects-file {path}: {e}"))?;
+        registry.merge(loaded)?;
+    }
+    for raw in args.all("upstream-effects") {
+        let mut one = DecompositionRegistry::new();
+        one.insert(Decomposition::parse(raw)?)?;
+        registry.merge(one)?;
+    }
+    Ok(registry)
+}
+
+/// Strict mode: `--upstream-strict`, or its earlier spelling.
+///
+/// The old spelling stays accepted so a harness config written last week does not silently lose
+/// its refusal: a renamed flag that is merely ignored turns a strict session into a guessing one
+/// with no message anywhere.
+fn upstream_policy(args: &Args) -> UnclassifiedPolicy {
+    if args.flags.contains_key("upstream-strict")
+        || args.flags.contains_key("upstream-refuse-unclassified")
+    {
+        UnclassifiedPolicy::Refuse
+    } else {
+        UnclassifiedPolicy::GuessRead
+    }
 }
 
 /// Read every `--upstream name=command args...` into a spec, in the order they were given.
@@ -474,12 +493,12 @@ warrantor — bounded authority for coding agents
                   enable this, a process sharing this UID could also write.
 
   grant   --goal G --tools T,T --write P,P [--deadline 8h] [--repo .] [--egress H,H]
-          [--budget CENTS] [--subject <id>]
+          [--egress-capability NAME,NAME] [--budget CENTS] [--subject <id>]
   list
   holdings
   prune   [--apply]
   report  <warrant-id> [--export <path> [--archive [<url>]]]
-  verify  <exported-report.json | exported-stop.json | exported-spend.json>
+  verify  <exported-report.json | exported-stop.json | exported-spend.json | exported-conformance.json>
   issuer  add <name> <hex> [--note \"...\"] | list | remove <name> | show-hex
           | export --out <file> [--as <label>] | import <file> [--apply]
   archive enrol --url <url> --code <code> [--replace] | push <file>
@@ -487,7 +506,17 @@ warrantor — bounded authority for coding agents
                 | summary
   egress  <warrant-id> <destination> [<destination> ...]
   spend   <warrant-id> [--input N --output N [--backend ID] [--quote]] [--export <path>]
-  stop    <warrant-id> [--reason \"...\"] [--export <path>]
+  stop    <warrant-id> | --family <subject> | --run <run-id> [--reason \"...\"] [--export <path>]
+  revoke  --svid <SVID>          record a revocation; prints the record and the measured latency
+          | --list               the revoked set, with each record's sequence and epoch
+          | --at <EPOCH> --svid <SVID>
+                                was this subject revoked at that epoch? answered from the
+                                append-only journal alone. Bounds FUTURE use only, in THIS
+                                STORE: see the disclosure the command prints.
+          | --write-evidence <path>
+                                render evidence/revocation-latency.json from the code that
+                                states the bound, so the file cannot drift from it.
+  conformance run [--export <path>]
   settle  <warrant-id> [--commit \"<message>\"]
   void    <warrant-id>
   stage   <warrant-id> --tool T [--target H] [--arg k=v ...]
@@ -495,8 +524,8 @@ warrantor — bounded authority for coding agents
   status
   mcp     [--agent <warrant-id>] [--observe] [--guard [--guard-model M] ...]
           [--upstream 'name=command args' ...] [--upstream-timeout 30s]
-          [--upstream-class '<tool>=read|write|destructive|financial' ...]
-          [--upstream-refuse-unclassified]
+          [--upstream-effects '<tool>=<verb>+<verb>' ...] [--upstream-effects-file <path> ...]
+          [--upstream-strict]   (verbs: net cred exec mutate msg spend delegate actuate attest)
   anchor  show | verify
   guard   doctor [--guard-endpoint URL] [--guard-model M] [--guard-num-ctx N]
           | bench --cases <file.jsonl>
@@ -743,6 +772,31 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     if tools.is_empty() {
         return fail("--tools is required: a warrant with no tools can do nothing");
     }
+    // L4-23: the egress bound is compiled into a catalog of capability names. `--egress H,H` is
+    // sugar for `host:<H>` entries; `--egress-capability NAME` adds named capabilities from the
+    // operator catalog at <root>/catalog.json. The agent later selects from THESE names and never
+    // spells a host; the hosts land in the signed warrant bound either way.
+    let sugar = csv(args.flags.get("egress"));
+    let named = csv(args.flags.get("egress-capability"));
+    let mut capabilities =
+        warrantor_warrant::catalog::CapabilityCatalog::from_hosts(&sugar).capabilities;
+    if !named.is_empty() {
+        let operator =
+            match warrantor_warrant::catalog::CapabilityCatalog::load(&root.join("catalog.json")) {
+                Ok(c) => c,
+                Err(e) => {
+                    return fail(&format!(
+                        "--egress-capability needs <root>/catalog.json: {e}"
+                    ))
+                }
+            };
+        match operator.select(&named) {
+            Ok(picked) => capabilities.extend(picked),
+            Err(e) => return fail(&e),
+        }
+    }
+    let egress_hosts: std::collections::BTreeSet<String> =
+        capabilities.iter().map(|c| c.host.clone()).collect();
     let deadline = args
         .flags
         .get("deadline")
@@ -782,7 +836,7 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     let bounds = WarrantBounds {
         tools,
         write_paths: csv(args.flags.get("write")),
-        egress_hosts: csv(args.flags.get("egress")),
+        egress_hosts,
         // Writes are staged by default: the safe reading of an unspecified flag.
         staged_classes: [SideEffectClass::Write].into_iter().collect(),
         expires_at: now() + deadline,
@@ -833,6 +887,18 @@ fn cmd_grant(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     // that warrant's record. See `WarrantStore::create`.
     if let Err(e) = store.create(&stored) {
         return fail(&e.to_string());
+    }
+
+    // The per-warrant catalog, signed by the issuer at grant time and saved beside the warrant.
+    // `mcp --agent` refuses to serve a session whose egress bound has no verifiable catalog: a
+    // warrant that grants hosts but carries no named vocabulary is exactly the state an attacker
+    // editing a catalog file would want to reach.
+    let mut catalog = warrantor_warrant::catalog::CapabilityCatalog::for_warrant(&id, capabilities);
+    catalog.sign(&issuer, "issuer");
+    if let Err(e) = catalog.save(&warrantor_warrant::catalog::catalog_path(root, &id)) {
+        return fail(&format!(
+            "the warrant was written but its catalog was not ({e}); void it and grant again"
+        ));
     }
 
     println!("warrant  {id}");
@@ -1052,15 +1118,33 @@ fn cmd_report(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
 
     // The verifying key from disk is the trust anchor, not the one the warrant carries about
     // itself: a warrant re-signed by some other key must not vouch for itself.
+    // The egress decision log, when one exists, is countersigned into the bundle; absent means
+    // no decision was ever recorded, which is a different claim from "no egress happened" — the
+    // section's note says which is which, and its absence says the first.
     let built = report::build_observed(
         &stored,
         queue_input,
         &issuer.verifying_key(),
         now(),
         &contained,
-        Some(spend::section(&ledger)),
-        custody_section(root, id),
+        report::Observed {
+            spend: Some(spend::section(&ledger)),
+            custody: custody_section(root, id),
+            revocation: revocation_section(root),
+        },
     );
+    let receipt_log = match ReceiptLog::open(store.receipts_path(id)) {
+        Ok(l) => l,
+        Err(e) => return fail(&format!("cannot read the effect receipt log: {e}")),
+    };
+    let built = built.with_effect_receipts(receipt_log.receipts().to_vec());
+    // Task 1.1 and Task 1.2 each add a section to the same builder, independently. Both stay: the
+    // effect receipts come from the log on disk, the egress section from the per-warrant catalog,
+    // and neither reads the other's input.
+    let built = match report::egress_section(root, id, &issuer, "issuer") {
+        Some(section) => built.with_egress(section),
+        None => built,
+    };
     print!("{}", report::render_cli(built.bundle()));
 
     let signed = match built.sign(&issuer, "issuer") {
@@ -1219,15 +1303,131 @@ fn cmd_verify(args: &Args, root: &Path) -> ExitCode {
         Some(f) if f == report::REPORT_EXPORT_FORMAT => verify_report_export(path, &body, anchor),
         Some(f) if f == stop::STOP_EXPORT_FORMAT => verify_stop_export(path, &body, anchor),
         Some(f) if f == spend::LEDGER_EXPORT_FORMAT => verify_spend_export(path, &body, anchor),
+        Some(f) if f == warrantor_warrant::catalog::CATALOG_FORMAT => {
+            verify_catalog_file(path, &body, anchor, root)
+        }
+        Some(f) if f == conformance::CONFORMANCE_RECEIPT_FORMAT => {
+            verify_conformance_export(path, &body, anchor)
+        }
+        Some(f) if f == effects::EFFECT_REGISTRY_FORMAT => fail(&format!(
+            "{path} is a {f} document: an effect registry, which is configuration, not evidence. \
+             Nothing in it is signed, so there is nothing here to verify. Load it with \
+             `warrantor mcp --upstream-effects-file {path}`."
+        )),
         Some(other) => fail(&format!(
-            "{path} declares format {other:?}. warrantor verify reads {}, {} and {}.",
+            "{path} declares format {other:?}. warrantor verify reads {}, {}, {}, {} and {}.",
             report::REPORT_EXPORT_FORMAT,
             stop::STOP_EXPORT_FORMAT,
-            spend::LEDGER_EXPORT_FORMAT
+            spend::LEDGER_EXPORT_FORMAT,
+            warrantor_warrant::catalog::CATALOG_FORMAT,
+            conformance::CONFORMANCE_RECEIPT_FORMAT
         )),
         None => fail(&format!(
             "{path} has no format field, so it is not a warrantor evidence file."
         )),
+    }
+}
+
+/// Verify a destination catalog offline: signature against the pinned issuer (or the on-disk
+/// issuer key when no anchor was given), and one line per capability so a reviewer reads exactly
+/// what the agent will be able to name.
+fn verify_catalog_file(path: &str, body: &[u8], anchor: Option<&Anchor>, root: &Path) -> ExitCode {
+    let catalog =
+        match serde_json::from_slice::<warrantor_warrant::catalog::CapabilityCatalog>(body) {
+            Ok(c) => c,
+            Err(e) => return fail(&format!("{path} does not parse as a catalog: {e}")),
+        };
+    let key = match anchor {
+        Some(a) => a.key,
+        None => {
+            // The catalog names the issuer's own key in its signature; an offline check with no
+            // pin and no on-disk issuer has nothing to verify against, so it refuses rather than
+            // "verifying" the catalog against itself.
+            match load_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
+                Ok(Some(k)) => k.verifying_key(),
+                Ok(None) => {
+                    return fail(&format!(
+                        "{path} has no --issuer anchor and this machine has no issuer key, so \
+                         there is nothing to verify the catalog against"
+                    ))
+                }
+                Err(e) => return fail(&e),
+            }
+        }
+    };
+    let warrant_id = catalog.warrant_id.clone().unwrap_or_default();
+    if let Err(e) = catalog.verify(&key, &warrant_id) {
+        return fail(&format!("{path}: {e}"));
+    }
+    println!("warrantor: catalog {path} verified.");
+    println!(
+        "format    {}  warrant {}  capabilities {}",
+        catalog.format,
+        catalog.warrant_id.as_deref().unwrap_or("(none)"),
+        catalog.capabilities.len()
+    );
+    for capability in &catalog.capabilities {
+        println!(
+            "  {:<32} -> {:<32} {}",
+            capability.name, capability.host, capability.purpose
+        );
+    }
+    println!("{ENFORCEMENT_NOTE}");
+    ExitCode::SUCCESS
+}
+
+/// Verify an exported conformance receipt offline: the receipt's own two signatures (warrantor's
+/// over the drill, the suite's over the report), the derived mode, and — when an anchor was given
+/// — that it was signed by the issuer pinned out of band, exactly as `verify_stop_signed_by` does.
+fn verify_conformance_export(path: &str, body: &[u8], anchor: Option<&Anchor>) -> ExitCode {
+    let signed: conformance::SignedConformanceReceipt = match serde_json::from_slice(body) {
+        Ok(s) => s,
+        Err(e) => {
+            return fail(&format!(
+                "{path} is not an exported conformance receipt: {e}"
+            ))
+        }
+    };
+    if let Err(e) = conformance::verify_receipt(&signed) {
+        return fail(&format!("{path}: {e}"));
+    }
+    if let Some(anchor) = anchor {
+        let expected = hex::encode(anchor.key.to_bytes());
+        if signed.signature_public_key != expected {
+            return fail(&format!(
+                "{path} was signed by {}, not by the issuer you pinned ({expected}). The \
+                 signatures are intact — it is internally consistent — but it was signed by a \
+                 different key, so it is not evidence about the issuer you asked about.",
+                signed.signature_public_key
+            ));
+        }
+    }
+    println!("warrantor: conformance receipt {path} verified.");
+    println!(
+        "kernel    {}  mode {}  drilled_at {}",
+        signed.receipt.kernel,
+        signed.receipt.mode.word(),
+        signed.receipt.drilled_at
+    );
+    println!(
+        "  root pid {} gone in {} ms; descendant pid {} gone in {} ms; budget {} ms",
+        signed.receipt.drill.root_pid,
+        signed.receipt.drill.trigger_to_root_gone_ms,
+        signed.receipt.drill.descendant_pid,
+        signed.receipt.drill.trigger_to_descendant_gone_ms,
+        stop::STOP_BUDGET.as_millis()
+    );
+    for limitation in &signed.receipt.report.report.limitations {
+        println!("  - {limitation}");
+    }
+    if signed.receipt.mode == stop::EnforcementMode::Enforced {
+        ExitCode::SUCCESS
+    } else {
+        eprintln!(
+            "warrantor: this receipt reads advisory — the drill did not confirm the tree died \
+             within budget on this kernel, so stop records here stay advisory."
+        );
+        ExitCode::FAILURE
     }
 }
 
@@ -1559,6 +1759,22 @@ fn verify_report_export(path: &str, body: &[u8], anchor: Option<&Anchor>) -> Exi
     );
     println!("  still live    {liveness}");
     println!("  anchor        {}", anchor_line(anchor));
+    match (&signed.bundle.effect_evidence, anchor.is_some()) {
+        // With an anchor the key is named; without one it is not, and this line must not imply
+        // otherwise -- the anchor line above it says "NONE pinned" in that case.
+        (Some(section), true) => println!(
+            "  effects       {} receipt chain(s) verified: pre-commit before each effect, \
+             post-commit after, every receipt signed by the key the anchor line binds",
+            section.effects.len()
+        ),
+        (Some(section), false) => println!(
+            "  effects       {} receipt chain(s) verified: pre-commit before each effect, \
+             post-commit after, every receipt signed by the same key as this report -- WHICH key \
+             that is, is not established here",
+            section.effects.len()
+        ),
+        (None, _) => println!("  effects       no per-effect receipts in this export"),
+    }
 
     println!("\n── WHAT THIS DOES NOT ESTABLISH ──");
     for limitation in &signed.bundle.limitations {
@@ -1726,12 +1942,20 @@ fn verify_stop_export(path: &str, body: &[u8], anchor: Option<&Anchor>) -> ExitC
 /// with no parent-death link, or a warrant whose access is still open. A stop that could not
 /// contain must not exit like one that did.
 fn cmd_stop(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
-    let Some(id) = args.positional.first() else {
-        return fail("usage: warrantor stop <warrant-id> [--reason \"...\"] [--export <path>]");
-    };
-    let mut stored = match store.load(id) {
-        Ok(s) => s,
-        Err(e) => return fail(&e.to_string()),
+    let scope = match (
+        args.positional.first(),
+        args.flags.get("family"),
+        args.flags.get("run"),
+    ) {
+        (Some(id), None, None) => HaltScope::Warrant(id.clone()),
+        (None, Some(subject), None) if subject != "true" => HaltScope::Family(subject.clone()),
+        (None, None, Some(run)) if run != "true" => HaltScope::Run(run.clone()),
+        _ => {
+            return fail(
+                "usage: warrantor stop <warrant-id> | --family <subject> | --run <run-id> \
+                 [--reason \"...\"] [--export <path>]",
+            )
+        }
     };
     let daemons = match DaemonState::open(root) {
         Ok(d) => d,
@@ -1741,71 +1965,74 @@ fn cmd_stop(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         Ok(s) => s,
         Err(e) => return fail(&e.to_string()),
     };
+    let conformance = match ConformanceStore::open(root) {
+        Ok(c) => c,
+        Err(e) => return fail(&e.to_string()),
+    };
     // The issuer key, not the settle key. Stop releases nothing and performs nothing, so loading
     // settle authority to record it would put that key in a process with no business holding it.
     let issuer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
         Ok(k) => k,
         Err(e) => return fail(&e),
     };
-
-    let daemon = daemons.get(id);
-    let mut outcome = stop::execute(
-        &mut stored,
-        daemon.as_ref(),
-        &OsProcessControl,
-        &store.staged_path(id),
-    );
-    if daemon.is_some() {
-        match daemons.deregister(id) {
-            Ok(()) => outcome.deregistered = true,
-            Err(e) => eprintln!(
-                "warrantor: the run was stopped, but its daemon record could not be removed: {e}. \
-                 `warrantor status` may keep reporting it."
-            ),
-        }
-    }
-    // Persist the held state before writing the record, so a crash between the two leaves a warrant
-    // that is held with no record rather than a record of a hold that did not happen.
-    if let Err(e) = store.save(&stored) {
-        return fail(&format!(
-            "the run was stopped but the warrant state could not be persisted: {e}"
-        ));
-    }
-
     let reason = args
         .flags
         .get("reason")
         .filter(|value| value.as_str() != "true")
         .map(String::as_str);
-    let signed = match stop::sign(&stored, &outcome, reason, &issuer, now()) {
-        Ok(s) => s,
+    let context = HaltContext {
+        store,
+        daemons: &daemons,
+        stops: &stops,
+        conformance: &conformance,
+        control: &OsProcessControl,
+        now: now(),
+    };
+    let receipts = match stop::halt(&scope, &context, &issuer, reason) {
+        Ok(r) => r,
         Err(e) => {
-            // The run really is stopped; only the evidence is missing. Saying so beats exiting
-            // successfully with silence where the record goes.
-            eprintln!("warrantor: the run was stopped, but the record could not be signed: {e}");
+            eprintln!("warrantor: {e}");
             return ExitCode::FAILURE;
         }
     };
-    let written = match stops.save(&signed) {
-        Ok(path) => path,
-        Err(e) => {
-            return fail(&format!(
-                "the run was stopped but the record was not kept: {e}"
-            ))
+    let mut all_contained = true;
+    for signed in &receipts {
+        print!("{}", stop::render_cli(signed));
+        println!(
+            "  kept at         {}",
+            stops.path(&signed.record.warrant_id).display()
+        );
+        print!("{}", stop::render_limitations(signed));
+        all_contained &= stop::contained(signed);
+        if let Ok(stored) = store.load(&signed.record.warrant_id) {
+            notify_event(
+                root,
+                "stopped",
+                &stored,
+                serde_json::json!({ "contained": stop::contained(signed) }),
+            );
         }
-    };
-
-    print!("{}", stop::render_cli(&signed));
-    println!("  kept at         {}", written.display());
-    print!("{}", stop::render_limitations(&signed));
+    }
 
     if let Some(path) = args.flags.get("export") {
         if path == "true" {
             return fail("--export needs a file path: warrantor stop <id> --export stop.json");
         }
-        if let Err(e) =
-            write_export_anchored(&signed, Path::new(path), root, id, anchor::Anchored::Stop)
-        {
+        if receipts.len() != 1 {
+            return fail(&format!(
+                "--export writes one file; this halt produced {} records — export each with \
+                 warrantor stop <id> --export",
+                receipts.len()
+            ));
+        }
+        let signed = &receipts[0];
+        if let Err(e) = write_export_anchored(
+            signed,
+            Path::new(path),
+            root,
+            &signed.record.warrant_id,
+            anchor::Anchored::Stop,
+        ) {
             return fail(&e);
         }
         println!("\nexported  {path}");
@@ -1827,22 +2054,83 @@ fn cmd_stop(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
         );
     }
 
-    let contained = stop::contained(&signed);
-    // The stop is a fact; the notification is downstream of it and cannot gate the exit code.
-    notify_event(
-        root,
-        "stopped",
-        &stored,
-        serde_json::json!({ "contained": contained }),
-    );
-
-    if contained {
+    if all_contained {
         ExitCode::SUCCESS
     } else {
         eprintln!(
-            "warrantor: this stop did NOT contain the run -- see the FAIL above. Treat the agent \
-             as still running until you have confirmed otherwise yourself."
+            "warrantor: at least one of these stops did NOT contain its run -- see the FAIL \
+             above. Treat the agent as still running until you have confirmed otherwise yourself."
         );
+        ExitCode::FAILURE
+    }
+}
+
+/// `warrantor conformance run` — drill this kernel's kill path and keep the receipt that decides
+/// whether stop records here may say `enforced`.
+fn cmd_conformance(args: &Args, root: &Path) -> ExitCode {
+    if args.positional.first().map(String::as_str) != Some("run") {
+        return fail("usage: warrantor conformance run [--export <path>]");
+    }
+    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
+        Ok(k) => k,
+        Err(e) => return fail(&e),
+    };
+    let store = match ConformanceStore::open(root) {
+        Ok(c) => c,
+        Err(e) => return fail(&e.to_string()),
+    };
+    let drill = match conformance::drill(&root.join("conformance")) {
+        Ok(d) => d,
+        Err(e) => return fail(&format!("drill: {e}")),
+    };
+    let signed = match conformance::sign_receipt(&drill, &issuer, now()) {
+        Ok(s) => s,
+        Err(e) => return fail(&format!("sign receipt: {e}")),
+    };
+    let kept = match store.save(&signed) {
+        Ok(p) => p,
+        Err(e) => return fail(&e.to_string()),
+    };
+    println!(
+        "CONFORMANCE {}  kernel {}",
+        signed.receipt.mode.word(),
+        signed.receipt.kernel
+    );
+    println!(
+        "  root pid {} gone in {} ms; descendant pid {} gone in {} ms; budget {} ms",
+        drill.root_pid,
+        drill.trigger_to_root_gone_ms,
+        drill.descendant_pid,
+        drill.trigger_to_descendant_gone_ms,
+        stop::STOP_BUDGET.as_millis()
+    );
+    if let Some(refusal) = &drill.refusal {
+        println!("  kill refused: {refusal}");
+    }
+    println!("  receipt         {}", signed.receipt_digest);
+    println!("  kept at         {}", kept.display());
+    println!(
+        "  stop records on this kernel will now read: {}",
+        signed.receipt.mode.word()
+    );
+    if let Some(path) = args.flags.get("export") {
+        if path == "true" {
+            return fail("--export needs a file path");
+        }
+        if let Err(e) = write_export_anchored(
+            &signed,
+            Path::new(path),
+            root,
+            &signed.receipt.kernel,
+            anchor::Anchored::Conformance,
+        ) {
+            return fail(&e);
+        }
+        println!("\nexported  {path}\nCheck it anywhere:  warrantor verify {path}");
+    }
+    if signed.receipt.mode == stop::EnforcementMode::Enforced {
+        ExitCode::SUCCESS
+    } else {
         ExitCode::FAILURE
     }
 }
@@ -2896,16 +3184,66 @@ fn cmd_settle(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
             Err(e) => return fail(&e.to_string()),
         }
     }
-    let mut performer = build_performer();
-    match settle(
+    // The receipt half of the settle. Issuer key: receipts are signed with the same key that
+    // signs the report, so `verify --issuer` binds both to one pin. Stop records feed the
+    // containment gate exactly as the report's verdict reads them; the log is opened before
+    // anything is performed, because a log that cannot be opened is a settle that must not start.
+    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
+        Ok(k) => k,
+        Err(e) => return fail(&e),
+    };
+    let stops = match StopStore::open(root) {
+        Ok(s) => s,
+        Err(e) => {
+            return fail(&format!(
+                "cannot read stop records, so containment is unknown: {e}"
+            ))
+        }
+    };
+    let contained = stops.contained_scopes(id);
+    let mut receipt_log = match ReceiptLog::open(store.receipts_path(id)) {
+        Ok(l) => l,
+        Err(e) => {
+            return fail(&format!(
+                "cannot open the effect receipt log, so nothing is settled: {e}"
+            ))
+        }
+    };
+    let witness = EffectWitness::for_warrant(
+        &stored.warrant,
+        &issuer.verifying_key(),
+        &issuer,
+        "issuer",
+        contained,
+        now(),
+    );
+    let mut inner = build_performer();
+    let mut performer = EvidencedPerformer::new(inner.as_mut(), witness, &mut receipt_log);
+    let outcome = settle(
         &mut stored.warrant,
         &queue,
         tree.as_ref(),
         &settle_key.verifying_key(),
-        performer.as_mut(),
-    ) {
+        &mut performer,
+    );
+    for line in performer.unrecorded() {
+        eprintln!("warrantor: {line}");
+    }
+    let issued = performer.issued().len();
+    drop(performer);
+    match outcome {
         Ok(report) => {
             print_settle_report(&report);
+            // Only when there is something to point at. A settle with nothing staged, or one whose
+            // every effect was refused at the notary gate before a receipt could be written, has
+            // an empty log and no path worth printing -- and print_settle_report has already said
+            // per effect what happened.
+            if issued > 0 {
+                println!(
+                    "  receipts    {issued} issued to {}",
+                    store.receipts_path(id).display()
+                );
+            }
             if let Err(e) = store.save(&stored) {
                 return fail(&e.to_string());
             }
@@ -3118,7 +3456,17 @@ fn cmd_run(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     let Ok(exe) = std::env::current_exe() else {
         return fail("cannot locate the warrantor executable to re-launch as a daemon");
     };
-    let mut daemon_args = vec!["supervise".to_string(), id.clone(), "--".to_string()];
+    // Forward the store BEFORE the `--`: the daemon re-enters the arg parser as its own command,
+    // and without this it resolves the default root — a supervisor watching a DIFFERENT store
+    // than the `run` that started it, which surfaces as "nothing is supervising it" the morning
+    // after. Everything after `--` is the supervised command, so the flag cannot follow it.
+    let mut daemon_args = vec![
+        "supervise".to_string(),
+        id.clone(),
+        "--root".to_string(),
+        root.to_string_lossy().to_string(),
+        "--".to_string(),
+    ];
     daemon_args.extend(args.trailing.iter().cloned());
 
     let log = root.join("logs").join(format!("{id}.log"));
@@ -3293,6 +3641,194 @@ fn custody_section(root: &Path, warrant_id: &str) -> Option<report::CustodySecti
         approvers: operators::approvers(&records).len(),
         approvals_required: policy.required,
     })
+}
+
+/// The revocation source for a report built over this store (invariant I-05).
+///
+/// `None` only when the journal is broken enough that the store refuses to open. That is fail-closed
+/// in the direction that matters: `None` makes the bundle say revocation was *not consulted*, rather
+/// than letting an unreadable journal render as a clean set. A store that opens but whose file
+/// changed underneath it returns `Some` with `source_readable: false`, and the bundle says that too.
+fn revocation_section(root: &Path) -> Option<report::RevocationSection> {
+    let store = revoke::RevocationStore::open(root).ok()?;
+    Some(report::RevocationSection::from_store(&store))
+}
+
+// ── revocation: bounding future use, and saying what it does not reach ────────────────
+
+/// The sentence `warrantor revoke` prints under every record, and the one the report's limitations
+/// carry in the same words.
+///
+/// It is a constant so the two surfaces cannot drift, and so a reviewer diffing this file can see the
+/// whole claim in one place. Nothing in this build may soften it.
+const REVOKE_DISCLOSURE: &str = concat!(
+    "  what this does:\n",
+    "    Every verdict computed against THIS STORE -- the journal named above -- after the record\n",
+    "    reached disk denies at gate Identity for that subject. The refusal is a chokepoint in\n",
+    "    `warrantor_notary::verdict`, not an operating-system bound.\n",
+    "  what it does NOT do:\n",
+    "    It does not recall a credential already used -- revocation bounds future use only. It\n",
+    "    does not reach a copy held by a third party, does not close a session already open, and\n",
+    "    does not terminate a process. It does not propagate to any other machine: this build\n",
+    "    links no fan-out, so the latency above is this process's, not a fleet's. It does not\n",
+    "    reach a SECOND STORE on this same machine either: `--root` is accepted on every command,\n",
+    "    each store root holds its own journal, and the same subject reads as unrevoked under a\n",
+    "    different root. The egress broker does not consult the revocation set at all. An agent\n",
+    "    that never asks for a verdict is never refused. The journal records WHEN a subject was\n",
+    "    revoked, not WHO revoked it: it is keyed by subject, and the per-warrant actor log is not.\n",
+);
+
+fn cmd_revoke(args: &Args, root: &Path) -> ExitCode {
+    const USAGE_LINE: &str = "usage: warrantor revoke --svid <SVID> | --list | \
+                              --at <EPOCH> --svid <SVID> | --write-evidence <path>";
+
+    // `--write-evidence` first, and before the store is opened: it renders the published record from
+    // `revoke::latency_evidence()` and touches no journal, so it must not fail because a store's
+    // journal is unreadable. `tests/revocation_latency.rs` refuses a build in which the committed
+    // file and that function disagree -- a rendered number that is not gated against its record is a
+    // number that drifts.
+    if let Some(path) = args.flags.get("write-evidence") {
+        if path == "true" {
+            return fail(&format!("--write-evidence needs a file path. {USAGE_LINE}"));
+        }
+        let record = revoke::latency_evidence();
+        let text = match serde_json::to_string_pretty(&record) {
+            Ok(t) => format!("{t}\n"),
+            Err(e) => return fail(&format!("render the latency evidence: {e}")),
+        };
+        if let Err(e) = std::fs::write(path, &text) {
+            return fail(&format!("write {path}: {e}"));
+        }
+        println!("wrote {path}");
+        println!(
+            "  {} enforcement point(s), {} of which consults the revocation set.",
+            record.enforcement_points, record.enforcement_points_consulting_revocation,
+        );
+        println!("  The `not_covered` list is the load-bearing half of this file.");
+        return ExitCode::SUCCESS;
+    }
+
+    let mut store = match revoke::RevocationStore::open(root) {
+        Ok(s) => s,
+        Err(e) => return fail(&e.to_string()),
+    };
+    let svid = args
+        .flags
+        .get("svid")
+        .filter(|value| value.as_str() != "true")
+        .map(String::as_str);
+
+    // `--at` first: it is the only read that can answer NON-revocation, and answering it must never
+    // have the side effect of recording one.
+    if let Some(at) = args.flags.get("at").filter(|v| v.as_str() != "true") {
+        let Ok(epoch) = at.parse::<u64>() else {
+            return fail(&format!(
+                "--at wants epoch seconds, not {at:?}. {USAGE_LINE}"
+            ));
+        };
+        let Some(svid) = svid else {
+            return fail(&format!("--at needs a subject. {USAGE_LINE}"));
+        };
+        let revoked = store.was_revoked_at(svid, epoch);
+        println!("subject   {svid}");
+        println!("at epoch  {epoch}");
+        println!(
+            "answer    {}",
+            if revoked {
+                "REVOKED at or before that epoch"
+            } else {
+                "not revoked at that epoch"
+            }
+        );
+        println!("  proved from  {} alone.", store.journal_path().display());
+        println!(
+            "    Revocation is monotone and every record carries the epoch second it became\n    \
+             durable, so this file is sufficient: no service was asked, and a reader holding\n    \
+             only this file reaches the same answer. It says nothing about any other store --\n    \
+             including another store on this same machine -- and nothing about any other machine."
+        );
+        return ExitCode::SUCCESS;
+    }
+
+    if args.flags.contains_key("list") {
+        let records = match store.records() {
+            Ok(r) => r,
+            Err(e) => return fail(&e.to_string()),
+        };
+        if records.is_empty() {
+            println!(
+                "no subject is revoked in {}.",
+                store.journal_path().display()
+            );
+            println!(
+                "  This is ONE STORE's journal, not this machine's: `--root` selects the store, \
+                 and another"
+            );
+            println!(
+                "  root on this same machine has its own journal. It is not a statement about any \
+                 other store,"
+            );
+            println!("  and not a statement about any other machine.");
+            return ExitCode::SUCCESS;
+        }
+        println!("revoked subjects in {}", store.journal_path().display());
+        for (sequence, record) in records.iter().enumerate() {
+            println!("  [{sequence}] at {}  {}", record.at, record.jti);
+        }
+        println!(
+            "  {} record(s); revocation is monotone, so the set only grows.",
+            records.len()
+        );
+        return ExitCode::SUCCESS;
+    }
+
+    let Some(svid) = svid else {
+        return fail(USAGE_LINE);
+    };
+    let record = match store.revoke(svid) {
+        Ok(r) => r,
+        Err(e) => return fail(&e.to_string()),
+    };
+    let latency = store.latency(&record);
+
+    println!("revoked   {}", record.svid);
+    println!("  sequence           {}", record.sequence);
+    println!(
+        "  durable at         {} (epoch seconds)",
+        record.recorded_at
+    );
+    println!("  journal            {}", store.journal_path().display());
+    println!(
+        "  measured latency   {:?} to this process's first read",
+        std::time::Duration::from_nanos(latency.elapsed_nanos.min(u128::from(u64::MAX)) as u64),
+    );
+    println!(
+        "  adjudications in between  {} (verdicts this process computed between durability and \
+         that read)",
+        latency.adjudications_between,
+    );
+    println!(
+        "  stated bound       {:?} -- {}",
+        warrantor_warrant::IDENTITY_REVOCATION_SLA,
+        if latency.within_sla {
+            "inside it"
+        } else {
+            "BREACHED"
+        },
+    );
+    print!("{REVOKE_DISCLOSURE}");
+    if !latency.within_sla {
+        // A breach is a failure, not a log line. The credential half already refuses an over-budget
+        // revocation rather than recording one (`CredentialError::RevocationBudgetExceeded`), and the
+        // identity half must not be the softer of the two.
+        eprintln!(
+            "warrantor: the revocation IS recorded and durable, but propagation to this process's \
+             own read took longer than the stated bound. Exiting non-zero so a script cannot treat \
+             a breached SLA as a clean revocation."
+        );
+        return ExitCode::FAILURE;
+    }
+    ExitCode::SUCCESS
 }
 
 // ── time anchoring: order without a trust root ─────────────────────────────────
@@ -4592,6 +5128,18 @@ fn cmd_status(store: &WarrantStore, root: &Path) -> ExitCode {
 ///
 /// Registering the control endpoint inside a supervised agent would hand it settle authority. The
 /// flag split makes that a deliberate act rather than a default.
+/// What a typed `--upstream-effects` or `--upstream-strict` means when no server is attached.
+///
+/// A const so a test can assert on the sentence itself. The first version of this message said
+/// "every permitted call is already answered with the no-upstream refusal", which is false for the
+/// staged effects this product exists to mediate: `Decision::Stage` is reached BEFORE the
+/// `Decision::Forward if self.upstreams.is_none()` arm, so a permitted `github.create_pr` is staged
+/// and performed at settle while the operator has just been told nothing consequential can happen.
+/// `a_staged_effect_needs_no_upstream_and_is_still_published` in tests/upstream.rs names the same
+/// fact; nothing tied the two together until this const existed.
+const NO_UPSTREAM_DECLARATION_DISCLOSURE: &str =
+    "warrantor: upstream -- no --upstream server is attached, so the effect decompositions and --upstream-strict decide nothing in this session: nothing is forwarded, so nothing is classified or refused as undeclared. The values were checked, not applied. This does NOT mean nothing happens: a permitted call to a staged effect is still staged and performed at settle, because staging is decided before forwarding is.";
+
 fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
     let stdin = std::io::stdin();
     let mut stdout = std::io::stdout();
@@ -4615,13 +5163,67 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
         // CLI command.
         endpoint = endpoint.witnessed_by(store.clone());
 
+        // L4-23: a warrant that grants egress carries a signed catalog naming those hosts as
+        // capabilities, and the session refuses to serve without a verifiable one — a catalog
+        // that does not load or does not verify is exactly the file an attacker would edit. The
+        // verifying key comes from this machine's issuer key; only the public half outlives the
+        // block.
+        if !stored.warrant.claims.bounds.egress_hosts.is_empty() {
+            let verifying = match load_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
+                Ok(Some(key)) => key.verifying_key(),
+                Ok(None) => {
+                    return fail("no issuer key on this machine, so the catalog cannot be verified")
+                }
+                Err(e) => return fail(&e),
+            };
+            let catalog = match warrantor_warrant::catalog::CapabilityCatalog::load(
+                &warrantor_warrant::catalog::catalog_path(root, id),
+            ) {
+                Ok(c) => c,
+                Err(e) => {
+                    return fail(&format!(
+                        "this warrant grants egress but its catalog does not load ({e}); \
+                         refusing to serve a session whose destinations cannot be named"
+                    ))
+                }
+            };
+            if let Err(e) = catalog.verify(&verifying, id) {
+                return fail(&format!("catalog for {id} does not verify: {e}"));
+            }
+            endpoint = match endpoint.with_catalog(&catalog, root.to_path_buf()) {
+                Ok(e) => e,
+                Err(e) => return fail(&e),
+            };
+            eprintln!(
+                "warrantor: egress -- {} capability name(s) published; raw destinations are \
+                 unexpressible on this endpoint. {ENFORCEMENT_NOTE}",
+                catalog.capabilities.len()
+            );
+        }
+
         // Upstreams before the guard, because attaching one can fail and a failure here must stop
         // the session rather than start a supervised agent whose permitted calls have nowhere to
         // go. Everything about the wiring is decided at start-up for the same reason the archive
         // client checks its pairing up front: an agent discovering broken wiring mid-run burns its
         // deadline retrying against it.
         match upstream_specs(args) {
-            Ok(specs) if specs.is_empty() => {}
+            Ok(specs) if specs.is_empty() => {
+                // A declaration with nowhere to forward to is still CHECKED, and the fact that it
+                // decides nothing is said out loud. `with_decompositions` is applied only on a
+                // successful attach, so without `--upstream` a typed `--upstream-strict` refuses
+                // nothing -- and a flag whose whole purpose is to fail closed must never be
+                // silently inert. Checking the values here also means a misspelled verb is refused
+                // now rather than on the day an upstream is added.
+                if let Err(e) = upstream_decompositions(args) {
+                    return fail(&e);
+                }
+                if !args.all("upstream-effects").is_empty()
+                    || !args.all("upstream-effects-file").is_empty()
+                    || upstream_policy(args) == UnclassifiedPolicy::Refuse
+                {
+                    eprintln!("{NO_UPSTREAM_DECLARATION_DISCLOSURE}");
+                }
+            }
             Ok(specs) => {
                 let timeout = match args.flags.get("upstream-timeout") {
                     Some(raw) => match duration_seconds(raw) {
@@ -4660,24 +5262,25 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                             timeout.as_secs()
                         );
                         endpoint = endpoint.with_upstreams(set);
-                        let declared = match upstream_classes(args) {
-                            Ok(map) => map,
+                        let decompositions = match upstream_decompositions(args) {
+                            Ok(registry) => registry,
                             Err(e) => return fail(&e),
                         };
-                        let refuse_unclassified =
-                            args.flags.contains_key("upstream-refuse-unclassified");
-                        if !declared.is_empty() || refuse_unclassified {
+                        let policy = upstream_policy(args);
+                        let declared =
+                            decompositions.len() - DecompositionRegistry::builtin().len();
+                        if declared > 0 || policy == UnclassifiedPolicy::Refuse {
                             eprintln!(
-                                "warrantor: upstream -- {} tool class(es) declared{}.",
-                                declared.len(),
-                                if refuse_unclassified {
-                                    "; an undeclared tool will be REFUSED"
+                                "warrantor: upstream -- {declared} tool decomposition(s) \
+                                 declared{}.",
+                                if policy == UnclassifiedPolicy::Refuse {
+                                    "; STRICT: an undeclared tool will be refused"
                                 } else {
                                     ""
                                 }
                             );
                         }
-                        endpoint = endpoint.with_classes(declared, refuse_unclassified);
+                        endpoint = endpoint.with_decompositions(decompositions, policy);
                         // Said once, at the terminal, to the person who can act on it. The model is
                         // not told: a tool that is granted but unreachable is a fact about wiring,
                         // and an agent cannot fix wiring.
@@ -4770,13 +5373,24 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                 // existed only in this process's memory for the lifetime of one session, which is
                 // why `warrantor serve` could not answer "what was refused" by calling an existing
                 // function: the types were there and the data was not.
-                match http::record_refusals(
+                //
+                // Two appends to one log: the broker's refusals and the tool refusals, then the
+                // second engine's under its own bound. The second is empty in every shipped run
+                // (nothing constructs a secondary filter) and is written so that the day one is
+                // wired its refusals are attributed to it rather than to the warrant's bound.
+                let at = now();
+                let recorded = http::record_refusals(
                     root,
                     id,
                     &endpoint.authority_requests(),
                     &endpoint.egress_refusals(),
-                    now(),
-                ) {
+                    at,
+                )
+                .and_then(|written| {
+                    http::record_secondary_refusals(root, id, &endpoint.secondary_refusals(), at)
+                        .map(|more| written + more)
+                });
+                match recorded {
                     Ok(0) => {}
                     Ok(count) => eprintln!(
                         "warrantor: recorded {count} refusal group(s) for {id}. Review them across \
@@ -4851,7 +5465,13 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                 let unclassified = endpoint.unclassified_tools();
                 if !unclassified.is_empty() {
                     eprintln!(
-                        "warrantor: upstream -- {} tool(s) were forwarded with a GUESSED side-effect class (read): {}. This build can only tell what a call does for the tools it stages; declare the rest with --upstream-class '<tool>=write' so a write is staged rather than performed.",
+                        "warrantor: upstream -- {} tool(s) had no declared effect decomposition: \
+                         {}. Under --upstream-strict they were refused; otherwise each was \
+                         given a GUESSED decomposition (read) -- and then forwarded, or, with \
+                         no upstream attached, met with the no-upstream refusal. Declare each \
+                         with \
+                         --upstream-effects '<tool>=mutate' (or the verbs it really has) so a \
+                         write is staged rather than performed.",
                         unclassified.len(),
                         unclassified.join(", ")
                     );
@@ -4880,6 +5500,15 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                         warrantor_warrant::egress::reason_word(refusal.reason.clone()),
                         refusal.argument,
                         refusal.tool
+                    );
+                }
+                // The second engine's refusals name the engine, because the warrant's bound
+                // permitted these destinations and the file to change is the operator's filter.
+                for refusal in endpoint.secondary_refusals() {
+                    eprintln!(
+                        "warrantor: egress denied by the second policy engine {} x{} ({}, named in \
+                         {:?} by {})",
+                        refusal.destination, refusal.count, refusal.rule, refusal.argument, refusal.tool
                     );
                 }
                 ExitCode::SUCCESS
@@ -5995,9 +6624,15 @@ fn build_final_report(
         &issuer.verifying_key(),
         now(),
         &contained,
-        Some(spend::section(&ledger)),
-        custody_section(root, id),
+        report::Observed {
+            spend: Some(spend::section(&ledger)),
+            custody: custody_section(root, id),
+            revocation: revocation_section(root),
+        },
     );
+    let receipt_log = ReceiptLog::open(store.receipts_path(id))
+        .map_err(|e| format!("read the effect receipt log: {e}"))?;
+    let built = built.with_effect_receipts(receipt_log.receipts().to_vec());
     let signed = built
         .sign(&issuer, "issuer")
         .map_err(|e| format!("sign the final report: {e}"))?;
@@ -6414,6 +7049,8 @@ fn main() -> ExitCode {
         "egress" => cmd_egress(&args, &store, &root),
         "spend" => cmd_spend(&args, &store, &root),
         "stop" => cmd_stop(&args, &store, &root),
+        "revoke" => cmd_revoke(&args, &root),
+        "conformance" => cmd_conformance(&args, &root),
         "settle" => cmd_settle(&args, &store, &root),
         "void" => cmd_void(&args, &store, &root),
         "stage" => cmd_stage(&args, &store),
@@ -6666,5 +7303,189 @@ mod argument_parsing {
             vec!["npm".to_string(), "test".to_string(), "--apply".to_string()]
         );
         assert!(!parsed.flags.contains_key("apply"));
+    }
+}
+
+/// The `mcp` verb's decomposition flags, tested from the parser because a binary's command line
+/// is not reachable from an integration test without spawning a process.
+#[cfg(test)]
+mod upstream_effects_cli {
+
+    /// The no-upstream disclosure must not claim more than the code does.
+    ///
+    /// Its first version said "every permitted call is already answered with the no-upstream
+    /// refusal". That is false for exactly the calls this product exists to mediate: staging is
+    /// decided before forwarding, so a permitted `github.create_pr` is staged and performed at
+    /// settle while the operator has just been told nothing consequential can happen. An operator
+    /// who types `--upstream-strict` and reads that sentence would believe writes were impossible.
+    #[test]
+    fn the_no_upstream_disclosure_does_not_claim_every_call_is_refused() {
+        let disclosure = super::NO_UPSTREAM_DECLARATION_DISCLOSURE;
+
+        // A mutation test corrupted this sentence's whitespace and the first version of this
+        // test stayed green, because each substring it checked sat inside one unbroken clause.
+        // An operator-facing sentence that can be corrupted unnoticed is not guarded. An empty
+        // segment between spaces is a doubled, leading or trailing space; no literal of two
+        // spaces is needed, which matters because tooling once squeezed exactly that literal.
+        assert!(
+            !disclosure.split(' ').any(str::is_empty),
+            "the disclosure has a doubled, leading or trailing space: {disclosure:?}"
+        );
+        assert!(
+            !disclosure.chars().any(|c| c.is_whitespace() && c != ' '),
+            "the disclosure carries whitespace other than a plain space: {disclosure:?}"
+        );
+
+        // The retracted clause, in the shapes it could come back as.
+        assert!(
+            !disclosure.contains("every permitted call"),
+            "the disclosure claims every permitted call is refused; staged effects are not: {disclosure}"
+        );
+        assert!(
+            !disclosure.contains("already answered with the no-upstream refusal"),
+            "the disclosure still carries the retracted justification: {disclosure}"
+        );
+
+        // Whole clauses, so a break inside one is seen where a substring check would not see it.
+        for clause in [
+            "no --upstream server is attached, so the effect decompositions and --upstream-strict decide nothing in this session",
+            "The values were checked, not applied.",
+            "a permitted call to a staged effect is still staged and performed at settle",
+        ] {
+            assert!(
+                disclosure.contains(clause),
+                "a full clause is missing or broken: {clause:?} in {disclosure:?}"
+            );
+        }
+    }
+    use super::{parse_tokens, upstream_decompositions, upstream_policy};
+    use warrantor_warrant::effects::{
+        DecompositionRegistry, UnclassifiedPolicy, EFFECT_REGISTRY_FORMAT,
+    };
+
+    fn args(tokens: &[&str]) -> super::Args {
+        parse_tokens(
+            std::iter::once("mcp".to_string())
+                .chain(tokens.iter().map(|t| (*t).to_string()))
+                .collect::<Vec<_>>(),
+        )
+        .expect("a command")
+    }
+
+    #[test]
+    fn nothing_declared_is_the_builtin_registry_under_the_permissive_policy() {
+        let registry = upstream_decompositions(&args(&[])).expect("builtin");
+        assert_eq!(registry, DecompositionRegistry::builtin());
+        assert_eq!(upstream_policy(&args(&[])), UnclassifiedPolicy::GuessRead);
+    }
+
+    #[test]
+    fn declarations_accumulate_and_a_builtin_may_be_restated_but_not_changed() {
+        let registry = upstream_decompositions(&args(&[
+            "--upstream-effects",
+            "files.write_file=mutate",
+            "--upstream-effects",
+            "deploy.to_prod=exec+net+mutate",
+            "--upstream-effects",
+            "github.create_pr=net+mutate",
+        ]))
+        .expect("three declarations");
+        assert_eq!(registry.len(), DecompositionRegistry::builtin().len() + 2);
+        assert_eq!(
+            registry.get("deploy.to_prod").expect("declared").render(),
+            "net+exec+mutate"
+        );
+
+        let error = upstream_decompositions(&args(&["--upstream-effects", "github.create_pr=net"]))
+            .expect_err("a builtin weakened");
+        assert!(error.contains("github.create_pr"), "{error}");
+        let error = upstream_decompositions(&args(&[
+            "--upstream-effects",
+            "t=net",
+            "--upstream-effects",
+            "t=mutate",
+        ]))
+        .expect_err("declared twice");
+        assert!(error.contains("already declared"), "{error}");
+    }
+
+    #[test]
+    fn the_old_class_flag_is_refused_by_name_never_ignored() {
+        let error = upstream_decompositions(&args(&["--upstream-class", "files.write_file=write"]))
+            .expect_err("refused");
+        assert!(
+            error.contains("--upstream-class is no longer read"),
+            "{error}"
+        );
+        assert!(
+            error.contains("--upstream-effects"),
+            "the remedy is named: {error}"
+        );
+    }
+
+    #[test]
+    fn a_registry_file_is_loaded_and_a_foreign_one_is_refused_with_its_path() {
+        let dir =
+            std::env::temp_dir().join(format!("warrantor-effects-cli-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("tempdir");
+        let good = dir.join("registry.json");
+        std::fs::write(
+            &good,
+            format!(
+                r#"{{"format":"{EFFECT_REGISTRY_FORMAT}","tools":{{"files.write_file":["mutate"]}}}}"#
+            ),
+        )
+        .expect("write");
+        let registry = upstream_decompositions(&args(&[
+            "--upstream-effects-file",
+            good.to_str().expect("utf-8 path"),
+        ]))
+        .expect("loads");
+        assert!(registry.get("files.write_file").is_some());
+
+        let bad = dir.join("foreign.json");
+        std::fs::write(
+            &bad,
+            r#"{"format":"warrantor.effect-registry/9","tools":{}}"#,
+        )
+        .expect("write");
+        let error = upstream_decompositions(&args(&[
+            "--upstream-effects-file",
+            bad.to_str().expect("utf-8 path"),
+        ]))
+        .expect_err("refused");
+        assert!(error.contains("foreign.json"), "{error}");
+        assert!(error.contains("warrantor.effect-registry/9"), "{error}");
+    }
+
+    #[test]
+    fn strict_mode_has_a_new_name_and_keeps_its_old_one() {
+        assert_eq!(
+            upstream_policy(&args(&["--upstream-strict"])),
+            UnclassifiedPolicy::Refuse
+        );
+        assert_eq!(
+            upstream_policy(&args(&["--upstream-refuse-unclassified"])),
+            UnclassifiedPolicy::Refuse
+        );
+        // A boolean flag must not swallow the token after it. The plan's version of this
+        // assertion put another FLAG next, which passes whether or not the flag is registered in
+        // VALUELESS_FLAGS -- an unregistered flag is flushed as "true" when the next token starts
+        // with "--". A POSITIONAL is the case the parser comment is actually about, and the case
+        // that fails when the registration is missing.
+        let parsed = args(&["--upstream-strict", "wrt_1"]);
+        assert_eq!(
+            parsed.positional,
+            vec!["wrt_1".to_string()],
+            "--upstream-strict swallowed the positional after it, which means it is missing from                  VALUELESS_FLAGS"
+        );
+        assert_eq!(
+            parsed.flags.get("upstream-strict").map(String::as_str),
+            Some("true")
+        );
+        // And it still reads as strict with a flag following it.
+        let parsed = args(&["--upstream-strict", "--agent", "wrt_1"]);
+        assert_eq!(parsed.flags.get("agent").map(String::as_str), Some("wrt_1"));
+        assert_eq!(upstream_policy(&parsed), UnclassifiedPolicy::Refuse);
     }
 }

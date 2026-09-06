@@ -17,3 +17,29 @@ serde_json = "1"
 ed25519-dalek = { version = "3", features = ["rand_core"] }
 getrandom = { version = "0.4", features = ["sys_rng"] }
 sha2 = "0.11"
+# THE WIRING EDGE. `warrantor-egress` is already reachable from the `warrantor` binary, so one edge
+# below it puts the deny floor (L4-25) and its single shared address matcher on the shipping path and
+# moves `warrantor-egress-filter` off the orphan list in `evidence/wiring-coverage.json`. Its
+# dependency set {thiserror, serde, serde_json} is a strict subset of this crate's, so the edge adds
+# no external crate and no new package to `rust/Cargo.lock`.
+#
+# WHAT THE EDGE DOES NOT MEAN. It reaches exactly one module, `hard_deny`. The crate's advertised
+# capability -- `Policy` / `PolicyBuilder` and the three `decide_*` entry points -- had an EMPTY
+# caller set in this workspace outside the crate's own tests when this edge landed, so the census rose
+# because new code was placed inside an orphan crate rather than because an orphaned capability was
+# wired up. A reader who takes `11 of 40` as "the eBPF egress core is now in the product" has read it
+# wrong.
+#
+# UPDATED BY TASK 5.4. `Policy` now has one caller in the product: `rust/warrant` depends on this
+# crate directly and reaches `decide_destination` through `egress::SecondaryFilter`, a second policy
+# engine at the MCP proxy. Two things about that are worth stating where the edge is declared, because
+# both are easy to overclaim:
+#
+#   1. It is still not an eBPF layer. There is no `.bpf.c` and no loader in this repository; the
+#      `Action` returned is advice a Rust caller acts on, not a verdict a kernel enforces.
+#   2. It makes `hard_deny` a SHARED failure domain. This crate delegates its address floor to
+#      `hard_deny`, and so does `Policy` -- so the two evaluators the product now consults have one
+#      matcher between them. That is the right trade for drift and the wrong one for independence,
+#      and `egress::independence` reports `address_floor` as permanently shared because of it. See
+#      `docs/05-network-common-mode-analysis.md` section 4.
+warrantor-egress-filter = { path = "../egress-filter", version = "1.0.0" }

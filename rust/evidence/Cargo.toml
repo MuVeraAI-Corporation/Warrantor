@@ -17,3 +17,8 @@ serde_json = "1"
 ed25519-dalek = { version = "3", features = ["rand_core"] }
 getrandom = { version = "0.4", features = ["sys_rng"] }
 sha2 = "0.11"
+# The one delegation algebra (L6-01). This crate maps a receipt's DelegationLink to the
+# delegation-chain scope type and asks that crate whether the chain narrows; it computes no
+# intersection of its own. `hex 0.4` is the only crate it brings, and warrantor-warrant already
+# pins that version, so Cargo.lock gains no new package.
+warrantor-delegation-chain = { path = "../delegation-chain", version = "1.0.0" }

@@ -217,6 +217,16 @@ jobs:
       - name: Assert the wiring count did not fall
         if: runner.os == 'Linux'
         run: python ../tools/ci/wiring_census.py
+      # The common-mode independence gate (Task 5.4, L2-03 / L0-10). Same shape as the wiring ratchet
+      # above and for the same reason: the number lives in one file and every prose copy is checked
+      # against it. It also fails when a mechanism the record is DERIVED from moves, rather than
+      # quietly publishing a fresh number from a stale derivation.
+      - name: Test the network-independence gate
+        if: runner.os == 'Linux'
+        run: python -m pytest ../tools/ci/test_network_independence.py -q -p no:cacheprovider
+      - name: Assert every rendered independence count matches its record
+        if: runner.os == 'Linux'
+        run: python ../tools/ci/network_independence.py
       # On main, regenerate the record and publish it. The workflow holds `contents: read`, so
       # this cannot commit; the committed copy is raised by the pull request that wires a crate,
       # and this artifact is the copy that never lags the tree.
@@ -373,9 +383,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Full history: the US-English gate diffs against the base to scope itself to added lines.
+          fetch-depth: 0
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
+      - uses: actions/setup-node@v5
+        with:
+          # The US-English gate applies the vendored canonical matcher, which is Node.
+          node-version: "22"
+      - name: US English on every line this branch adds
+        env:
+          # A pull request compares against its base; a push compares against what main was.
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BASE_SHA" ] || ! git cat-file -e "$BASE_SHA" 2>/dev/null; then
+            echo "no usable base ref; scanning against origin/main"
+            BASE_SHA=origin/main
+          fi
+          python tools/ci/check_us_english.py "$BASE_SHA"
       - name: Run documentation checks
         run: python tools/ci/check_docs.py
       - name: Install pytest for the invariant ledger tests
@@ -384,6 +411,10 @@ jobs:
         run: python tools/ci/check_invariants.py
       - name: Test the invariant ledger checker
         run: python -m pytest tools/ci/test_check_invariants.py -q -p no:cacheprovider
+      - name: Test the US-English gate
+        run: python -m pytest tools/ci/test_check_us_english.py -q -p no:cacheprovider
+      - name: Test the disk guard
+        run: python -m pytest tools/ci/test_disk_guard.py -q -p no:cacheprovider
       - name: Generate exhaustive implementation tracker
         run: python tools/implementation/generate_tracker.py --output evidence/implementation-tracker.json
       - name: Upload implementation inventory

@@ -79,6 +79,9 @@ const ACCEPTED_FLAGS: &[&str] = &[
     "deadline",
     "repo",
     "egress",
+    // Task 1.2: named capabilities from the operator catalog, compiled into the warrant's
+    // catalog at grant time. Wired in cmd_grant; listed here so the usage text may name it.
+    "egress-capability",
     "budget",
     "subject",
     // report / verify / issuer / archive
@@ -101,6 +104,10 @@ const ACCEPTED_FLAGS: &[&str] = &[
     "tool",
     "target",
     "arg",
+    // Task 1.3: stop scopes — a family of warrants by subject, or the warrant a run id belongs to.
+    // Both are read by cmd_stop and forwarded to halt(); listed so the usage text may name them.
+    "family",
+    "run",
     // prune / agents
     "apply",
     // operator
@@ -111,13 +118,28 @@ const ACCEPTED_FLAGS: &[&str] = &[
     "cases",
     // guard export-corpus
     "min-labelled",
+    // revoke (invariant I-05). Every one of these is read by `cmd_revoke`: `--svid` names the
+    // subject, `--list` reads the set, `--at` answers the past-epoch question, and
+    // `--write-evidence` renders evidence/revocation-latency.json from the code that states the
+    // bound. Naming a flag here without wiring it is the defect this test exists to catch.
+    "svid",
+    "list",
+    "at",
+    "write-evidence",
     // queue
     "notify",
     // sandbox
     "kind",
     // notify commands
     "allow-notify-command",
-    // upstream tool classes
+    // Task 2.1: upstream tool effect decompositions. `--upstream-effects` and
+    // `--upstream-effects-file` are read by upstream_decompositions and `--upstream-strict` by
+    // upstream_policy. `--upstream-class` is still listed because it is still READ -- by a branch
+    // that refuses it by name and says what to type instead; a removed flag that is merely
+    // ignored would forward as a read the very tool the operator typed it to protect.
+    "upstream-effects",
+    "upstream-effects-file",
+    "upstream-strict",
     "upstream-class",
     "upstream-refuse-unclassified",
     // mcp

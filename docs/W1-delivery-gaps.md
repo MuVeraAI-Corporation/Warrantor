@@ -56,15 +56,22 @@ Two things this does **not** fix, and they are why §3.1 still reads as it does:
   tools of its own that never traverse an MCP server. Wiring one is worth real things — the
   deadline, the worktree, the staged effects, the evidence, the OS lifetime link, and mediation of
   every MCP tool it uses — and it is not mediation of `bash`.
-- **An unknown tool's side-effect class was guessed — now declarable, and refusable.** Anything the
-  effect registry does not know was classed `Read` and forwarded, so an upstream `write_file` was
-  performed rather than staged: a guess with exactly one reachable answer until forwarding existed,
-  and load-bearing the moment it did. `--upstream-class '<tool>=read|write|destructive|financial'`
-  replaces the guess with a statement and `--upstream-refuse-unclassified` fails closed. The
-  registry still wins over a declaration, because those four tools are the ones the settle path can
-  actually perform. Tools decided by the fallback are **named** at the end of a session — a count is
-  not something an operator can act on; the names are the work list. Still true: the staging
-  boundary covers four GitHub effects and nothing else.
+- **An unknown tool's effects are declared as syscalls, or refused (L4-01, 2026-09-02).** Acceptance
+  transcript against a live filesystem MCP server, 2026-09-06: `docs/task-evidence/task-2.1.md`. The
+  five-class `--upstream-class` map is gone; a tool is declared as a composition of the nine effect
+  syscalls — `--upstream-effects 'deploy.to_prod=exec+net+mutate'`, or a
+  `warrantor.effect-registry/1` file via `--upstream-effects-file` — and `--upstream-strict`
+  refuses any tool nobody declared. The old flag is refused by name, never ignored. What this is
+  NOT: a classifier. Nothing reads a tool's schema to infer its effects, because that would be the
+  original guess in a new costume; the corpus test (`rust/warrant/tests/effects.rs`) carries the
+  schemas and proves none are consulted. Still true: the proxy decides by a projected
+  `SideEffectClass` until staging moves onto syscalls (Task 2.3); `Physical` is reachable from no
+  decomposition because observe mode does not block it; the default policy still guesses `Read`
+  and names the guess, and flipping the default to strict waits on signed manifests (Task 2.2), so
+  that a strict default does not refuse every tool of every server on day one. Also still true:
+  the declaration only reaches the endpoint when `--upstream` attached a server, so a session with
+  no upstream is unaffected either way, and the staging boundary still covers four GitHub effects
+  and nothing else.
 
 ### 0.2 Nothing pointed a real harness at the endpoint — **fixed, and what it replaced was worse**
 
@@ -245,7 +252,7 @@ identity on first use would sign evidence with a key nobody chose.
 **But it is also the reviewer's exact path.** Install the app on a clean machine, double-click it,
 and the agent dies before the window opens. The Windows install did not show this because that
 machine already had a store from CLI use — which is precisely why "it worked on the machine that
-built it" is not evidence about a first run. Note what the store *does* contain afterwards:
+built it" is not evidence about a first run. Note what the store *does* contain afterward:
 `staged/`, `warrants/` and `witness/` were created by `WarrantStore::open` and `keys/` was not, so
 the failure leaves a half-made store behind.
 
@@ -258,7 +265,7 @@ the sentence that names the remedy.
 dodge — the app minting a key silently would repeat the mistake one layer up, but leaving a reviewer
 with a dialog and no next step was not the only alternative.
 
-`firstRunRemedy()` in `desktop/src/policy.js` recognises this one refusal and turns it into a
+`firstRunRemedy()` in `desktop/src/policy.js` recognizes this one refusal and turns it into a
 screen: what is missing, **why the agent refuses on purpose**, and the exact command, with a *Copy
 the command* button. Everything else falls through to the generic error — a first-run screen shown
 for `EADDRINUSE` would send somebody to create a key they already have, and a test asserts it does
@@ -337,7 +344,7 @@ created at all and the paragraph above it described something that had not happe
 stays fixed prose compiled into the binary — nothing store-derived may be templated into a document
 that is served before the token check.
 
-These are behaviours, so they are now tested as behaviours. `rust/warrant/src/console/console.test.js`
+These are behaviors, so they are now tested as behaviors. `rust/warrant/src/console/console.test.js`
 runs under `node --test` — the runtime's own runner, no install, no bundler, no package manager, so
 RFC W1 §Dependencies still holds — and boots `console.js` against a stubbed DOM and a scripted
 server. Every fix above has a test that fails without it.
@@ -403,7 +410,7 @@ approval when `required > 1`, and it reads the *log*, not the registry — so on
 typed at a terminal trips it on a fully registered store, and because the log is append-only it can
 never be untripped. The warrant becomes settleable never, voidable only. The queue reports it as
 deadlocked and the CLI now **refuses** the act rather than performing it and printing a caution
-afterwards. What shipped told the operator they had achieved nothing; they had achieved worse.
+afterward. What shipped told the operator they had achieved nothing; they had achieved worse.
 
 ---
 
@@ -451,7 +458,7 @@ exactly what an attacker who cannot forge signatures wants instead. This is deli
 TOFU-with-pinning, no network**: a directory that hands out keys over the network is a new trust
 root, and that design decision has not been made. What remains open is everything beyond one
 machine — a signed or shared directory, rotation, and who vouches for a name the first time in an
-organisation.
+organization.
 
 What is still missing here: TLS.
 
@@ -466,7 +473,7 @@ What is still missing here: TLS.
   countersigned archive times all buy *absolute* time and all cost a new trust root or new
   infrastructure. What shipped instead is a per-store append-only hash-chained ledger that
   establishes **relative order** — if A precedes B in the chain, A was signed first, whatever
-  timestamps either carries — and makes a **clock that went backwards visible** as a fault of its
+  timestamps either carries — and makes a **clock that went backward visible** as a fault of its
   own kind. The bridge to absolute time is deliberately a human step: the head digest is
   publishable, and pasting it into a commit message or a ticket binds everything before it to a
   clock somebody else keeps. What it does not establish is printed under every rendering.
@@ -483,7 +490,7 @@ loopback bind — see §2.3, where the bind is now fail-closed rather than merel
 
 This remains the largest single gap in the product, and everything in Tier 3 assumes it.
 
-### 2.2 Identity and per-person authorisation — **built**
+### 2.2 Identity and per-person authorization — **built**
 
 For every release before this one: one bearer token per server run, unscoped. Everyone holding it
 was the same principal, `--allow-settle` was all-or-nothing, and the audit trail could not say which
@@ -558,14 +565,14 @@ collected.
 
 Notifications (§3.2) already exist, so a human who is not watching the window can be told a decision
 is waiting. What is still absent is any *routing* of that decision to a particular person: the
-webhook fires, and who picks it up is an organisational question this build does not model.
+webhook fires, and who picks it up is an organizational question this build does not model.
 
 ### 2.3 TLS — **built behind a feature; the bind is fail-closed without it**
 
 There is still no TLS. The token protects access, not bytes on the wire.
 
 What changed is the default. A bind beyond loopback used to print a thorough warning and start the
-server anyway; it is now a **refusal**, and the acknowledgement is
+server anyway; it is now a **refusal**, and the acknowledgment is
 `--i-accept-cleartext-on-this-network`, named after what it admits rather than what it enables. The
 argument is not about how loud a warning is: the token crosses in the clear on every request, a
 warning is read once by the person who typed the command and then their terminal closes while the
@@ -621,6 +628,65 @@ person.
 it. Same UID is same UID. What is gone is the agent settling its own work through the API, which is
 the escalation the product's central claim depends on.
 
+### 2.5 Evidence and notary reach the settle path — **wired 2026-09-05, no adapter configured, advisory**
+
+Before: `warrantor_evidence::issue_pre_commit` and `issue_post_commit` had no caller; the report
+signed one atomic receipt over a bundle and no effect was ever decided or signed individually.
+Now: `settle` wraps whichever performer the surface built in `EvidencedPerformer`
+(`rust/warrant/src/settle.rs`); per effect it takes a notary verdict, appends a pre-commit
+receipt to `receipts/<id>.jsonl` with `fsync` before the adapter runs, and a post-commit
+carrying the outcome after. `report --export` lists every chain in the signed bundle and carries
+the receipts; `verify` runs `warrantor_evidence::verify_chain` on each and prints which pin
+bound them.
+
+**Live run, 2026-09-05, on the Windows box.** Two runs, and the honest reading of each.
+
+Run 1 — the receipt path, with **no GitHub adapter configured**. Warrant
+`wrt_d891c73cbcb70a62`, two effects staged (`github.create_pr`, then `github.comment`
+depending on it), `warrantor settle`. `build_performer` fell back to `NoAdapter`, so the first
+effect failed and the settle stopped, exactly as the release order promises: the CLI printed
+`FAILED pr://staged/wrt_d891c73cbcb70a62/1`, `unreleased comment://staged/.../2`, and
+`receipts 2 issued to M:/wt-t11-store\receipts\wrt_d891c73cbcb70a62.jsonl`. Two receipts, one
+chain, `status: failed`. `report --export` printed
+`1 effect receipt chain(s) from 2 receipt(s)` in EVIDENCE and
+`effects 1 receipt chain(s) attached` in SIGNED EVIDENCE, over bundle
+`ec29431682a3232402ca3c00d1c614c54f83132bd4b3ea2aab122ec51566e8e5`. A second store root
+(`M:/wt-t11-verifier`) holding none of the first root's keys pinned the issuer hex
+`8a5d6ab9…540d76` as `smoke` and verified the file: `effects 1 receipt chain(s) verified`. Then
+three tampered copies of the same file, each refused with the sentence that names what went
+wrong:
+
+| what was done to the export | what `verify` said |
+|---|---|
+| the post-commit removed | `commit-gate violation (I-07): the post-commit receipt for pr://staged/wrt_d891c73cbcb70a62/1 is missing from the export` |
+| the pre-commit removed | `commit-gate violation (I-07): the pre-commit receipt for pr://staged/wrt_d891c73cbcb70a62/1 is missing from the export` |
+| one receipt duplicated | `the export carries 3 effect receipt(s) and the bundle lists 2; receipts the bundle does not account for are refused` |
+
+**That run proves the receipt path, not the effect path.** No pull request was opened, because no
+credential was configured; the chain records a failure and says so. Nothing here shows a receipt
+preceding a *successful* external effect on this box — only that the pre-commit was durable before
+the adapter was called, and that the post-commit recorded what the adapter returned.
+
+Run 2 — the refusal, which is the part Rule 2 needs before any label moves. Warrant
+`wrt_29954559a1272896` granted `--tools github.comment` only; `warrantor stage` accepted a
+`github.create_pr` effect, because staging still does not consult the tool allowlist. `settle`
+refused it: `refused by the notary at the authority gate; nothing was performed`. No adapter was
+reached, **no receipt was written, and `receipts/wrt_29954559a1272896.jsonl` does not exist** —
+which is the intended shape: a refused effect gets no record of having been attempted at the
+adapter, and there is no path in which the effect happens and the receipt does not. The message
+names the gate and never the capability, which is the notary's own rule.
+
+What it does NOT establish, in the receipts' own words: the receipts are `advisory`. Settle
+mediates the staged path, not the world — an agent holding its own credential can open the same
+pull request outside warrantor. Promotion to `mediated` waits on L4-03 credential redemption.
+The log sits on the same disk as the agent's worktree; L7-02's external recorder is the archive
+push, which files the export and not the log. MCP `settle_warrant` still uses `NoAdapter` and
+performs nothing, so it issues nothing. `EvidencedPerformer` is a wrapper, not a change to
+`settle`, so the guarantee holds at the call sites that wrap — the CLI's `settle` and the HTTP
+settle route — and a caller that passes a bare performer still gets one; that is what the tests
+do deliberately, and it is the reason I-07 stays `partial` in `evidence/invariants.json` rather
+than being promoted here. Neither surface reads the log back on the HTTP `report` route yet: the
+CLI `report`, the automatic filing at settle and `verify` do.
 ---
 
 ## Tier 3 — needed before anyone trusts this with real oversight
@@ -668,6 +734,90 @@ asserts writing a profile does not move a single entry in it — a profile that 
 confines nothing, and this process cannot tell whether the operator launched it. What closes §3.1 is
 running an agent under one of these profiles on Linux and watching a write outside the worktree fail
 at the syscall.
+
+**Egress (Task 1.2, 2026-09):** destinations are catalog capability names on the agent endpoint in
+enforce mode; `--egress H,H` compiles into `host:<H>` entries; each broker decision is written to
+`<root>/egress/<id>.jsonl` before the forward and countersigned into the report bundle. Not closed:
+`egress_hosts` remains `Mediated` — no netns, seccomp or firewall; a tool with a compiled-in endpoint
+names no destination and is not decided; `warrantor_egress::transitive::check_closure` (L4-02's
+closure) is still uncalled and belongs to Phase 5's prover.
+
+### 3.1c The metadata and link-local floor, and the adapter conformance kit (Task 7.1, L4-25 and L4-20) — **the bound strength, stated in the product**
+
+**The floor.** The metadata and link-local deny is refused at the egress broker and cannot be
+amended by any warrant, policy field or serialized config. It binds the tool calls that reach the
+broker. It does **not** bind a socket the agent opens with its own shell or file tools, it does
+**not** bind a hostname that resolves into the metadata range, and it is **not** an OS or
+network-tier control: nothing outside this process enforces it. L4-25's admission-controller half —
+privileged pods, host mounts, broad service accounts, unrestricted cluster APIs — is not shipped in
+this repository.
+
+That makes it **Tier B, chokepoint.** A specific line refuses the action at the moment it is
+attempted, `hard_deny::refuse` returning `Refused` before any allow path is considered, so it is a
+refusal rather than a settle-time observation. It is not Tier A: a Tier A version would be a network
+policy or an admission controller enforcing it out of process, and neither exists here. The DNS
+limit is not new and is stated in the code at `rust/warrant/src/egress.rs`: a hostname that resolves
+into a metadata or private range is not caught by a range check, and only a literal address in the
+bound is. Adding `metadata.google.internal` and its siblings to a name list narrows that gap by one
+list and closes nothing.
+
+**L4-25 and L2-04 both remain `status="none"` after this task.** The master document requires that
+*"every metadata and link-local request fails at the network tier and every privileged-pod request
+fails at admission"*, and this task delivers neither tier.
+
+**The conformance kit** (`rust/warrant/src/effect_sdk.rs`, Task 7.1 Steps 6 to 9) is **Tier C,
+observed.** `run_conformance` proves that an adapter, under vectors the harness constructs, declares
+every tool it offers, declares each tool's decomposition exactly as the registry declares it, and
+writes no planted sentinel into anything it returns. It cannot prove a shipped adapter does either
+at runtime, and it cannot prove an adapter holds no credential of its own: `EffectGrant` has no
+credential accessor, but an adapter may hold a token in its own struct and the kit would not see it.
+The report renders that limit in its own text — *"this report describes the adapter surface under
+test vectors, not the adapter's runtime behavior or its private state."*
+
+**No new trust root, and no shipping caller yet.** A conformance report is a local JSON document. It
+establishes that the adapter passed these vectors on the machine that ran them, and nothing about
+who wrote the adapter, whether the binary shown is the binary run, or whether the upstream changed
+underneath; it carries the upstream version the caller observed and claims coverage for no other.
+Nothing in the shipping binary calls `run_conformance` today — the only caller is
+`rust/warrant/tests/effect_sdk_conformance.rs`. The trait exists so that Task 7.3's first adapter is
+transcribed from a contract instead of invented, and until an adapter ships, the kit constrains no
+running code.
+
+### 3.1b The stop verb reaches the tree and the task state — **built, drilled on Windows; Linux numbers come from CI**
+
+**What the extraction removed.** The warrant crate refused to link `warrantor-kill-switch` because
+that crate declares tokio, clap and tracing unconditionally; the killing code used none of them.
+`warrantor-kill-switch-core` (thiserror only) now carries the four rails the stop path never had —
+reserved/self pid refusal, critical-Windows-image refusal, System32-anchored `taskkill`, and the
+confirmed-gone poll — and both `LocalProcessEngine` and the warrant's `OsProcessControl` delegate
+to it, so the kill switch and the stop verb cannot drift.
+
+**A halt is terminal.** `stop` transitioned `Open -> Held`, a state from which a survivor holding
+the settle key could still release what the halted agent staged. That `Held` reading was written
+for the *deadline* path and stays correct there; a halt now goes `Open | Held -> Void` via
+`void_on_breach` (no settle key), the staged log is retained as evidence, and the record names what
+the halt invalidated: staged effects (count and chain head, log path), capability leases (live up
+to `CAPABILITY_TTL_SECONDS`), session membership (observed via `agent_endpoint_for`), and the
+worktree when one exists. `stop --family <subject>` and `--run <run-id>` receipt each warrant in
+this store, and keep earlier receipts when one warrant fails mid-halt.
+
+**`enforced` is per kernel and per receipt.** The constant `"advisory"` is gone.
+`warrantor conformance run` drills this kernel's real kill path (supervisor + descendant under the
+job-object/setsid link, killed through the core), derives the mode from what was observed — nobody
+supplies it — and a stop record carries `enforced` only with a verifying receipt for the same
+kernel. Measured, on the live Windows run recorded in `evidence/conformance-windows.json` and
+`evidence/stop-windows.json`: root pid gone in 5610 ms (drill) and 5984 ms (stop), descendant gone
+in 6907 ms, against a 5000 ms budget — so this kernel's drill honestly reads **advisory**, because
+each existence check is a `tasklist` spawn measured at ~2.2 s under real-time AV and five are
+unavoidable on the path. A kernel whose checks fit the budget earns `enforced` by running the same
+command. `warrantor verify` reads the receipt offline and exits non-zero on an advisory one, so the
+label cannot hide in a green checkbox.
+
+**Residual:** no netns, seccomp or firewall — an agent's own sockets are untouched by any of this;
+a grandchild that re-parents out of the session/job is not individually signaled on Linux; leases
+already minted live up to `CAPABILITY_TTL_SECONDS`; `stop --family` reaches warrants in *this*
+store only — "across every cluster" in L4-08's gate is Phase 3's federation, not this task. The
+Linux drill numbers come from CI's ubuntu runner, where the same drill runs in the workspace suite.
 
 ### 3.2 Notifications — **closed 2026-08-17**
 
@@ -721,7 +871,7 @@ answers the part of the decision-maker's question an evidence relay can answer h
 reached custody** — artifacts, warrants, devices, first and last filing, by kind, by device,
 computed from the same store read the per-warrant listing uses so summary and listings can never
 disagree. It is authenticated like every route, an unreadable store refuses rather than
-summarising as zero, and the render says in its heading and its footer that it is an account of
+summarizing as zero, and the render says in its heading and its footer that it is an account of
 custody records, not a verdict: "what did our agents file, from where, when" is answerable; "what
 did our agents DO" is a question about evidence, answered by fetching and verifying it.
 
@@ -818,11 +968,132 @@ other 78 crates is as invisible as these were. macOS has no test leg at all.
 
 ---
 
+### 3.7 Two delegation algebras, one of them dead — **merged; the notary's copy remains**
+
+Found while wiring (2026-09): `warrantor-evidence` recomputed the I-02 intersection with its own
+set fold, which *silently narrowed* a child link claiming a capability its parent never held and
+never compared validity windows; `warrantor-delegation-chain` refused widening and nothing depended
+on it — and it was not even in git (untracked in a working checkout, absent from `main`).
+
+Now: the delegation-chain crate is tracked and is the one algebra. `evidence::narrow_chain` maps a
+receipt link to its scope and asks `delegation_chain::intersect_chain`; a widening link is refused
+by index with the invariant named, and `recompute_intersection` on such a chain returns nothing.
+For every chain that verifies, the `warrantor-intersect-v1` proof bytes are unchanged (guarded by
+test), so no format moved. `evidence::bind_authority` builds the authority block from stored lineage
+and refuses a revoked lineage at bind; the A2 four-deep gate passes.
+
+What this does **not** establish, so it is not read as more than it is:
+- `rust/notary/src/lib.rs` `effective_capabilities` is a third copy of the set fold, inside the
+  verdict path whose `Deny` carries only the gate. Left as is; folding it changes which gate fires.
+- The Python verifier (`python/warrantor_evidence`) still uses the set fold, and the two languages
+  now **disagree on a widening chain**. For every chain Rust accepts, Python computes identical
+  proofs and accepts identically (the interop test is the live check of that). On a widening chain
+  Python computes a non-empty intersection and **accepts** an authority block it computed itself:
+  verified 2026-09-05 on a two-link chain whose child claims `admin`, where Python returns
+  `['read']` and `verify_authority` passes. It refuses a Rust-produced widening block, but on the
+  capability-set mismatch (`effective_capabilities [] != recomputed intersection ['read'] (I-02)`),
+  never by naming the link. Until Python folds the same algebra, a widening receipt forged entirely
+  in Python passes the Python verifier and fails the Rust one. This task did not narrow that; the
+  plan text asserted Python "rejects a widening chain by proof mismatch", which the run above
+  disproves.
+- A receipt link carries capabilities and `not_after` only. Resource classes and budget are narrowed
+  at delegation time in the store but are not evidenced in the receipt; `not_before` is carried,
+  not narrowed.
+- Revocation is refused at bind. An archived receipt issued before a revocation still verifies.
+- The `warrantor` binary does not yet call `bind_authority`; its report path still builds a
+  one-link chain from the warrant's own bounds (`report.rs`). The multi-link path is reachable and
+  tested, not yet driven by a live run.
+- Every bound this task touches is a **library refusal**, not an OS or crypto bound: the refusal is
+  Tier B (chokepoint) where the evidence crate is on the path a caller must traverse, and Observed
+  where a caller reaches the store directly. Nothing here confines a process.
+
+(`3.5` is used by the uncommitted revision of this document in the working checkout, and `3.6` was
+taken by the Windows-CI entry that landed on `main` after this task was written; numbering skips
+both so the three can merge without renumbering.)
+
+### 3.8 The double network path does not exist — **measured, published and gated; still one control**
+
+Found by Task 5.4 (2026-09-05) while trying to satisfy L2-03's proof gate D-03, *"Common-mode
+analysis proving the two layers do not share a failure domain."* The analysis was run and it proves
+the opposite. Full working: [`docs/05-network-common-mode-analysis.md`](05-network-common-mode-analysis.md);
+machine-readable record: [`evidence/network-independence.json`](../evidence/network-independence.json).
+
+A permitted destination is guarded by **one independent intercept, not two**. That number is a
+count of enforcement points acting on a destination the warrant permits, and it is one: both policy
+engines run inside the Warrantor MCP proxy, so a shell command, a harness built-in, or any socket the
+agent opens itself passes neither the proxy nor any engine inside it, and no engine at that point resolves DNS. The two layers the product
+describes are not merely coupled, they are **anti-correlated by one config field**:
+
+- `WarrantBounds::egress_hosts` non-empty → the proxy decides per destination, and
+  `--unshare-net` is **deliberately not emitted** (`rust/warrant/src/sandbox.rs` lines 333-346),
+  because a network namespace has no host allowlist and emitting it would deny egress the warrant
+  granted.
+- `egress_hosts` empty → the namespace *is* emitted, and the proxy has already denied every
+  destination as `CatalogUnavailable` (`rust/warrant/src/egress.rs` lines 196-201). Two layers stand
+  and there is no permitted destination for either of them to be independent about.
+
+So exactly when one layer has a decision to make, the other is switched off. This is a single point
+of **configuration**, which is worse than a shared dependency.
+
+In a shipped run seven of the eight modeled axes are shared -- every axis but `credential`, which
+is independent by *absence* (neither layer holds a key) rather than by design; `policy_engine` is
+shared there because one engine has nothing to be disjoint from. Once a caller wires the second
+engine that axis stops being shared and six remain: `enforcement_point`, `address_floor`,
+`configuration_source`, `telemetry_path`, `clock`, `dns_resolution`. The record publishes both
+lists under their own names. The DNS row is the
+live exploit: neither layer resolves, so a hostname that resolves into `169.254.169.254` is caught
+only if the *name* is on `hard_deny`'s hostname list, and the layer that would catch it regardless is
+off whenever any host is permitted.
+
+**`address_floor` is newly shared and it is nobody's mistake.** Task 7.1 put the single
+non-amendable address matcher in `rust/egress-filter/src/hard_deny.rs` and made `warrantor-egress`
+delegate to it, so that "is this the metadata service" could not drift between two crates. Correct
+for drift; a shared failure domain for independence. A defect in `hard_deny` now fails both
+evaluators at once. Both statements are true and the analysis records the second one.
+
+What this task changed, precisely: `warrantor-egress-filter`'s `Policy` decision surface had no
+caller in the product and now has one — `egress::SecondaryFilter`, a second policy engine consulted
+deny-only inside the same `Proxy::decide` loop. That buys a second evaluator with a different
+default and a different configuration source, which matters because Task 1.2 is making destination
+catalogs machine-generated. It buys **no** second enforcement point, so the intercept count is
+unchanged at one.
+
+What it does **not** establish:
+- **L2-03 and L0-10 stay `status="none"`.** Neither is closed and neither may be softened.
+- The cluster layer L2-03 names does not exist. There is no `deploy/k8s`; the one `NetworkPolicy` in
+  the tree is `policyTypes: ["Ingress"]` on trust-core and cannot hold an egress bound. Both halves
+  of that sentence used to be prose with nothing behind them; they are now asserted by
+  `tools/ci/network_independence.py::cluster_layer_absent`, which fails the build when a
+  `NetworkPolicy` the analysis does not know about appears and when the one it names disappears.
+- **Tier B, chokepoint.** The intercept count is a count of enforcement points and it is one. The
+  *engine* count is the count of policy domains, and it is **one in a shipped run** -- `Proxy::new`
+  wires no secondary filter, `warrantor.rs` never constructs one, and no CLI flag reaches
+  `with_secondary_filter` -- rising to **two** once a caller of the library wires the second (today
+  only a Rust caller can; no CLI flag or configuration path reaches it), which adds a policy
+  domain and not a boundary. No netns, seccomp filter or firewall is added or enforced by this work.
+  The record now publishes both numbers separately rather than one number with a footnote; README
+  used to publish the operator number as though it were the product's, which is the drift the gate
+  exists to catch and did not.
+- The one Tier A case is not created here: `--unshare-net` for an empty egress bound, which the OS
+  enforces — and only if the operator launched the printed profile, which this process cannot observe
+  (`sandbox::PROFILE_CAVEAT`).
+- **The finding test cannot see a second enforcement point, and this entry used to say it could.**
+  It read: *"so it goes red the day a real second enforcement point lands rather than going stale."*
+  `harness::reached_the_boundary_unrefused` goes red only when the predicate handed to it flips, and
+  that predicate is closed over the two in-process policy engines -- so a resolver on the egress path
+  flips it and a kernel or cluster layer cannot. An adversarial reviewer landed a real cluster egress
+  `NetworkPolicy` and the finding test stayed green, the I-09 corpus stayed at 85 passed, and the gate
+  went on publishing 1. The cluster half of the exit condition now has an assertion that can go red
+  (`cluster_layer_absent`, above); the resolver half is still carried by the finding test. Whoever
+  lands either converts the test and raises the ratchet.
+
+---
+
 ## Tier 4 — model intelligence
 
 ### 4.1 The guard is wired in as observe-only signals — **partly done**
 
-The benchmarks land real numbers, and W1 fixes the boundary: a model judgement can become a
+The benchmarks land real numbers, and W1 fixes the boundary: a model judgment can become a
 **refusal signal** recorded against a warrant, never a verification verdict.
 
 That boundary is now wired. `rust/warrant/src/guard.rs` attaches a local guard model to a supervised
@@ -968,9 +1239,9 @@ next model on this one's misses — one adversarial case in five at the measured
 would become invisible, because the model and its labels would agree. The only labels are human
 decisions the store already holds (a settle, a void), they are **warrant-level supervision on
 call-level examples**, and every row carries that granularity so a recipe can weight or discard it.
-The first real export showed the weakness at once: one harmful and one benign call, both labelled
+The first real export showed the weakness at once: one harmful and one benign call, both labeled
 harmful by a single void, with `guard_said` recording that the guard had them right. No content is
-exported, only digests. `sufficient_for_training` counts *labelled* rows and says the thing that
+exported, only digests. `sufficient_for_training` counts *labeled* rows and says the thing that
 actually closes the gap: using the product. And `Unqualified Professional Advice` — the weakest
 measured class at 0.4298 and the headline target of both weak-category recipes — is **unreachable
 from WildGuardMix**, which has no such category; reaching it needs an ExpGuard corpus, and the
@@ -987,7 +1258,7 @@ calls the warrant *allowed*.
 Two things that fix required, and both were real defects rather than plumbing. The route accepted a
 query string and **ignored** it, so a month view built on top of it would have answered 200 with the
 all-time aggregate under a month heading; and the payload carried `enforcing` as a bare boolean,
-which is `any(..)` over the whole store, so no client could honour the three-valued blocking posture
+which is `any(..)` over the whole store, so no client could honor the three-valued blocking posture
 the server had already worked out. Both are fixed at the source.
 
 **What the view deliberately does not answer is the second half of the original sentence.** It shows
@@ -1021,9 +1292,11 @@ count of failures.
 ## The honest summary
 
 **The twelve invariants now have a ledger** (`evidence/invariants.json`, 2026-09-02): I-02 and
-I-08 are enforced by tests on the `warrantor` path; I-01, I-04, I-06, I-07, I-10, I-11 and I-12 are
-partial (a gate refuses, but on a flag the caller supplies, or the mode is advisory); I-05 and
-I-09 are orphaned in `credential-vault` and `eval-guard`; I-03 has no code in any language. The
+I-08 are enforced by tests on the `warrantor` path; I-01, I-04, I-06, I-07 (its issuance half earned
+2026-09-05 by Task 1.1), I-10, I-11 and I-12 are
+partial (a gate refuses, but on a flag the caller supplies, or the mode is advisory), and so is I-05
+(its revocation source earned 2026-09-05 by Task 9.1; its propagation half is one process);
+I-09 is orphaned in `eval-guard`; I-03 has no code in any language. The
 ledger is CI-checked against the tests it names, so a status can only move when a test moves.
 
 The **substrate is real** and the **single-machine loop is complete**. Most of what is missing is
@@ -1104,9 +1377,9 @@ corpus threw at it was refused.
 | **I-02** No authority expansion | enforced | No finding. The corpus records one structural note: `notary` and `evidence` implement the intersection separately and nothing cross-checks them, so a future divergence would produce a receipt verifying a decision nobody made. A standing guard test now compares them. | — | Task 1.5 dedupes |
 | **I-03** Purpose-bound data use | unimplemented | No implementation exists. No purpose tag on any request, no data class on any bound, no provenance label on any receipt. Three of the ten kill-chain hops land here, which makes it the largest single gap the corpus measures. `invariant-corpus:I-03` | Tier 3 | **No task in the 2026-09-02 plan.** Plane 5 is recorded there as filled by adopted work; no adoption has happened. |
 | **I-04** No consequential action without current policy | partial | The product reaches the notary once per action, so policy is never re-evaluated at commit — the clause that distinguishes I-04 from an ordinary policy check. `issue_post_commit` copies the pre-commit decision block verbatim, so a commit-time evaluation would be unprovable even if one happened. `invariant-corpus:I-04` | Tier 3 | Task 2.3 |
-| **I-05** Revocation latency is bounded | orphaned | The credential half is implemented and tested in `credential-vault`, which the `warrantor` binary does not link. The identity half has no implementation: there is no revocation source, no propagation and no replica set. `invariant-corpus:I-05` | Tier 3 | Task 3.1 for the identity half; **no task links `credential-vault`** |
+| **I-05** Revocation latency is bounded | partial | `warrant` reuses `credential-vault`'s `fsync`'d revocation journal FORMAT; the 1-second credential budget is still compared only inside `Vault::revoke` / `Vault::revoke_all`, which no shipped path calls — nothing in `rust/warrant/src` constructs a `Vault`, and `RevocationStore::revoke` times nothing and refuses nothing on duration. So the credential budget remains unreachable from the product; what the dependency edge bought is the journal format, not the budget. The identity half has a source (`warrantor revoke`, an append-only per-store journal) and a measured 5-second bound at one enforcement point. The refusal is Tier B, a chokepoint in `notary::verdict`; propagation is Tier C, observed, and reaches no second process: no fan-out, no replica set, and `egress::decide` does not consult the set. The revoked set is per store root, not per machine: another `--root` on the same machine reads a different journal. The journal records when a subject was revoked, never who revoked it. `invariant-corpus:I-05` | Tier 2 | Task 9.1 wired the identity half; Task 3.1 for an issued subject, Task 7.7 for the egress point, Task 9.5 for cross-machine, and the credential budget still needs a shipped caller |
 | **I-06** Artifact identity is exact | partial | The Artifacts gate is correct and the product hands it an empty artifact list and an empty resolved set, so it passes unconditionally on every action. Nothing in the shipped binary identifies a tool, skill or model by digest at the moment of use. `invariant-corpus:I-06` | Tier 3 | Task 2.2, Task 2.4 |
-| **I-07** Evidence precedes commitment | orphaned | The commit gate refuses an orphan post-commit by name, and nothing in `rust/warrant/src` ever calls `issue_pre_commit`. No shipped action has evidence that was durable before its effect was visible. `invariant-corpus:I-07` | Tier 3 | Task 1.1, Task 2.3 |
+| **I-07** Evidence precedes commitment | partial (was orphaned; **issuance earned 2026-09-05**) | The finding was that nothing in `rust/warrant/src` ever called `issue_pre_commit`. Task 1.1 closed that half: `settle::EvidencedPerformer` issues a pre-commit, makes it durable, and refuses to call the inner performer when it cannot, on both the CLI and the HTTP settle path. What keeps it **partial** rather than enforced is that the guarantee is held by a WRAPPER — `settle()` still accepts a bare `EffectPerformer`, so the wrap is conventional rather than unavoidable — and that `issue_post_commit` copies the pre-commit decision block, so no commit-time re-evaluation is provable. `invariant-corpus:I-07` (no longer ignored) | Tier 3 | Task 2.3 for the commit point; making the wrap unavoidable is unowned |
 | **I-08** Critical actions require non-delegable human authority | partial | `authority_spec::validate` tests only that `approvals` is non-empty; a list holding one empty string satisfies it. Nothing anywhere binds an approval to a human — `notary::Approval` is two booleans the requester supplies, so an agent that builds the request builds its own approval. | Tier 2 | Task 3.3, Task 4.1 |
 | **I-09** Failure is safe | orphaned | The absent-means-none reading holds on three surfaces and is now locked by tests. The preflight that refuses to start an agent against an unmeasured boundary lives in `eval-guard`, which the product does not link. `invariant-corpus:I-09` | Tier 3 | **No task links `eval-guard`** |
 | **I-10** Replay is detectable | partial | `seen_nonces` is hardcoded empty in `report.rs`, so every call is the first call and no replay is detectable on the product's own path. The timestamp window still bites; a replay inside the window does not, and the window is the interval an attacker works in. `invariant-corpus:I-10` | Tier 3 | Task 1.1, Task 3.4 |
@@ -1125,3 +1398,77 @@ will count them; nothing in the current plan wires them.
 
 The corpus does not fix any of this. Fixing is Phases 1-3, and a measuring instrument that repairs
 what it measures stops being one.
+
+### 5.3 The evidence-integrity adversary (Task 5.3, L0-05) — nine strategies, **6 of the nine are not refused by code this repository ships**
+
+L0-05 asks for *"a red-team agent given root inside its own workload whose sole goal is to produce a
+receipt chain that verifies but misrepresents what it did."* This is the **deterministic half** of
+that, and L0-05 stays `partial` rather than moving to `covered`. The half that is missing is named
+here rather than implied: there is no sandbox in this repository, no agent runner and no kernel that
+could give an adversary root and take it back, so every attack below is a **constructed byte
+sequence checked in CI**, not a program given root in a workload.
+
+The suite lives in `rust/warrant/tests/invariants/adversary/` — inside the `invariants` target that
+`tools/ci/check_invariant_ratchet.py` already counts — plus `rust/archive/tests/adversary_custody.rs`
+for the one strategy whose crate sits on the other side of the dependency edge. A separate
+`--test adversary` target would have produced a second, ungated number: the exact shape of a check
+that stops checking.
+
+**The sentence that ships beside the result, and beside any receipt:**
+
+> This adversary shows that a receipt cannot be substituted, re-signed by another key, or altered
+> **by a party that does not hold the issuer's key**, without a reader detecting it — **provided that
+> reader pinned the issuer's key out of band**. It shows nothing about a party that does hold that
+> key: strategy A2 moves `binding.issued_at` back a day inside the receipt's own fields, re-signs
+> under the issuer's key, and passes `verify_export` **and** `verify_export_signed_by` under the
+> pinned key, because no line of the verifier reads that field. It does not show that a missing
+> receipt is detectable: an action that produced no evidence leaves nothing for an offline verifier
+> to refuse. It does not show that the bundle's *prose* about its receipts is true. It does not show
+> that a chain is anchored: no `verify_chain_signed_by` exists, so a reader walking the receipt graph
+> has to write the key comparison themselves (strategy A1). It does not show that the archive asks
+> whose key signed what enters it (strategy A8). It does not show that the receipt describes what
+> happened inside the model, only what the broker observed. And it is not a live red-team agent.
+
+The first sentence originally read "cannot be altered … mislabeled *in its own fields*", which
+strategy A2 three rows below falsifies. Three adversarial reviews of this branch found it; the
+correction is recorded in `docs/task-evidence/task-5.3.md` under "Corrections after adversarial
+review", and the exclusion is now derived from an assertion inside `a2_…` rather than written beside
+it.
+
+| # | Strategy | Reach | Honest tier | Owner of the fix |
+|---|---|---|---|---|
+| **A1** | Forge a chain end to end with a key the adversary holds | **Not refused by anything this repository ships.** `verify_chain` is anchor-free by construction and a chain signed end to end by any keypair is self-consistent. The comparison that refuses it is written inside strategy A1's own test: `rust/evidence/src/lib.rs` exports no `verify_chain_signed_by`, while `verify_export_signed_by`, `verify_spend_signed_by` and `verify_stop_signed_by` exist for the other three envelopes. Proof that the label was empty: making `verify_chain` a total no-op leaves A1 green and turns two pre-existing I-07 tests red. strategy A1 now asserts the missing symbol, so it goes red the day one lands. | Not a tier — the refusal is the reader's to write | Task 1.6 (the pinned-issuer directory an anchored chain verifier would read from) |
+| **A2** | Backdate the evidence receipt by a day | **Not refused.** `verify_export` binds the notary receipt's timestamp to the bundle and does not bind the evidence receipt's `binding.issued_at`. strategy A2 records it executably. | Tier C — observed | Task 2.3 (commit point); Task 3.4 (independent witness) |
+| **A3** | Lift a genuine receipt onto a different report | Refused as a `Binding`, by the receipt-id-to-bundle-digest check, and the test asserts the error *variant* so it cannot claim credit for a signature failure. | Tier A — cryptographic | — |
+| **A4** | Replay the same request for a second allow | **Not refused.** `seen_nonces: Vec::new()` on both the report path and the settle path, so the Freshness gate is asked about an empty set every time. strategy A4 records it executably. | Tier C — observed | Task 3.4 (a nonce store that survives a restart) |
+| **A5** | Smuggle a `mediated` per-effect receipt past the mode check, including one the bundle does not list | Refused, **and this is a test of commit `a84711b`'s fix rather than a copy of it**: the mode loop runs before the bundle's effect lines are walked, so an unlisted receipt is refused *for its mode* and not for being unaccounted. | Tier A — cryptographic + explicit field check | — |
+| **A6** | Delete a limitation; widen the authority | Refused by the bundle digest and by `verify_authority`'s recomputed intersection. **Residual, asserted rather than described:** an adversary who rewrites the delegation chain itself gets an authority that verifies, because the chain *is* the authority. | Tier A, with a stated residual | — (a receipt proves the chain it carries, never that the chain was legitimately issued) |
+| **A7** | Suppress the evidence entirely | **Unrepresentable.** A two-effect run exported as a one-effect report is a *valid* signed file. An offline verifier holding one file cannot tell a suppressed chain from a run that only ever had one effect. strategy A7 records this as a negative and claims nothing. | Not a tier — the boundary cannot see it | Task 10.3 (evidence-integrity monitors); Task 10.6 (custody) |
+| **A8** | Race the archive for attribution, on evidence the adversary manufactured | **Not refused.** The declared attack succeeds on both halves and strategy A8's own assertions say so twice in the words *"RECORDED, not fixed"*: `artifact::ingest` calls the anchor-free `report::verify_export`, so an export signed end to end with a keypair the adversary generated itself enters custody as `Stored`; and the first filer owns `submitted_by_device`, so it means *who filed this*, never *who produced this*. What **is** refused is a different attack — rewriting an existing record: `put_artifact` returns `AlreadyHeld` and rewrites nothing, which strategy A8 also asserts, because that refusal is what makes the attribution residual tolerable rather than fatal. | Tier A for append-only, which is not the attack; not a tier for the attack | Task 10.6 (custody semantics); Task 1.6 (a pinned-issuer directory the door could read) |
+| **A9** | Claim `mediated` in the bundle's prose while shipping `advisory` receipts | **Not refused, and not in the plan — found by attacking `a84711b`'s fix.** `with_effect_receipts` derives the mode word at *build* time; nothing re-derives it on the *verify* path. An audited party using its own legitimate issuer key, forging nothing, can ship a signed bundle whose sentence reads "each mediated" while every receipt it carries says `advisory`. `verify_export` passes and `verify_export_signed_by` passes under the party's own pinned key. strategy A9 records it executably. | Tier C — observed. **This is a mode mislabel inside a signed bundle and it should be treated as the highest-priority item in this subsection.** | Task 2.3 owns the report verifier's per-effect checks. The fix is one comparison in `verify_effect_receipts`: recompute the mode phrase from `export.effect_receipts` and refuse a bundle whose sentence disagrees. |
+
+**All six findings are recorded executably, and none of them through `#[ignore]`.** A2, A4 and A9
+run through `harness::reached_the_boundary_unrefused`; A7 is a `Reach::Unrepresentable` entry whose
+test asserts that no absence checker exists; A1 asserts that no `verify_chain_signed_by` exists and
+that the other three envelopes still have theirs; A8 asserts `PutOutcome::Stored` for a fabrication
+and `dev_adversary` for the attribution. That is deliberate:
+`ignored_ceiling` is 15, so ignore number 16 would raise it, which the ratchet treats as a build
+failure — correctly, since it is a widening gap
+— and an ignored test does not start failing when someone fixes the thing it describes. These six do:
+the moment a nonce store, an issuance-time binding, an absence checker, an anchored chain verifier, an
+anchor at the archive door or a verify-path mode comparison lands, the corresponding strategy goes red
+and whoever landed it must convert it to `refused_at_the_boundary` and raise the ratchet in the same
+commit.
+
+That ordinal is now gated. This paragraph and the evidence file both said *"a thirteenth ignore"* one
+sentence after correctly stating the count is 18 — a rendered number disagreeing with its own record,
+which is the class Rule 6 exists to catch, committed inside the task that flags an instance of it in
+§5.1. `adversary::the_documents_ordinal_for_the_next_ignore_is_read_from_the_ratchet_and_not_from_the_plan`
+reads `ignored_ceiling` from `tools/ci/invariant-ratchet.json`, checks it against the `#[ignore]`
+attributes the corpus actually holds, and requires both documents to carry the sentence it rebuilds
+from that number.
+
+**A failing `RefusedAt` strategy is a P0 that blocks the release.** Such a failure is not a flaky
+test: it is a demonstrated forgery against the verifier a third party runs. The ratchet already fails
+the build on any corpus failure; what this subsection adds is that the reproducing chain belongs in
+`docs/task-evidence/`, not only in a CI log.
