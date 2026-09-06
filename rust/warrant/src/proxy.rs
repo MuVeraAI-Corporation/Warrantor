@@ -37,7 +37,6 @@ use crate::catalog::Vocabulary;
 use crate::egress::{
     capability_for, EgressBroker, EgressDecision, EgressRefusal, EgressVerdict, DESTINATION_KEYS,
 };
-use crate::egress::{EgressBroker, EgressRefusal};
 use crate::spend::{CallCounter, CALLS_BOUND};
 use crate::staging::{EffectRegistry, StagedEffect, StagingQueue};
 use crate::{SideEffectClass, WarrantBounds};
