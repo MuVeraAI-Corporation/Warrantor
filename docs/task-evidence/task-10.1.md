@@ -1085,6 +1085,22 @@ text and passed (`causal_verdict`: 21 passed). It was measured in `M:/wt-w6-10.1
 `CARGO_TARGET_DIR=M:/wt-rv-10.1-target` — a directory owned by this lane alone — and
 `CARGO_BUILD_JOBS=2`. Both disk guards ran before every cargo invocation.
 
+**`main` moved twice while this lane ran, and every number here is from after the second move.**
+The lane rebased onto `ce5d02d` at its start and measured the gate there; `main` then advanced to
+`2463504`, whose single commit touches only `docs/TASK-STATUS.md` and `scripts/task_status.py`. The
+branch was rebased again, all seventeen commits replayed with no conflict, and
+`git diff <pre-rebase tip> HEAD -- rust/` is empty — so the Rust tree measured before and after the
+second rebase is byte-identical. Even so, `fmt`, `clippy`, both `cargo test` runs, the ratchet and
+the exit gate were all re-run on the final tip rather than carried over; the counts below are from
+those re-runs, and they matched the pre-rebase run exactly. The nine mutation re-proofs in the next
+subsection were run on the pre-rebase tip, against that same byte-identical Rust tree.
+
+**One invocation is not in this record, and here is why.** After the second rebase, one exit-gate
+invocation was started while `--require-commit 5` was refusing at 4.1 GB, because a `;` where the
+lane's own discipline calls for `&&` let it through. It completed and printed the same counts, but a
+run started against a refusing guard is not evidence, so it was discarded and the exit gate below is
+a later invocation with both guards answering `OK` first.
+
 **The wait, recorded because it shaped the run.** `python tools/ci/disk_guard.py --require-commit 5`
 refused for roughly fifty minutes at the start of this lane, hovering between 0.7 GB and 4.9 GB of
 commit charge while sibling lanes built. Nothing was deleted and no process was killed; the lane did
@@ -1094,7 +1110,7 @@ its git and prose work while polling, and every cargo step below ran after the g
 
 ```
 $ git rev-parse --short main
-ce5d02d
+2463504
 $ git merge-base --is-ancestor main HEAD ; echo $?
 0
 
@@ -1130,7 +1146,7 @@ invariant ledger: 12 invariants; enforced=2, orphaned=1, partial=8, unimplemente
 $ python tools/ci/check_docs.py                                           exit 0
 RESULT: PASS - 302 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated
 $ python tools/ci/check_us_english.py main                                exit 0
-us-english: 3372 added line(s) across 18 file(s), since main; matcher = vendored verify-us-english.mjs
+us-english: 3678 added line(s) across 18 file(s), since main; matcher = vendored verify-us-english.mjs
 us-english: ok
   (Diff mode reads commits, so the two Markdown files this section edits were additionally
    checked with `check_us_english.py --files`, which reads every line: `us-english: ok`.)
