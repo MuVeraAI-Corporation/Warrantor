@@ -20,19 +20,25 @@
 //!
 //! # The three properties, and why exactly one of them can reach `Enforced`
 //!
-//! * [`SCORER_INPUTS_NOT_WRITABLE`] — `Enforced` only when **two** facts hold at once: a confinement
-//!   profile is in force, and the store root is not inside the worktree. Under
-//!   `warrantor sandbox --kind bubblewrap` the profile binds `/` read-only with the worktree as the
-//!   sole read-write hole, so a write to the guard log fails with `EROFS` at the syscall — held by
-//!   the operating system, not by us. With no profile, or with a store the operator placed inside
-//!   the worktree, it is `Observed`.
+//! * [`SCORER_INPUTS_NOT_WRITABLE`] — `Enforced` only when **four** facts hold at once: a confinement
+//!   profile is asserted, a profile naming this worktree is one `crate::sandbox` will actually write
+//!   (it refuses every path that is not an absolute POSIX path), the store root can be placed relative
+//!   to the worktree at all, and it is not inside it. Under `warrantor sandbox --kind bubblewrap` the
+//!   profile binds `/` read-only with the worktree as the sole read-write hole, so a write to the
+//!   guard log fails with `EROFS` at the syscall — held by the operating system, not by us. Anything
+//!   short of all four is `Observed`, and the record says which fact was missing. The second and
+//!   third of the four were reviewer findings: an `Enforced` tier naming a mechanism no command here
+//!   can install is a label the mechanism does not back, and it is the worst defect this module can
+//!   ship. See [`isolation`] for each.
 //! * [`SCORER_CREDENTIALS_NOT_READABLE`] — **no tier word at all.** `--ro-bind / /` leaves `$HOME`
 //!   readable and `~/.warrantor/keys/settle.key` with it. Read-only is not unreadable, same UID is
 //!   same UID, and nothing in this repository refuses that read. It is not `Observed`, because
 //!   "observed" implies something measures it and nothing looks.
-//! * [`SCORER_NOT_REACHABLE_OVER_NETWORK`] — `Enforced` on an empty egress allowlist under a
-//!   profile, because that is the one case `crate::sandbox` emits `--unshare-net`; `Mediated`
-//!   otherwise, held at the MCP proxy, which a shell reaches past.
+//! * [`SCORER_NOT_REACHABLE_OVER_NETWORK`] — `Enforced` on an empty egress allowlist under a profile
+//!   that `crate::sandbox` will write, because that is the one case it emits `--unshare-net`;
+//!   `Mediated` otherwise, held at the MCP proxy, which a shell reaches past. The namespace comes out
+//!   of the same profile as the read-only bind, so it carries the same reachability condition — it
+//!   carried the same false `Enforced` too, and was reported with it.
 //!
 //! # The monitor is `Observed` and cannot be anything else
 //!
@@ -75,16 +81,71 @@ pub const SCORER_CREDENTIALS_NOT_READABLE: &str = "scorer_credentials_not_readab
 /// The property name for network reachability of the scorer.
 pub const SCORER_NOT_REACHABLE_OVER_NETWORK: &str = "scorer_not_reachable_over_network";
 
-/// The sentence that ships wherever an isolation record is rendered.
+/// The half of the shipped caveat that is true of this repository whatever any record says.
 ///
-/// In a constant rather than at each call site, for the reason [`crate::sandbox::PROFILE_CAVEAT`]
-/// is: the person who most needs it is the one about to act on the record, and four copies of one
-/// sentence become four different sentences.
-pub const ISOLATION_RECORD_CAVEAT: &str =
-    "This record states which party held each isolation property and by what mechanism. It does not \
-     establish that the sandbox was launched: no netns, seccomp or firewall is implemented here, \
-     the filesystem property is held by an operating system this process cannot interrogate, and \
-     the scorer's signing key remains readable to any process running as the same user.";
+/// This clause describes the *repository*, not the record: it is a statement about which mechanisms
+/// exist in this source tree, which no per-record reading can change. Everything that varies with
+/// the record is derived by [`isolation_caveat`] instead.
+pub const ISOLATION_REPOSITORY_CAVEAT: &str =
+    "It does not establish that any sandbox was launched: no netns, seccomp or firewall is \
+     implemented anywhere in this repository, so every property above either composes with an \
+     external sandbox this process cannot verify was started, or is held by nothing at all.";
+
+/// The sentence that ships under a rendered isolation record, **derived from that record**.
+///
+/// # Why this is a function and was a constant
+///
+/// It shipped as a hardcoded literal stating "the filesystem property is held by an operating system
+/// this process cannot interrogate" — printed verbatim under the DEFAULT unconfined record, whose own
+/// derived lines two rows above say `scorer_inputs_not_writable observed`, `held by warrantor`, and
+/// "nothing refuses a write to the guard and run logs as it happens". An independent reviewer caught
+/// it. That is the Task 1.1 / Task 9.1 defect exactly — a sentence written *beside* the record
+/// instead of read *out of* it — and it erred in the reassuring direction, telling a reader an
+/// operating system held a property the record said warrantor held.
+///
+/// So the clauses that name a holder are now read from that property's own [`HeldBy`], and the only
+/// literal left is [`ISOLATION_REPOSITORY_CAVEAT`], which describes the source tree rather than the
+/// record. Centralization — the reason it was a constant — is preserved: this is still one function
+/// and every renderer calls it.
+///
+/// An absent property is reported as absent rather than skipped: a caveat that silently drops a
+/// clause reads as a shorter promise, not as a shorter record.
+#[must_use]
+pub fn isolation_caveat(properties: &[Property]) -> String {
+    let clause = |name: &str, os: &str, ours: &str, nothing: &str| -> String {
+        match properties.iter().find(|p| p.name == name) {
+            Some(property) => match property.held_by {
+                HeldBy::Os { .. } => os.to_string(),
+                HeldBy::OurCode => ours.to_string(),
+                HeldBy::NothingYet => nothing.to_string(),
+            },
+            None => format!(
+                "{name} is ABSENT from this record, which is not the same thing as held -- read the \
+                 record as incomplete"
+            ),
+        }
+    };
+    let filesystem = clause(
+        SCORER_INPUTS_NOT_WRITABLE,
+        "the filesystem property is held by an operating system this process cannot interrogate, so \
+         the tier above is conditional on a profile you launched and this code did not",
+        "the filesystem property is held by warrantor, which means nothing refuses a write to the \
+         grader's inputs at the moment it happens: same UID is same UID",
+        "nothing holds the filesystem property at all",
+    );
+    let credentials = clause(
+        SCORER_CREDENTIALS_NOT_READABLE,
+        "the scorer's signing key is out of reach only by the operating-system mechanism named \
+         above, which this process did not launch and cannot check",
+        "the scorer's signing key is guarded by warrantor's own code rather than by the operating \
+         system",
+        "the scorer's signing key remains readable to any process running as the same user",
+    );
+    format!(
+        "This record states which party held each isolation property and by what mechanism. \
+         {ISOLATION_REPOSITORY_CAVEAT} On THIS record: {filesystem}; and {credentials}."
+    )
+}
 
 /// Who holds an isolation property.
 ///
@@ -188,6 +249,29 @@ pub fn property_behind(check: warrantor_eval_guard::BoundaryCheck) -> &'static s
 /// `store_root` and `worktree` decide the `Enforced` case of the first property together: a store
 /// the operator placed *inside* the worktree sits in the profile's one read-write hole, and a check
 /// that assumed otherwise would report `Enforced` over a writable grader input.
+///
+/// # The three ways an asserted confinement still does not earn `Enforced`
+///
+/// All three were reviewer findings against the first cut of this function, and every one of them is
+/// a *label* correction: the mechanism named in the `Enforced` sentence has to be reachable by some
+/// command in this repository, or the word is not earned.
+///
+/// 1. **The worktree is one no confinement here will accept.** [`crate::sandbox::check_worktree`]
+///    refuses any path that is not an absolute POSIX path, because `warrantor sandbox` will not print
+///    "a command that LOOKS runnable and cannot be". `warrantor scorer --confined` printed
+///    `enforced / held by operating system / ... fails with EROFS at the syscall` for exactly the
+///    warrants on which `warrantor sandbox` exits 1 — every warrant granted on Windows, which is the
+///    platform this task was developed and measured on. The tier was derived from an operator flag
+///    and a string comparison; the named mechanism was unreachable by any command. It is now
+///    conditioned on the same refusal `cmd_sandbox` uses, so the two commands agree.
+/// 2. **The store root is not comparable to the worktree.** The inside/outside test is a string
+///    prefix, and `--root` is taken verbatim while `StoredWarrant::worktree` is absolute. A store the
+///    operator placed inside the worktree but named *relatively* is not a prefix of an absolute path,
+///    so the check said "outside" and the record said `Enforced` over a store sitting in the
+///    profile's one read-write hole. Rather than resolve the path against a working directory this
+///    function cannot see, an uncomparable pair now fails closed and says which path it could not
+///    place.
+/// 3. **The store is inside the worktree.** The original two-facts case, unchanged.
 #[must_use]
 pub fn isolation(
     bounds: &WarrantBounds,
@@ -195,10 +279,47 @@ pub fn isolation(
     store_root: &Path,
     worktree: &Path,
 ) -> Vec<Property> {
+    // The same refusal `cmd_sandbox` applies before printing a profile. `Some(reason)` means no
+    // confinement command in this repository can name this worktree, so no mechanism it would have
+    // installed can be claimed.
+    let unprofilable = crate::sandbox::check_worktree(&worktree.to_string_lossy()).err();
+    // A prefix test is only meaningful between two paths of the same kind.
+    let comparable = is_rooted(store_root) && is_rooted(worktree);
     let store_inside_worktree = normalize(store_root).starts_with(&normalize(worktree));
 
-    let inputs = match (confinement, store_inside_worktree) {
-        (Some(kind), false) => Property {
+    let inputs = match confinement {
+        Some(kind) if unprofilable.is_some() => Property {
+            name: SCORER_INPUTS_NOT_WRITABLE.to_string(),
+            strength: Some(BoundStrength::Observed),
+            held_by: HeldBy::OurCode,
+            not_covered: format!(
+                "you asserted a {} profile, but no confinement this repository writes can name this \
+                 worktree, so the operating-system mechanism that would hold this property cannot be \
+                 installed by any command here: `warrantor sandbox {}` refuses the same path and \
+                 exits 1. {} Until that is resolved the property is held by warrantor and nothing \
+                 refuses a write to the grader's inputs as it happens. Grant the warrant on the host \
+                 that will run the agent to reach Enforced.",
+                kind.word(),
+                worktree.display(),
+                unprofilable.as_deref().unwrap_or_default(),
+            ),
+        },
+        Some(_) if !comparable => Property {
+            name: SCORER_INPUTS_NOT_WRITABLE.to_string(),
+            strength: Some(BoundStrength::Observed),
+            held_by: HeldBy::OurCode,
+            not_covered: format!(
+                "this record cannot place the store root {} relative to the worktree {}: one of the \
+                 two is not an absolute path, and the inside/outside test is a prefix comparison. A \
+                 store inside the worktree sits in the profile's one read-write hole, so guessing \
+                 'outside' here would put an Enforced tier on a writable grader input -- which is \
+                 what this command did before, for any relative --root. Failing closed instead. Pass \
+                 an absolute --root to get a decidable answer.",
+                store_root.display(),
+                worktree.display(),
+            ),
+        },
+        Some(kind) if !store_inside_worktree => Property {
             name: SCORER_INPUTS_NOT_WRITABLE.to_string(),
             strength: Some(BoundStrength::Enforced),
             held_by: HeldBy::Os {
@@ -219,7 +340,7 @@ pub fn isolation(
                 kind.word()
             ),
         },
-        (Some(kind), true) => Property {
+        Some(kind) => Property {
             name: SCORER_INPUTS_NOT_WRITABLE.to_string(),
             strength: Some(BoundStrength::Observed),
             held_by: HeldBy::OurCode,
@@ -233,7 +354,7 @@ pub fn isolation(
                 kind.word()
             ),
         },
-        (None, _) => Property {
+        None => Property {
             name: SCORER_INPUTS_NOT_WRITABLE.to_string(),
             strength: Some(BoundStrength::Observed),
             held_by: HeldBy::OurCode,
@@ -264,38 +385,65 @@ pub fn isolation(
         ),
     };
 
-    let network = match confinement.filter(|_| bounds.egress_hosts.is_empty()) {
-        Some(kind) => Property {
-            name: SCORER_NOT_REACHABLE_OVER_NETWORK.to_string(),
-            strength: Some(BoundStrength::Enforced),
-            held_by: HeldBy::Os {
-                mechanism: format!(
-                    "the warrant grants no egress, so the {} profile unshares the network \
+    // `--unshare-net` comes out of the same profile the filesystem bind does, so the same
+    // reachability condition applies: a worktree no confinement here can name installs no namespace
+    // either. This arm carried the identical false Enforced and was reported with it.
+    let network =
+        match confinement.filter(|_| bounds.egress_hosts.is_empty() && unprofilable.is_none()) {
+            Some(kind) => Property {
+                name: SCORER_NOT_REACHABLE_OVER_NETWORK.to_string(),
+                strength: Some(BoundStrength::Enforced),
+                held_by: HeldBy::Os {
+                    mechanism: format!(
+                        "the warrant grants no egress, so the {} profile unshares the network \
                      namespace and there is no route out even for a process that never touches the \
                      MCP proxy",
-                    kind.word()
-                ),
+                        kind.word()
+                    ),
+                },
+                // NOT the tier legend. This field shipped holding `BoundStrength::Enforced.caveat()`,
+                // so the CLI printed the product's STRONGEST guarantee sentence under a `NOT` label --
+                // read either as a negation of the guarantee or as an assertion of it, and the legend
+                // is printed three lines below anyway. A reviewer caught it. What belongs here is what
+                // a network namespace does not cover.
+                not_covered: format!(
+                "a network namespace is all-or-nothing, so this reading holds ONLY because the \
+                 warrant grants ZERO hosts: grant one and the namespace is deliberately not \
+                 emitted, because emitting it would deny egress the warrant permits. It covers \
+                 sockets and nothing else -- the scorer's own files stay reachable through the \
+                 read-only root, and its signing key with them. And like the filesystem bind it is \
+                 conditional on a {} profile you launched and this process did not.",
+                kind.word()
+            ),
             },
-            not_covered: format!(
-                "{} And a namespace is all-or-nothing: this reading holds only because the warrant \
-                 grants ZERO hosts. Grant one and the namespace is deliberately not emitted, \
-                 because emitting it would deny egress the warrant permits.",
-                BoundStrength::Enforced.caveat()
-            ),
-        },
-        None => Property {
-            name: SCORER_NOT_REACHABLE_OVER_NETWORK.to_string(),
-            strength: Some(BoundStrength::Mediated),
-            held_by: HeldBy::OurCode,
-            not_covered: format!(
-                "{}. This warrant permits {} host(s), or no confinement is in force, so no network \
-                 namespace is emitted and the scorer is reachable by anything that can open a \
-                 socket.",
+            None => Property {
+                name: SCORER_NOT_REACHABLE_OVER_NETWORK.to_string(),
+                strength: Some(BoundStrength::Mediated),
+                held_by: HeldBy::OurCode,
+                // The reason is DERIVED and named, not offered as a disjunction. This read
+                // "This warrant permits N host(s), or no confinement is in force" -- an `or` that left
+                // the reader to guess which of the two applied to the record in front of them.
+                not_covered: format!(
+                "{}. No network namespace is emitted here, and the scorer is reachable by anything \
+                 that can open a socket, because {}.",
                 BoundStrength::Mediated.caveat(),
-                bounds.egress_hosts.len()
+                if confinement.is_none() {
+                    "no confinement is asserted at all".to_string()
+                } else if let Some(reason) = &unprofilable {
+                    format!(
+                        "no confinement this repository writes can name the worktree {}: {reason}",
+                        worktree.display()
+                    )
+                } else {
+                    format!(
+                        "this warrant permits {} host(s) and a namespace has no host allowlist, so \
+                         emitting one would deny egress the warrant grants",
+                        bounds.egress_hosts.len()
+                    )
+                }
             ),
-        },
-    };
+            },
+        };
 
     vec![inputs, credentials, network]
 }
@@ -303,6 +451,20 @@ pub fn isolation(
 /// Compare two paths without caring about separators or case on Windows.
 fn normalize(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/").to_lowercase()
+}
+
+/// Whether a path names a location on its own, so that a prefix comparison against another such path
+/// means something.
+///
+/// Not [`Path::is_absolute`], deliberately: that answers for the *host this binary is running on*, so
+/// `/home/agent/.warrantor` is "relative" on Windows and `M:\store` is "relative" on Linux. This
+/// function is deciding whether two recorded strings can be placed relative to each other, which is a
+/// question about the strings. Both POSIX roots and Windows drive roots count; anything else does not,
+/// and [`isolation`] fails closed on it rather than guessing.
+fn is_rooted(path: &Path) -> bool {
+    let text = normalize(path);
+    let bytes = text.as_bytes();
+    text.starts_with('/') || (bytes.len() >= 3 && bytes[1] == b':' && bytes[2] == b'/')
 }
 
 /// Fail closed over the properties, reusing `eval-guard` rather than re-deciding.
@@ -357,6 +519,43 @@ pub fn preflight(
         },
         key,
     )
+}
+
+/// The source string for a record where nobody asserted anything about a kernel.
+///
+/// With no confinement asserted, the four booleans handed to [`preflight`] are this command's own
+/// reading of the store — no operator claimed a namespace, so naming one would attribute a claim
+/// nobody made. It names the component instead. It is not a party and does not pretend to be, which is
+/// why it says so in its own text: `Provenance::source()` is printed, and a reader who sees this string
+/// has been told the assertion came from code reading files, not from a person.
+pub const NO_CONFINEMENT_ASSERTER: &str =
+    "warrantor-scorer (no confinement was asserted, so no party asserted these booleans: they are \
+     this command's own reading of the store)";
+
+/// Resolve the operator who asserted a confinement into the string that goes into the signed bytes.
+///
+/// # Why a registered name and not a free string
+///
+/// The first cut passed `format!("operator-at-cli:{id}")` — the id of the warrant being *graded*. That
+/// names no party: it is the subject of the grading, not a principal to it, and
+/// [`Provenance::Asserted`] documents its `by` field as the thing that exists to stop an anonymous
+/// assertion. A reviewer caught it. The store already holds names, so this resolves against them and
+/// refuses a name it cannot find rather than passing it through.
+///
+/// This buys no new trust root: the registry is a file on this machine and an operator token is a
+/// token rather than a person, exactly as [`ESCALATION_NOTE`] says of the escalation path that reuses
+/// it. What it buys is that the signed field names something a reviewer can look up.
+///
+/// # Errors
+/// [`ScorerError::UnknownAsserter`] when no operator of that name is registered.
+pub fn asserted_by(registry: &OperatorRegistry, name: &str) -> Result<String, ScorerError> {
+    if registry.by_name(name).is_none() {
+        return Err(ScorerError::UnknownAsserter {
+            name: name.to_string(),
+            registered: registry.operators.len(),
+        });
+    }
+    Ok(format!("operator:{name}"))
 }
 
 // ── the reward-hacking monitor ────────────────────────────────────────────────────────
@@ -439,6 +638,19 @@ pub enum ScorerError {
          escalate. An escalation recorded anyway would train its reader to ignore the next one."
     )]
     NotCrossed,
+    /// The name given as the asserting party is not a registered operator.
+    #[error(
+        "{name:?} is not a registered operator, so the pre-flight has nobody to name as the party \
+         asserting a confinement is in force ({registered} operator(s) are registered; \
+         `warrantor operator list`). Refusing rather than signing the name through: the whole value \
+         of that field is that a reviewer holding the attestation can go and look the party up."
+    )]
+    UnknownAsserter {
+        /// The name that was given.
+        name: String,
+        /// How many operators the registry does hold, so the reader knows whether it is empty.
+        registered: usize,
+    },
     /// No registered operator holds `Stop` without also holding `Settle`.
     #[error(
         "no registered operator holds Stop without also holding Settle, so there is nobody to \
@@ -936,33 +1148,74 @@ mod tests {
     fn render_matches_the_shared_tier_vocabulary_and_leaves_a_gap_between_name_and_tier() {
         // Two things at once, and the second was a real defect: the first run of `warrantor scorer`
         // printed `scorer_inputs_not_writableobserved`, because `render_bound` pads to 24 and these
-        // names are up to 31 characters. The tier WORD must still be the one the rest of the product
+        // names are up to 33 characters. The tier WORD must still be the one the rest of the product
         // spells, which is what the first assertion pins.
-        for strength in [
-            BoundStrength::Enforced,
-            BoundStrength::Mediated,
-            BoundStrength::Observed,
+        //
+        // It loops over ALL THREE names because it used to loop over one: SCORER_INPUTS_NOT_WRITABLE
+        // is 26 characters, so `NAME_COLUMN` could be cut from 34 to 33 and the shipped defect came
+        // straight back for `scorer_not_reachable_over_network` -- which is 33 -- with this test and
+        // every other suite in the package still green. A reviewer proved it with that exact
+        // one-character mutation. The mutation-detecting boundary sat at column 27; it now sits at 34.
+        for name in [
+            SCORER_INPUTS_NOT_WRITABLE,
+            SCORER_CREDENTIALS_NOT_READABLE,
+            SCORER_NOT_REACHABLE_OVER_NETWORK,
         ] {
-            let property = Property {
-                name: SCORER_INPUTS_NOT_WRITABLE.to_string(),
-                strength: Some(strength),
-                held_by: HeldBy::OurCode,
+            for strength in [
+                BoundStrength::Enforced,
+                BoundStrength::Mediated,
+                BoundStrength::Observed,
+            ] {
+                let property = Property {
+                    name: name.to_string(),
+                    strength: Some(strength),
+                    held_by: HeldBy::OurCode,
+                    not_covered: "fixture".to_string(),
+                };
+                let line = property.render();
+                assert!(
+                    line.ends_with(
+                        crate::render_bound("x", strength)
+                            .trim_start_matches('x')
+                            .trim()
+                    ),
+                    "the tier word must be the one render_bound prints: {line}"
+                );
+                assert!(
+                    line.contains(&format!("{name} ")),
+                    "the name and the tier word must not run together: {line:?}"
+                );
+            }
+            // And the no-tier rendering, which is the longest right-hand side and the one the
+            // credentials property actually ships. `contains(\"held by nothing\")` -- the only thing
+            // the credentials test asserted about its render -- passes with no space too.
+            let untiered = Property {
+                name: name.to_string(),
+                strength: None,
+                held_by: HeldBy::NothingYet,
                 not_covered: "fixture".to_string(),
             };
-            let line = property.render();
             assert!(
-                line.ends_with(
-                    crate::render_bound("x", strength)
-                        .trim_start_matches('x')
-                        .trim()
-                ),
-                "the tier word must be the one render_bound prints: {line}"
-            );
-            assert!(
-                line.contains(&format!("{SCORER_INPUTS_NOT_WRITABLE} ")),
-                "the name and the tier word must not run together: {line:?}"
+                untiered.render().contains(&format!("{name} ")),
+                "{:?}",
+                untiered.render()
             );
         }
+        // Stated as an arithmetic fact as well as a rendering one, so the reason 34 is the number is
+        // in the corpus rather than in a comment: the column has to clear the longest name.
+        let longest = [
+            SCORER_INPUTS_NOT_WRITABLE,
+            SCORER_CREDENTIALS_NOT_READABLE,
+            SCORER_NOT_REACHABLE_OVER_NETWORK,
+        ]
+        .into_iter()
+        .map(str::len)
+        .max()
+        .expect("three names");
+        assert!(
+            NAME_COLUMN > longest,
+            "NAME_COLUMN {NAME_COLUMN} must exceed the longest property name ({longest})"
+        );
     }
 
     #[test]
@@ -990,13 +1243,328 @@ mod tests {
 
     #[test]
     fn the_isolation_caveat_names_the_three_things_that_are_not_implemented() {
-        for fragment in ["netns", "seccomp", "firewall", "readable to any process"] {
-            assert!(
-                ISOLATION_RECORD_CAVEAT.contains(fragment)
-                    || ISOLATION_RECORD_CAVEAT.contains("same user"),
-                "the shipped sentence must name {fragment}"
-            );
+        // This gate was VACUOUS and a reviewer proved it: the assertion was
+        // `contains(fragment) || contains("same user")`, and the sentence under test ends "...readable
+        // to any process running as the same user", so the right-hand disjunct was unconditionally
+        // true and every iteration passed no matter what the constant said. Deleting "no netns,
+        // seccomp or firewall is implemented here" from the shipped disclosure left the whole package
+        // green. There is no `||` now, and it runs over every record `isolation()` can produce rather
+        // than over one string.
+        for (label, properties) in every_configuration() {
+            let caveat = isolation_caveat(&properties);
+            for fragment in [
+                "netns",
+                "seccomp",
+                "firewall",
+                "readable to any process",
+                "does not establish",
+            ] {
+                assert!(
+                    caveat.contains(fragment),
+                    "the shipped sentence for {label} must name {fragment}: {caveat}"
+                );
+            }
         }
-        assert!(ISOLATION_RECORD_CAVEAT.contains("does not"));
+    }
+
+    #[test]
+    fn the_shipped_caveat_names_the_holder_the_record_names_and_never_a_stronger_one() {
+        // The Task 1.1 / Task 9.1 defect, in the one sentence this module's docs said was centralized
+        // so it could not drift. As a constant it asserted "the filesystem property is held by an
+        // operating system this process cannot interrogate" under EVERY record -- including the
+        // default unconfined one, whose own rendered lines say `observed` and `held by warrantor` and
+        // "nothing refuses a write ... as it happens". It contradicted the record it shipped with, in
+        // the reassuring direction, which is the direction that matters.
+        for (label, properties) in every_configuration() {
+            let caveat = isolation_caveat(&properties);
+            let inputs = properties
+                .iter()
+                .find(|p| p.name == SCORER_INPUTS_NOT_WRITABLE)
+                .expect("the filesystem property is always present");
+            match inputs.held_by {
+                HeldBy::Os { .. } => assert!(
+                    caveat.contains("held by an operating system"),
+                    "{label}: {caveat}"
+                ),
+                HeldBy::OurCode => {
+                    assert!(caveat.contains("held by warrantor"), "{label}: {caveat}");
+                    assert!(
+                        !caveat.contains("the filesystem property is held by an operating system"),
+                        "{label}: the record says warrantor holds it, so the caveat must not say an \
+                         operating system does: {caveat}"
+                    );
+                }
+                HeldBy::NothingYet => assert!(
+                    caveat.contains("nothing holds the filesystem property"),
+                    "{label}: {caveat}"
+                ),
+            }
+        }
+    }
+
+    #[test]
+    fn a_caveat_over_a_record_missing_a_property_says_the_record_is_incomplete() {
+        // The absent-limit rule applied to prose: a clause silently dropped reads as a shorter
+        // promise rather than as a shorter record. Paired with the control above, which shows the
+        // full record does NOT print this sentence.
+        let short = vec![Property {
+            name: SCORER_NOT_REACHABLE_OVER_NETWORK.to_string(),
+            strength: Some(BoundStrength::Enforced),
+            held_by: HeldBy::Os {
+                mechanism: "fixture".to_string(),
+            },
+            not_covered: "fixture".to_string(),
+        }];
+        let caveat = isolation_caveat(&short);
+        assert!(caveat.contains("is ABSENT from this record"), "{caveat}");
+        assert!(caveat.contains(SCORER_INPUTS_NOT_WRITABLE), "{caveat}");
+        assert!(caveat.contains(SCORER_CREDENTIALS_NOT_READABLE), "{caveat}");
+        // CONTROL: a complete record says nothing of the kind.
+        let (_, whole) = every_configuration()
+            .into_iter()
+            .next()
+            .expect("at least one configuration");
+        assert!(!isolation_caveat(&whole).contains("is ABSENT from this record"));
+    }
+
+    /// Every shape `isolation()` can return, labeled, so a test over "the shipped sentence" runs over
+    /// the sentence that actually ships in each case rather than over one string.
+    ///
+    /// The two reachability cases are here because they were the reviewer findings: an asserted
+    /// confinement over a worktree `sandbox::check_worktree` refuses, and a store root that cannot be
+    /// placed relative to the worktree at all.
+    fn every_configuration() -> Vec<(&'static str, Vec<Property>)> {
+        vec![
+            (
+                "no confinement asserted",
+                isolation(
+                    &bounds(&[]),
+                    None,
+                    Path::new("/home/agent/.warrantor"),
+                    Path::new(WORKTREE),
+                ),
+            ),
+            (
+                "confined, store outside the worktree",
+                isolation(
+                    &bounds(&[]),
+                    Some(Confinement::Bubblewrap),
+                    Path::new("/home/agent/.warrantor"),
+                    Path::new(WORKTREE),
+                ),
+            ),
+            (
+                "confined, store inside the worktree",
+                isolation(
+                    &bounds(&[]),
+                    Some(Confinement::Bubblewrap),
+                    Path::new("/home/agent/repo/.warrantor/wrt_w1/store"),
+                    Path::new("/home/agent/repo/.warrantor/wrt_w1"),
+                ),
+            ),
+            (
+                "confined, egress permitted",
+                isolation(
+                    &bounds(&["api.github.com"]),
+                    Some(Confinement::Bubblewrap),
+                    Path::new("/home/agent/.warrantor"),
+                    Path::new(WORKTREE),
+                ),
+            ),
+            (
+                "confined, worktree no profile here can name",
+                isolation(
+                    &bounds(&[]),
+                    Some(Confinement::Bubblewrap),
+                    Path::new("/home/agent/.warrantor"),
+                    Path::new(&windows_worktree()),
+                ),
+            ),
+            (
+                "confined, store root not comparable to the worktree",
+                isolation(
+                    &bounds(&[]),
+                    Some(Confinement::Bubblewrap),
+                    Path::new(".warrantor"),
+                    Path::new(WORKTREE),
+                ),
+            ),
+        ]
+    }
+
+    /// A worktree exactly like the ones this store produces on Windows, which is the platform this
+    /// task was developed and measured on.
+    ///
+    /// Written through `char::from(92)` for the reason `sandbox::check_worktree` is: every attempt to
+    /// carry a literal backslash through the tooling that edits this file has mangled the escape, and
+    /// a mangled escape here turns the fixture into a POSIX-looking path and stops testing anything.
+    fn windows_worktree() -> String {
+        let sep = char::from(92);
+        format!("M:{sep}wt-w3-13.7{sep}.warrantor{sep}wrt_0742ec64b817bef0")
+    }
+
+    #[test]
+    fn an_asserted_confinement_over_an_unprofilable_worktree_is_not_enforced() {
+        // The reviewer's first and worst finding, and it is a LABEL correction: `warrantor scorer
+        // --confined` printed `enforced / held by operating system / bubblewrap binds / read-only ...
+        // fails with EROFS at the syscall` for warrants on which `warrantor sandbox` exits 1 refusing
+        // the identical path -- so the named mechanism was unreachable by any command in this
+        // repository, on the only platform the task was measured on. `cmd_scorer` never called the
+        // refusal `cmd_sandbox` uses, and the fixtures all used POSIX paths, so nothing went red.
+        let worktree = windows_worktree();
+        assert!(
+            crate::sandbox::check_worktree(&worktree).is_err(),
+            "the fixture must be a path `warrantor sandbox` actually refuses, or this proves nothing"
+        );
+        let properties = isolation(
+            &bounds(&[]),
+            Some(Confinement::Bubblewrap),
+            Path::new("/home/agent/.warrantor"),
+            Path::new(&worktree),
+        );
+        let inputs = properties
+            .iter()
+            .find(|p| p.name == SCORER_INPUTS_NOT_WRITABLE)
+            .expect("present");
+        assert_eq!(inputs.strength, Some(BoundStrength::Observed), "{inputs:?}");
+        assert_eq!(inputs.held_by, HeldBy::OurCode);
+        assert!(
+            inputs.not_covered.contains("warrantor sandbox"),
+            "the record must name the command that refuses the same path: {}",
+            inputs.not_covered
+        );
+        // The namespace comes out of the same profile, so it drops with it.
+        let network = properties
+            .iter()
+            .find(|p| p.name == SCORER_NOT_REACHABLE_OVER_NETWORK)
+            .expect("present");
+        assert_eq!(
+            network.strength,
+            Some(BoundStrength::Mediated),
+            "{network:?}"
+        );
+        assert_eq!(network.held_by, HeldBy::OurCode);
+
+        // CONTROL, or a refusal-only test proves nothing: the same call with a worktree the sandbox
+        // DOES accept still reaches Enforced on both, so this is a condition and not a brick.
+        let ok = isolation(
+            &bounds(&[]),
+            Some(Confinement::Bubblewrap),
+            Path::new("/home/agent/.warrantor"),
+            Path::new(WORKTREE),
+        );
+        assert!(crate::sandbox::check_worktree(WORKTREE).is_ok());
+        for name in [
+            SCORER_INPUTS_NOT_WRITABLE,
+            SCORER_NOT_REACHABLE_OVER_NETWORK,
+        ] {
+            let property = ok.iter().find(|p| p.name == name).expect("present");
+            assert_eq!(
+                property.strength,
+                Some(BoundStrength::Enforced),
+                "control: {property:?}"
+            );
+            assert!(matches!(property.held_by, HeldBy::Os { .. }));
+        }
+    }
+
+    #[test]
+    fn a_store_root_that_cannot_be_placed_relative_to_the_worktree_is_not_enforced() {
+        // The second reviewer finding on the same tier word. `--root` is taken verbatim and
+        // `StoredWarrant::worktree` is absolute, so a store the operator put INSIDE the worktree and
+        // named relatively was not a prefix of it -- the check said "outside" and the record said
+        // Enforced over a store sitting in the profile's one read-write hole. The old test only ever
+        // passed absolute paths, so nothing went red. Fails closed now, and names the path it could
+        // not place.
+        let properties = isolation(
+            &bounds(&[]),
+            Some(Confinement::Bubblewrap),
+            Path::new(".warrantor"),
+            Path::new(WORKTREE),
+        );
+        let inputs = properties
+            .iter()
+            .find(|p| p.name == SCORER_INPUTS_NOT_WRITABLE)
+            .expect("present");
+        assert_eq!(inputs.strength, Some(BoundStrength::Observed), "{inputs:?}");
+        assert_eq!(inputs.held_by, HeldBy::OurCode);
+        assert!(
+            inputs.not_covered.contains("cannot place the store root"),
+            "{}",
+            inputs.not_covered
+        );
+        // CONTROL: absolute and outside still earns the tier.
+        let absolute = isolation(
+            &bounds(&[]),
+            Some(Confinement::Bubblewrap),
+            Path::new("/home/agent/.warrantor"),
+            Path::new(WORKTREE),
+        );
+        assert_eq!(
+            absolute
+                .iter()
+                .find(|p| p.name == SCORER_INPUTS_NOT_WRITABLE)
+                .expect("present")
+                .strength,
+            Some(BoundStrength::Enforced),
+        );
+    }
+
+    #[test]
+    fn is_rooted_answers_for_the_string_and_not_for_the_host_this_test_runs_on() {
+        // `Path::is_absolute` would make this platform-dependent, so the same store record would be
+        // comparable on one host and not on another -- and every fixture in this file uses a POSIX
+        // path while the product's own records on this machine use drive letters.
+        assert!(is_rooted(Path::new("/home/agent/.warrantor")));
+        assert!(is_rooted(Path::new(&windows_worktree())));
+        assert!(!is_rooted(Path::new(".warrantor")));
+        assert!(!is_rooted(Path::new("relative/store")));
+        assert!(!is_rooted(Path::new("")));
+    }
+
+    #[test]
+    fn the_asserting_party_must_be_a_registered_operator_and_is_never_the_graded_warrant() {
+        // `cmd_scorer` passed `operator-at-cli:{id}` -- the id of the warrant being GRADED. That is
+        // the subject of the grading, not a party to it, so the signed "who asserted these four
+        // booleans" field named nobody. A reviewer caught it.
+        let dir = std::env::temp_dir().join(format!(
+            "warrantor-scorer-asserter-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        std::fs::create_dir_all(&dir).expect("tempdir");
+        let mut registry = OperatorRegistry::load(&dir).expect("load");
+        registry
+            .add(
+                "env-owner",
+                [Scope::Stop].into_iter().collect(),
+                "bound out of band, in this test",
+                1_786_000_000,
+            )
+            .expect("added");
+        registry.save(&dir).expect("saved");
+
+        // CONTROL: a registered name resolves, so this is a lookup and not a refusal of everything.
+        assert_eq!(
+            asserted_by(&registry, "env-owner").expect("registered"),
+            "operator:env-owner"
+        );
+        // And a warrant id is exactly what it refuses.
+        let refused = asserted_by(&registry, "wrt_0742ec64b817bef0");
+        assert!(
+            matches!(refused, Err(ScorerError::UnknownAsserter { .. })),
+            "{refused:?}"
+        );
+        assert!(ScorerError::UnknownAsserter {
+            name: "wrt_0742ec64b817bef0".to_string(),
+            registered: 1,
+        }
+        .to_string()
+        .contains("not a registered operator"),);
+        // The unconfined source names the component and says it is not a party.
+        assert!(NO_CONFINEMENT_ASSERTER.contains("no party asserted"));
+        assert!(!NO_CONFINEMENT_ASSERTER.contains("operator"));
     }
 }
