@@ -334,7 +334,38 @@ def test_every_citation_anchor_resolves_in_the_real_tree() -> None:
     the line is found in the source and the document is required to cite it."""
 
     assert citations_resolve() == []
-    assert len(CITATIONS) >= 7
+    assert len(CITATIONS) >= 8
+
+
+def test_the_egress_tier_word_the_analysis_cites_is_derived_from_the_source(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test-rigor finding Y7 (second review): docs/05 cited `("egress_hosts", BoundStrength::Mediated)`
+    and changing that word to `Enforced` on the page passed every gate. The tier word is in the
+    citation needle now, so the page must carry the word the source holds."""
+
+    tier_citations = [c for c in CITATIONS if c[1] == "rust/warrant/src/lib.rs"]
+    assert len(tier_citations) == 1
+    assert "BoundStrength::Mediated" in tier_citations[0][2], "the needle carries the tier word"
+    assert citations_resolve() == []
+
+    real_read = network_independence.read
+
+    def mislabeled(relative: str) -> str:
+        text = real_read(relative)
+        if relative == ANALYSIS_DOCUMENT:
+            assert 'reports `("egress_hosts", BoundStrength::Mediated)`' in text
+            return text.replace(
+                'reports `("egress_hosts", BoundStrength::Mediated)`',
+                'reports `("egress_hosts", BoundStrength::Enforced)`',
+            )
+        return text
+
+    monkeypatch.setattr(network_independence, "read", mislabeled)
+    problems = citations_resolve()
+    assert len(problems) == 1, problems
+    assert "rust/warrant/src/lib.rs" in problems[0] and "does not cite" in problems[0]
+    assert main([]) == 1, "a tier word the source does not hold must fail the build"
 
 
 def test_a_stale_citation_anchor_fails_the_gate(monkeypatch: pytest.MonkeyPatch) -> None:

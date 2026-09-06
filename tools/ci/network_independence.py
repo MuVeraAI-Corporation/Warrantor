@@ -260,6 +260,19 @@ CITATIONS = (
         "expires_at: bounds.expires_at",
         "(`rust/warrant/src/egress.rs` line {line})",
     ),
+    # The TIER WORD, derived and not merely the line. CORRECTION (second adversarial review): docs/05
+    # cited `("egress_hosts", BoundStrength::Mediated)` at a line number, and changing that word to
+    # `Enforced` on the page passed this gate, check_invariants.py, check_docs.py and every pytest
+    # case -- no gate bound a tier word on this surface. The needle carries the tier, so the page
+    # must cite the word the source holds, and if the source's tier ever changes the needle is gone
+    # and the build fails until the analysis is re-derived. (The cited line was also stale: it
+    # pointed three lines above the arm, at `write_paths`.)
+    (
+        "docs/05-network-common-mode-analysis.md",
+        "rust/warrant/src/lib.rs",
+        '("egress_hosts", BoundStrength::Mediated),',
+        'reports `("egress_hosts", BoundStrength::Mediated)` (`rust/warrant/src/lib.rs` line {line})',
+    ),
 )
 
 # The cluster layer L2-03 asks for, asserted rather than described.
