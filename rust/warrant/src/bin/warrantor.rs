@@ -1299,7 +1299,12 @@ fn cmd_verify(args: &Args, root: &Path) -> ExitCode {
         Err(e) => return fail(&format!("{path} is not a warrantor evidence file: {e}")),
     };
     let anchor = anchor.as_ref();
-    match declared.get("format").and_then(serde_json::Value::as_str) {
+    // A trust bundle carries its format inside the signed claims, not at the top level.
+    let declared_format = declared
+        .get("format")
+        .or_else(|| declared.pointer("/claims/format"))
+        .and_then(serde_json::Value::as_str);
+    match declared_format {
         Some(f) if f == report::REPORT_EXPORT_FORMAT => verify_report_export(path, &body, anchor),
         Some(f) if f == stop::STOP_EXPORT_FORMAT => verify_stop_export(path, &body, anchor),
         Some(f) if f == spend::LEDGER_EXPORT_FORMAT => verify_spend_export(path, &body, anchor),
@@ -1314,13 +1319,15 @@ fn cmd_verify(args: &Args, root: &Path) -> ExitCode {
              Nothing in it is signed, so there is nothing here to verify. Load it with \
              `warrantor mcp --upstream-effects-file {path}`."
         )),
+        Some(f) if f == bundle::BUNDLE_FORMAT => verify_trust_bundle(path, &body, root, anchor),
         Some(other) => fail(&format!(
-            "{path} declares format {other:?}. warrantor verify reads {}, {}, {}, {} and {}.",
+            "{path} declares format {other:?}. warrantor verify reads {}, {}, {}, {}, {} and {}.",
             report::REPORT_EXPORT_FORMAT,
             stop::STOP_EXPORT_FORMAT,
             spend::LEDGER_EXPORT_FORMAT,
             warrantor_warrant::catalog::CATALOG_FORMAT,
-            conformance::CONFORMANCE_RECEIPT_FORMAT
+            conformance::CONFORMANCE_RECEIPT_FORMAT,
+            bundle::BUNDLE_FORMAT
         )),
         None => fail(&format!(
             "{path} has no format field, so it is not a warrantor evidence file."
@@ -1429,6 +1436,68 @@ fn verify_conformance_export(path: &str, body: &[u8], anchor: Option<&Anchor>) -
         );
         ExitCode::FAILURE
     }
+}
+
+/// Check a trust bundle the way `issuer import` would, without importing it.
+///
+/// Passing means the file was not altered since the key it names signed it. Whether that key is
+/// one to trust is printed as a fact about THIS machine's pins, never decided from the file.
+fn verify_trust_bundle(path: &str, body: &[u8], root: &Path, anchor: Option<&Anchor>) -> ExitCode {
+    let parsed = match bundle::parse(body) {
+        Ok(b) => b,
+        Err(e) => return fail(&format!("{path} does NOT verify: {e}")),
+    };
+    if let Some(anchor) = anchor {
+        let bound = hex::encode(anchor.key.to_bytes());
+        if parsed.signed_by != bound {
+            return fail(&format!(
+                "{path} does NOT verify against the anchor: the bundle is signed by {}, and the \
+                 anchor is {bound}.",
+                parsed.signed_by
+            ));
+        }
+    }
+    let directory = match trust::Directory::load(root) {
+        Ok(d) => d,
+        Err(e) => return fail(&e),
+    };
+    let signer = directory
+        .issuers
+        .iter()
+        .find(|(_, pin)| pin.key == parsed.signed_by)
+        .map(|(name, _)| name.clone());
+    println!("verified  {}", report::sha256_hex(body));
+    println!("  format        {}", bundle::BUNDLE_FORMAT);
+    println!(
+        "  issued by     {:?} (a label the exporter chose, not an identity)",
+        parsed.claims.issued_by
+    );
+    println!("  issued at     {}", parsed.claims.issued_at);
+    println!("  pins          {}", parsed.claims.issuers.len());
+    println!("  signed by     {}", parsed.signed_by);
+    println!("  anchor        {}", anchor_line(anchor));
+    match &signer {
+        Some(name) => println!(
+            "  signer        pinned here as `{name}`; `warrantor issuer import {path} --apply` \
+             would accept it on that authority"
+        ),
+        None => println!(
+            "  signer        NOT pinned here; `warrantor issuer import` refuses it until the key \
+             above is pinned out of band"
+        ),
+    }
+    println!("\n── WHAT THIS DOES NOT ESTABLISH ──");
+    println!(
+        "  - The signature proves the file was not altered since the key above signed it. It \
+         says nothing about whether the keys inside are the right keys: that is decided by \
+         whether the SIGNER is a key you already checked out of band, never by the file."
+    );
+    println!("  - {PIN_REVOCATION_LIMITATION}");
+    println!(
+        "  - Imports are NOT transitive: a pin taken from this bundle does not let that pin's \
+         own bundle in."
+    );
+    ExitCode::SUCCESS
 }
 
 /// Where a verify anchor came from. Printed in the verdict, because a name resolved from the

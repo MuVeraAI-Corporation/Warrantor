@@ -187,3 +187,112 @@ fn a_local_pin_reads_as_checked_here() {
     assert!(!anchor.contains("   "), "{anchor}");
     assert!(output.contains("Revocation is NOT established"), "{output}");
 }
+
+/// The no-new-trust-root rule, through the binary: a bundle from a key nobody here checked is
+/// refused, the refusal names the way in, and the trust file is not even created.
+#[test]
+fn a_bundle_signed_by_an_unpinned_key_is_refused_and_writes_nothing() {
+    let a = tempdir("unpinned-a");
+    grant(&a);
+    let some_key = hex::encode(SigningKey::from_bytes(&[7; 32]).verifying_key().to_bytes());
+    run(&a, &["issuer", "add", "ana", &some_key]);
+    let bundle = a.join("a.json");
+    let bundle_path = bundle.to_str().expect("path");
+    let (ok, output) = run(&a, &["issuer", "export", "--out", bundle_path]);
+    assert!(ok, "{output}");
+
+    let c = tempdir("unpinned-c");
+    let (ok, output) = run(&c, &["issuer", "import", bundle_path, "--apply"]);
+    assert!(!ok, "{output}");
+    assert!(
+        output.contains("not a key this machine already trusts"),
+        "{output}"
+    );
+    assert!(output.contains("new trust root"), "{output}");
+    assert!(
+        output.contains("warrantor issuer add"),
+        "the refusal names the way in: {output}"
+    );
+    assert!(
+        !c.join(".warrantor/trusted").exists(),
+        "nothing may be written"
+    );
+}
+
+/// Exporting from a machine with pins but no issuer key refuses rather than minting one: a key
+/// created by the act of exporting has been checked by nobody, so the bundle it signs is
+/// importable nowhere — and the machine now carries a key its operator never asked for.
+#[test]
+fn export_refuses_to_mint_an_issuer_key() {
+    let d = tempdir("no-key");
+    let some_key = hex::encode(SigningKey::from_bytes(&[7; 32]).verifying_key().to_bytes());
+    let (ok, output) = run(&d, &["issuer", "add", "ana", &some_key]);
+    assert!(ok, "{output}");
+    let out = d.join("d.json");
+    let (ok, output) = run(
+        &d,
+        &["issuer", "export", "--out", out.to_str().expect("path")],
+    );
+    assert!(!ok, "{output}");
+    assert!(
+        output.contains("will not mint one") && output.contains("warrantor grant"),
+        "{output}"
+    );
+    assert!(!d.join(".warrantor/keys/issuer.key").exists(), "{output}");
+    assert!(!out.exists());
+}
+
+/// The empty-directory refusal has no whitespace run — the literal that produced one is gone.
+#[test]
+fn export_with_nothing_pinned_refuses_in_one_clean_sentence() {
+    let d = tempdir("nothing-pinned");
+    let out = d.join("d.json");
+    let (ok, output) = run(
+        &d,
+        &["issuer", "export", "--out", out.to_str().expect("path")],
+    );
+    assert!(!ok && output.contains("carry nothing"), "{output}");
+    assert!(!output.contains("   "), "{output}");
+}
+
+/// verify reads a bundle by its format, says whether the signer is pinned here, and binds to an
+/// anchor when given one — without importing anything.
+#[test]
+fn verify_reads_a_trust_bundle_and_says_whether_its_signer_is_pinned_here() {
+    let b = tempdir("verify-b");
+    grant(&b);
+    let some_key = hex::encode(SigningKey::from_bytes(&[7; 32]).verifying_key().to_bytes());
+    run(&b, &["issuer", "add", "ana", &some_key]);
+    let bundle = b.join("b.json");
+    let bundle_path = bundle.to_str().expect("path");
+    let (ok, output) = run(
+        &b,
+        &["issuer", "export", "--out", bundle_path, "--as", "team-b"],
+    );
+    assert!(ok, "{output}");
+    let b_hex = issuer_hex(&b);
+
+    let c = tempdir("verify-c");
+    let (ok, output) = run(&c, &["verify", bundle_path]);
+    assert!(
+        ok,
+        "an intact file verifies; trust is a separate question: {output}"
+    );
+    assert!(output.contains("signer        NOT pinned here"), "{output}");
+    assert!(output.contains("Revocation is NOT established"), "{output}");
+    assert!(
+        !c.join(".warrantor/trusted").exists(),
+        "verify never imports"
+    );
+
+    run(&c, &["issuer", "add", "team-b", &b_hex]);
+    let (ok, output) = run(&c, &["verify", bundle_path]);
+    assert!(ok && output.contains("pinned here as `team-b`"), "{output}");
+
+    // An anchor that is not the signer is a refusal.
+    let (ok, output) = run(&c, &["verify", bundle_path, "--issuer", &some_key]);
+    assert!(
+        !ok && output.contains("does NOT verify against the anchor"),
+        "{output}"
+    );
+}
