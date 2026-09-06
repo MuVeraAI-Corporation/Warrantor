@@ -93,3 +93,30 @@ def test_diff_mode_scans_more_than_zero_files() -> None:
         lines_added, files_scanned = int(match.group(1)), int(match.group(2))
         if lines_added:
             assert files_scanned > 0, f"{lines_added} added lines resolved to no files"
+
+
+def test_the_two_documented_false_positives_pass(tmp_path: Path) -> None:
+    """`forwards` and `analyses` are correct American English and must not fail a branch.
+
+    The canonical matcher over-flags both, and the house rule names them as known false positives.
+    v1 of this gate filtered them; v2 delegated matching to the canonical script and dropped BOTH the
+    filter and this test, so a doc comment reading "the proxy forwards the call" failed the gate on a
+    real branch. The filter and the test go back together, because the filter without a test is what
+    got removed silently the first time.
+    """
+    text = ("The proxy forwards the call, and every tool the proxy forwards is a composition.\n"
+            "The analyses agree with one another.\n")
+    out = run("--files", write(tmp_path, text))
+    assert out.returncode == 0, out.stdout
+
+
+def test_the_false_positive_filter_does_not_swallow_a_real_britishism(tmp_path: Path) -> None:
+    """The paired control for the filter itself.
+
+    Filtering by word is a blunt instrument, so prove it removes only the two documented words and
+    still refuses a genuine Britishism sitting on the same line as one of them.
+    """
+    out = run("--files", write(tmp_path, "The proxy forwards it to the organisation.\n"))
+    assert out.returncode == 1, out.stdout
+    assert "organisation" in out.stdout
+    assert "forwards" not in out.stdout, "the documented false positive leaked into the findings"

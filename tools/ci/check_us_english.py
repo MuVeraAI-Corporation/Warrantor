@@ -44,6 +44,14 @@ MATCHER = Path(__file__).resolve().parent / "verify-us-english.mjs"
 # `    line   12  honour -> honor`
 FINDING = re.compile(r"^\s*line\s+(\d+)\s+(\S+)\s*->\s*(\S+)\s*$")
 
+# The canonical matcher over-flags two words that are correct American English, and the house rule
+# names both. `forwards` is the third-person verb ("the proxy forwards the call"); `analyses` is the
+# plural of the noun `analysis`. v1 of this gate filtered them; v2 delegated matching to the
+# canonical script and dropped the filter, which made a correct sentence fail a branch -- and the
+# test that should have caught it passed vacuously. Filtered here rather than in the vendored
+# matcher so the vendored copy stays byte-identical to its source.
+KNOWN_FALSE_POSITIVES = {"forwards", "analyses"}
+
 # Only text a reader can see. A lock file or generated artifact is not a public surface.
 TEXT_SUFFIXES = {".md", ".rs", ".py", ".js", ".mjs", ".ts", ".tsx", ".html", ".txt",
                  ".yml", ".yaml", ".toml", ".go", ".sh"}
@@ -99,8 +107,11 @@ def scan(paths: list[str]) -> list[tuple[str, int, str, str]]:
                               capture_output=True, text=True, encoding="utf-8", errors="replace")
         for raw in (proc.stdout + proc.stderr).splitlines():
             found = FINDING.match(raw)
-            if found:
-                out.append((path, int(found.group(1)), found.group(2), found.group(3)))
+            if not found:
+                continue
+            if found.group(2).lower() in KNOWN_FALSE_POSITIVES:
+                continue
+            out.append((path, int(found.group(1)), found.group(2), found.group(3)))
     return out
 
 
