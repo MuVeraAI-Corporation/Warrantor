@@ -396,3 +396,123 @@ fn a_new_run_clears_the_previous_runs_completion_record() {
         other => panic!("expected Interrupted for a crashed re-run, got {other:?}"),
     }
 }
+
+// -- L4-05: the EXEC gate at the supervise chokepoint ---------------------------------
+
+use warrantor_warrant::daemon::{supervise_run, SuperviseRequest};
+use warrantor_warrant::exec::{self, ExecAdmission, ExecPhase, ExecSurface, ExecVerdict};
+
+fn agent() -> String {
+    env!("CARGO_BIN_EXE_warrantor").to_string()
+}
+
+fn request(
+    dir: &std::path::Path,
+    id: &str,
+    program: &str,
+    exec: Option<BTreeSet<ExecAdmission>>,
+) -> SuperviseRequest {
+    SuperviseRequest {
+        warrant_id: id.to_string(),
+        expires_at: NOW + 3600,
+        program: program.to_string(),
+        args: vec!["--help".to_string()],
+        cwd: None,
+        root: dir.to_path_buf(),
+        now: NOW,
+        exec,
+    }
+}
+
+/// The E-04 gate at the moment of action: a same-named modified artifact never becomes a process,
+/// no daemon record is written for it, and the refusal is receipted with the digest.
+#[test]
+fn supervise_refuses_a_modified_artifact_before_spawning_and_receipts_it() {
+    let dir = tempdir("exec-refuse");
+    let state = DaemonState::open(&dir).expect("state");
+    let (digest, _) = exec::sha256_file(std::path::Path::new(&agent())).expect("digest");
+    let pinned: BTreeSet<ExecAdmission> = [ExecAdmission {
+        surface: ExecSurface::Process,
+        sha256: digest.clone(),
+    }]
+    .into_iter()
+    .collect();
+
+    let modified = dir.join(if cfg!(windows) {
+        "warrantor.exe"
+    } else {
+        "warrantor"
+    });
+    let mut bytes = std::fs::read(agent()).expect("read");
+    bytes.push(0x00);
+    std::fs::write(&modified, &bytes).expect("write");
+
+    let err = supervise_run(
+        &state,
+        &request(
+            &dir,
+            "wrt_exec_refuse",
+            &modified.to_string_lossy(),
+            Some(pinned.clone()),
+        ),
+    )
+    .expect_err("a modified artifact is refused");
+    assert!(err.contains("gate artifacts"), "{err}");
+    assert!(
+        !err.contains(&digest),
+        "the admitted digest is not disclosed: {err}"
+    );
+    assert_eq!(
+        state.get("wrt_exec_refuse"),
+        None,
+        "nothing was registered, because nothing ran"
+    );
+    assert!(state.completion("wrt_exec_refuse").is_none());
+    let log = exec::read_for(&dir, "wrt_exec_refuse");
+    assert_eq!(log.receipts.len(), 1);
+    assert_eq!(log.receipts[0].verdict, ExecVerdict::Refused);
+    assert_eq!(log.receipts[0].phase, ExecPhase::Spawn);
+    assert_ne!(log.receipts[0].sha256, digest);
+
+    // The renamed, byte-identical copy gets the opposite verdict and actually runs.
+    let renamed = dir.join(if cfg!(windows) {
+        "renamed.exe"
+    } else {
+        "renamed"
+    });
+    std::fs::copy(agent(), &renamed).expect("copy");
+    let code = supervise_run(
+        &state,
+        &request(
+            &dir,
+            "wrt_exec_ok",
+            &renamed.to_string_lossy(),
+            Some(pinned),
+        ),
+    )
+    .expect("a byte-identical artifact runs");
+    assert_eq!(code, 0);
+    let log = exec::read_for(&dir, "wrt_exec_ok");
+    assert_eq!(log.receipts[0].verdict, ExecVerdict::Admitted);
+    assert_eq!(
+        log.receipts[0].sha256, digest,
+        "every EXEC receipt carries the digest"
+    );
+    assert_eq!(
+        state.completion("wrt_exec_ok").map(|c| c.exit_code),
+        Some(0)
+    );
+}
+
+/// A warrant that declares no surface is not refused, and is still receipted with the digest.
+#[test]
+fn supervise_under_an_undeclared_surface_runs_and_records_unpinned() {
+    let dir = tempdir("exec-unpinned");
+    let state = DaemonState::open(&dir).expect("state");
+    let code = supervise_run(&state, &request(&dir, "wrt_unpinned", &agent(), None)).expect("runs");
+    assert_eq!(code, 0);
+    let log = exec::read_for(&dir, "wrt_unpinned");
+    assert_eq!(log.receipts.len(), 1);
+    assert_eq!(log.receipts[0].verdict, ExecVerdict::Unpinned);
+    assert_eq!(log.receipts[0].sha256.len(), 64);
+}

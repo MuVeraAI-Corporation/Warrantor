@@ -5037,6 +5037,7 @@ fn cmd_supervise(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
             cwd: cwd.map(Path::to_path_buf),
             root: root.to_path_buf(),
             now: now(),
+            exec: stored.warrant.claims.bounds.exec.clone(),
         },
     ) {
         Ok(0) => ExitCode::SUCCESS,

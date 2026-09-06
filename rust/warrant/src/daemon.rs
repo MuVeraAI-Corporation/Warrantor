@@ -315,6 +315,8 @@ pub struct SuperviseRequest {
     pub root: PathBuf,
     /// Current time, injected so the caller owns the clock.
     pub now: u64,
+    /// The warrant's declared execution surface, from `claims.bounds.exec`. `None` is unpinned.
+    pub exec: Option<std::collections::BTreeSet<crate::exec::ExecAdmission>>,
 }
 
 /// Run the supervision loop: hold the agent under an OS link until it finishes or the warrant
@@ -336,8 +338,36 @@ pub fn supervise_run(state: &DaemonState, request: &SuperviseRequest) -> Result<
         cwd,
         root,
         now,
+        exec,
     } = request;
     let (expires_at, now) = (*expires_at, *now);
+    // The EXEC gate (L4-05). Resolve, hash and decide before a supervisor, a record or a process
+    // exists; write the receipt before the spawn it describes, and refuse to spawn if the receipt
+    // cannot be written -- a spawn with no receipt is the unreceipted execution this ends.
+    let receipt = crate::exec::admit(
+        exec.as_ref(),
+        crate::exec::ExecSurface::Process,
+        program,
+        cwd.as_deref(),
+        warrant_id,
+        crate::exec::ExecPhase::Spawn,
+        now,
+    )?;
+    crate::exec::record(root, &receipt)
+        .map_err(|e| format!("exec receipt could not be written, so nothing was spawned: {e}"))?;
+    if receipt.verdict == crate::exec::ExecVerdict::Refused {
+        return Err(crate::exec::refusal_sentence(&receipt));
+    }
+    if receipt.verdict == crate::exec::ExecVerdict::Unpinned {
+        println!(
+            "warrantor: exec unpinned -- {warrant_id} declares no execution surface; sha256 {} \
+             of {} recorded, nothing refused.",
+            receipt.sha256, receipt.path
+        );
+    }
+    // What was hashed is what runs: the resolved path, never the name. A PATH entry that changed
+    // between the digest and the spawn would otherwise be a different program under one receipt.
+    let program: &str = &receipt.path;
     let mut supervisor = crate::supervise::Supervisor::new()?;
     let linkage = supervisor.describe();
 
