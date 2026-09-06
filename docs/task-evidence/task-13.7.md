@@ -3,7 +3,11 @@
 Branch `feat/scorer-isolation`, from local `main` at `f9c3523`. Measured on Windows 11, 2026-09-05; **corrected after adversarial review on 2026-09-06**, and
 every number in this file re-measured at the corrected tip. The review and what it changed are the
 next section. **Rebased onto `main` at `065961b` by the review lane on 2026-09-06; every
-number re-measured on the rebased tree is in the last section of this file.**
+number re-measured on the rebased tree is in the "Rebased onto `main`" section of this file.**
+**A second adversarial review of the rebased tree (three lenses, twenty-one findings) was closed
+by the review lane on 2026-09-06; the last section of this file records every finding, what
+changed, and the gate re-measured on the final tip.** Where a sentence earlier in this file is
+contradicted by that section, the last section is the one that was measured last.
 
 ## The premise correction, before anything else
 
@@ -270,14 +274,14 @@ property with no tier word is representable; `held_by` is `Os { mechanism } | Ou
 
 | Property | Tier | Held by | Why not stronger |
 |---|---|---|---|
-| `scorer_inputs_not_writable` (a confinement asserted, a profile for this worktree is one `sandbox.rs` will write, and the store root is placeable outside it) | **Enforced** | Operating system — `bwrap` binds `/` read-only with the worktree as the only read-write hole, so a write to `~/.warrantor/guard/*.jsonl` fails with `EROFS` at the syscall | Nothing stronger exists, but it is conditional twice over. This process **did not launch** the profile and cannot tell whether the operator did, so the tier is Enforced *given* a launched profile — an assertion, tagged `Provenance::Asserted`, never `Measured`. And it is about writes only: the read-only root leaves every one of those files readable. |
-| `scorer_inputs_not_writable` (no confinement, **or** a worktree no confinement here will name, **or** a store root that cannot be placed relative to the worktree, **or** a store inside it) | **Observed** | Warrantor | Nothing refuses the write as it happens: same UID is same UID. What is measured is thin and named as thin — a line edited badly enough not to parse is counted in `unreadable_lines`, and a deleted run file makes an unguarded run indistinguishable from a run that never happened. A careful edit is invisible. |
-| `scorer_credentials_not_readable` | **no tier word at all** | **Nothing** | Not `Observed`. "Observed" implies something measures the read, and nothing in this repository looks at it, let alone refuses it. `--ro-bind / /` mounts `$HOME`, so `~/.warrantor/keys/settle.key` is readable to any process at this UID — a confinement profile included. Read-only is not unreadable. |
-| `scorer_not_reachable_over_network` (empty egress allowlist, confinement asserted, profile writable for this worktree) | **Enforced** | Operating system — the profile emits `--unshare-net` | Holds only because the warrant grants **zero** hosts. A network namespace has no host allowlist, so `sandbox.rs` deliberately does not emit one when any host is permitted — emitting it would deny egress the warrant grants. Same launch caveat as above. |
+| `scorer_inputs_not_writable` (a confinement asserted, a profile for this worktree is one `sandbox.rs` will write, the store root is placeable relative to the worktree, and it sits under **none** of the read-write holes that profile's argv opens — the worktree, and the private `/tmp` both kinds mount) | **Enforced** | Operating system — the profile mounts `/` read-only (`--ro-bind / /` under bubblewrap, `--read-only=/` under firejail) and opens read-write holes only at the worktree and `/tmp`; a store under neither is behind the read-only root, so a write to `<store>/guard/*.jsonl` fails with `EROFS` at the syscall. The sentence the record prints is derived from the argv (`Profile::read_write_holes`) and names every hole. | Nothing stronger exists, but it is conditional twice over. This process **did not launch** the profile and cannot tell whether the operator did, so the tier is Enforced *given* a launched profile — an assertion, tagged `Provenance::Asserted`, never `Measured`. And it is about writes only: the read-only root leaves every one of those files readable. **Corrected in the last section (CH-1 of the second review):** this row said "the worktree as the only read-write hole" while the same argv carried `--tmpfs /tmp`, and a store under `/tmp` earned this tier. |
+| `scorer_inputs_not_writable` (no confinement, **or** a worktree no confinement here will name, **or** a store root that cannot be placed relative to the worktree, **or** a store inside the worktree, **or** a store under the private `/tmp`) | **Observed** | Warrantor | Nothing refuses the write as it happens: same UID is same UID. What is measured is thin and named as thin — a line edited badly enough not to parse is counted in `unreadable_lines`, and a deleted run file makes an unguarded run indistinguishable from a run that never happened. A careful edit is invisible. For the `/tmp` case the record says the third thing: a write there SUCCEEDS into a private tmpfs that shadows the host copy and is discarded at exit — not refused, not durable. |
+| `scorer_credentials_not_readable` | **no tier word at all** | **Nothing** | Not `Observed`. "Observed" implies something measures the read, and nothing in this repository looks at it, let alone refuses it. A read-only root (`--ro-bind / /` under bubblewrap, `--read-only=/` under firejail) mounts `$HOME`, so `~/.warrantor/keys/settle.key` is readable to any process at this UID — a confinement profile included. Read-only is not unreadable. The record cites the asserted kind's own flag. |
+| `scorer_not_reachable_over_network` (the profile `sandbox.rs` writes for this worktree carries `--unshare-net` or `--net=none`, which it does for an empty egress allowlist under an asserted confinement and never otherwise) | **Enforced** | Operating system — the profile's argv carries the namespace argument, and the tier is read off that argv (`Profile::unshares_network`) rather than re-deciding `egress_hosts.is_empty()` beside it | Holds only because the warrant grants **zero** hosts. A network namespace has no host allowlist, so `sandbox.rs` deliberately does not emit one when any host is permitted — emitting it would deny egress the warrant grants. Same launch caveat as above. The zero-host condition is pinned by a test since the second review (ET-3). |
 | `scorer_not_reachable_over_network` (any host permitted, or no confinement, or a worktree no profile here can name) | **Mediated** | Warrantor | Held at the MCP proxy. `BoundStrength::Mediated.caveat()` verbatim: *"held only for calls that traverse the MCP proxy; a shell or a harness built-in reaches past it, and no netns, seccomp or firewall stands behind it."* |
-| The reward-hacking monitor (`scorer::trend`, `scorer::escalate`) | **Observed** | Warrantor | It reads durable logs after the fact. Nothing in it refuses an action as it happens, nothing stops a run, and nothing quarantines a checkpoint (that is Task 12.6). L11-12's *"mandatory as a stop trigger"* is a duty on the human named in the escalation, and `ESCALATION_NOTE` says so on every record. |
-| The threshold's before-the-run ordering | **Enforced, at our own boundary** — i.e. **Tier B/Mediated in the honest reading** | Warrantor | `trend_checked` refuses a threshold registered after the earliest run, and `register_threshold` refuses to replace an existing one. Both are refusals in our code at the moment of the attempt, so they are real; they are not host-enforced, and anyone with filesystem access deletes `scorer/threshold.json` and re-registers. `ArtifactClass::Scorer`'s deletion note says exactly that. |
-| The anti-gaming label boundary (`corpus::rows_from` never writes a guard verdict into `label`) | **A convention in our code — Tier C** | Warrantor | It is a property of one function. Nothing outside it refuses a caller that sets `Row::label` directly, and `Row` is a public struct with public fields. It is now pinned by a test outside the corpus module, which is what makes the convention load-bearing rather than incidental — but a convention is what it is, and calling it a control would be the overclaim this task was told to avoid. |
+| The reward-hacking monitor (`scorer::trend`, `scorer::escalate`) | **Observed** | Warrantor | It reads durable logs after the fact. Nothing in it refuses an action as it happens, nothing stops a run, and nothing quarantines a checkpoint (that is Task 12.6). L11-12's *"mandatory as a stop trigger"* is a duty on the human named in the escalation, and `ESCALATION_NOTE` says so on every record — and says the escalation is *addressed*, not delivered: nothing sends it (CH-7 of the second review). |
+| The threshold's before-the-run ordering | **Mediated** — a refusal in warrantor's own code at the moment of the attempt | Warrantor | `trend_checked` refuses a threshold registered after the earliest run or refusal, and `register_threshold` refuses to replace an existing one. Both are refusals in our code, so they are real against a caller using this code; they are not host-enforced. **What escapes it:** anyone with filesystem access who deletes `scorer/threshold.json` and re-registers; nothing signs or anchors the threshold. `ArtifactClass::Scorer`'s deletion note says exactly that. **Corrected in the last section (CH-4/ET-4 of the second review):** this cell read "Enforced, at our own boundary — i.e. Tier B/Mediated in the honest reading". Under the Task 0.4 vocabulary a refusal in this product's own code is never Enforced, and "Tier B" is not a vocabulary word. |
+| The anti-gaming label boundary (`corpus::rows_from` never writes a guard verdict into `label`) | **Observed** — a convention in one function | Warrantor | It is a property of one function. Nothing outside it refuses a caller that sets `Row::label` directly, and `Row` is a public struct with public fields. **What escapes it:** any caller that sets `Row::label` directly. It is pinned by a test outside the corpus module, which is what makes the convention load-bearing rather than incidental — but a convention is what it is, and calling it a control would be the overclaim this task was told to avoid. (This cell read "Tier C", which is not a vocabulary word either.) |
 
 **The sentence that ships with every rendered isolation record** (`scorer::isolation_caveat`,
 printed by `warrantor scorer` under the properties and the tier legend). It was a constant and is now
@@ -626,8 +630,14 @@ the second move brought the implementation plan itself onto `main` at `docs/supe
 third is four docs/CI commits and the fourth a US-English sweep over thirty-two documents, none touching
 a Rust file), so the rebase was done four times and the last is the one recorded here.
 `git merge-base HEAD main` is `065961b`. The cargo gate below was run at `53c3d72`, the
-tip after the second rebase; `git diff 53c3d72 HEAD -- rust/` is empty, so its inputs are byte-identical
-to this tip, and the Python gates were re-run at this tip.
+tip after the second rebase; `git diff 53c3d72 367223c -- rust/` is empty, so the Rust sources it
+compiled are the ones at `367223c`. *Corrected (CH-9 of the second review):* that is not "inputs
+byte-identical" — two suites read files outside `rust/` at run time
+(`scorer_isolation::the_evidence_file_names_the_two_tasks_this_one_does_not_cover` reads this file;
+the invariants adversary ordinal gate reads this file and `docs/W1-delivery-gaps.md`), and
+`git diff 53c3d72 367223c` changed 38 files including both. Those two suites and the Python gates
+were re-run at `367223c`; the workspace counts below were not. The numbers that stand for this
+branch are the ones in the last section, measured on the final tip.
 
 ### Commits, rebased, in plan-step order
 
@@ -653,7 +663,7 @@ The SHAs above are the post-rebase ones; the pre-rebase SHAs quoted earlier in t
 
 ### The exit gate, quoted verbatim from the plan
 
-`### Task 13.7`, `#### Exit gate` (on `main` at `docs/superpowers/plans/2026-09-02-native-ai-platform-os-implementation.md`, byte-identical to the copy at `M:/wt-wave3`):
+`### Task 13.7`, `#### Exit gate` (on `main` at `docs/superpowers/plans/2026-09-02-native-ai-platform-os-implementation.md`; the `### Task 13.7` section, exit gate included, is byte-identical to the copy at `M:/wt-wave3` — sha256 `5bbd982e…` in both — while the two *files* differ in five relative-link lines, which is what an earlier draft of this sentence overstated as "byte-identical to the copy" (ET-5 of the second review)):
 
 > `cargo test -p warrantor-warrant --test scorer_isolation --test invariants -j 2 && python tools/ci/wiring_census.py && python tools/ci/check_invariant_ratchet.py`
 > must print three things together: every isolation test passing **with its allowed control also
@@ -670,12 +680,13 @@ rebased tree; `10 of 39` and `66/18` were the plan's expectation against `origin
 ### Status of that acceptance: RUN
 
 Nothing on the branch performs the exit gate as one run: the workspace test gate subsumes the two
-test targets, and no test drives the `eval-guard` binary with `--agent x` (the only binary-driving
-tests, `rust/warrant/tests/scorer_isolation.rs:788`, drive `warrantor`). The transcript earlier in
-this document under "After the fix" was the implementer's manual run on the branch's own base. So
-this lane ran the exit gate verbatim on the rebased tree, each exit code captured before any pipe.
-The transcript is in this section, below, and the raw logs are the lane's scratch output
-(`gate-out3/`, `acceptance-out/`), which is not tracked.
+test targets. When this section was first written no test drove the `eval-guard` binary with
+`--agent x`; since the second review, `rust/eval-guard/tests/cli.rs::a_caller_who_names_no_provenance_is_handed_no_signature`
+performs clause 2 as a test (exit 2, nothing on stdout, stderr names `--provenance`) and runs in
+every workspace gate. The transcript earlier in this document under "After the fix" was the
+implementer's manual run on the branch's own base. This lane ran the exit gate verbatim on the
+rebased tree, each exit code captured before any pipe; the transcript is in this section, below,
+and it was run again on the final tip (last section).
 
 **Clause 1 — the three commands together:**
 
@@ -705,8 +716,13 @@ test or the test written beside it: `with_no_confinement_nothing_is_enforced_and
 is the unconfined control the plan's Step 9 sketch names for
 `every_property_carries_a_caveat_and_only_an_os_mechanism_earns_enforced`; `an_escalation_is_addressed_to_an_operator_who_cannot_settle_the_warrant_being_graded`
 holds the only-settler refusal; `a_principal_without_settle_scope_cannot_produce_the_state_that_becomes_a_label`
-holds the settle-scoped control that does produce `LabelSource::WarrantVoided`; the four CLI tests
-each drive the shipped `warrantor` with a passing and a refusing invocation.
+holds the settle-scoped control that does produce `LabelSource::WarrantVoided`; and the CLI tests
+drive the shipped `warrantor` — *corrected (ET-6 of the second review):* there were five of them
+when this sentence said "four", and none has a *passing* invocation, because no invocation of
+`warrantor scorer` passes the pre-flight today (`scorer_credentials_not_readable` is held by
+nothing). Each pairs a refusing invocation with a content control — the tier, the caveat, the
+boundary, the asserting party, the whole record still printed — not with a passing run. There are
+eight at the final tip.
 
 **Clause 2 — a caller who names no provenance is handed no signature:**
 
@@ -799,15 +815,28 @@ invariant ratchet: ok (83 passing at floor 83, 14 recorded findings at ceiling 1
 $ python tools/ci/check_invariants.py
 invariant ledger: 12 invariants; enforced=2, orphaned=0, partial=9, unimplemented=1                                                       exit 0
 $ python tools/ci/check_docs.py
-RESULT: PASS — 299 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated                                                         exit 0
+RESULT: PASS — 300 Markdown files, 58 RFCs, 81 catalogue rows, and all local links validated                                                         exit 0
 $ python tools/ci/check_us_english.py main
-us-english: 4102 added line(s) across 16 file(s), since main; matcher = vendored verify-us-english.mjs
+us-english: 4331 added line(s) across 16 file(s), since main; matcher = vendored verify-us-english.mjs
 us-english: ok                                                        exit 0
 ```
 
-The ratchet's `--show-findings` run prints `test failed` for the recorded findings by design (they
-fail on purpose); the `invariant ratchet:` line is the verdict. The `git status --porcelain` after
-the run is empty.
+*Corrected (CH-5, ET-1, ET-2 of the second review):* the two lines above first read `299` and
+`4102`. Neither was measured at `367223c`: 299 is the count at `53c3d72` (the tip has `main`'s 299
+plus this file), and 4102 was the branch's pre-rebase figure copied forward — the same
+"number read before the docs commit" mistake this file warns about further up, made a third time.
+The values now shown are what the two tools printed at `367223c`, re-run by the second review's
+evidence-truth lens and by the phase-3 lane independently (300 / 4331; the lane's JSON report had
+said 4327, which matched neither). The final tip's values are in the last section.
+
+The ratchet's `--show-findings` run prints `test failed` for the recorded findings by design; the
+`invariant ratchet:` line is the verdict. *Corrected (ET-7):* not every recorded finding fails —
+the ignored-run line is `FAILED. 1 passed; 13 failed`, because
+`i04_current_policy::the_product_evaluates_policy_more_than_once_per_action` passes under its
+`#[ignore]`. That attribute is dated 2026-09-02 on `main` and this branch touches no i04 file, so it
+is a stale ignore on `main` (Task 2.3's), not a finding of this branch; it is recorded here and left
+for its owner, because converting it moves the ratchet's floor and ceiling. The
+`git status --porcelain` after the run is empty.
 
 ### The tier table, restated with what escapes each bound
 
@@ -817,10 +846,10 @@ vocabulary requires it.
 
 | bound | tier | what escapes it |
 |---|---|---|
-| `scorer_inputs_not_writable`, confinement asserted by a registered operator, profile `check_worktree` accepts, store root placeable outside the worktree | Enforced (given a launched profile; the launch is `Provenance::Asserted`) | reads — the root is read-only, not unreadable; and any process outside the profile |
-| `scorer_inputs_not_writable`, otherwise | Observed | every write; a careful edit is invisible, a deleted run file is indistinguishable from no run |
+| `scorer_inputs_not_writable`, confinement asserted by a registered operator, profile `check_worktree` accepts, store root placeable and under none of the read-write holes the profile's argv opens (the worktree, the private `/tmp`) | Enforced (given a launched profile; the launch is `Provenance::Asserted`) | reads — the root is read-only, not unreadable; and any process outside the profile |
+| `scorer_inputs_not_writable`, otherwise (no confinement, unprofilable worktree, unplaceable store root, store inside the worktree, or store under `/tmp`) | Observed | every write; a careful edit is invisible, a deleted run file is indistinguishable from no run; under `/tmp` the write lands in a private tmpfs and vanishes at exit |
 | `scorer_credentials_not_readable` | no tier — held by nothing | every read of `~/.warrantor/keys/settle.key` at the same UID, inside a profile or out |
-| `scorer_not_reachable_over_network`, zero egress hosts, confinement asserted, profile writable | Enforced (given a launched profile) | anything outside the namespace; the property vanishes the moment one host is granted |
+| `scorer_not_reachable_over_network`, the profile's argv carries `--unshare-net`/`--net=none` (zero egress hosts, confinement asserted, profile writable) | Enforced (given a launched profile) | anything outside the namespace; the property vanishes the moment one host is granted |
 | `scorer_not_reachable_over_network`, otherwise | Mediated | a shell or a harness built-in reaches past the MCP proxy; no netns, seccomp or firewall stands behind it |
 | the reward-hacking monitor | Observed | everything it did not refuse — it reads logs after the fact and stops nothing |
 | the threshold's before-the-run ordering | Mediated (a refusal in our code at the attempt) | anyone with filesystem access who deletes `scorer/threshold.json` and re-registers |
@@ -836,3 +865,154 @@ vocabulary requires it.
 * It did not verify the branch's claim-by-claim corrections beyond what the gates measure.
 * It did not run the Python unit tests under `tools/ci/test_*.py` (the plan's Step 12 lists them;
   the lane's gate list does not), nor `ruff`.
+
+---
+
+## Corrections after the second adversarial review — the review lane, phase 3, 2026-09-06
+
+Three lenses read the rebased tree at `367223c`: test-rigor (twenty-one mutations, four survivors
+plus one missing control), claim-honesty (nine findings) and evidence-truth (seven findings).
+**Twenty-one findings, every one reproduced on `367223c` before anything was changed** — the four
+surviving mutations by applying each and running the suite the lens named (all green, as reported),
+the code claims through a temporary probe test against the library, the sentence and number claims
+by grep and by running the tools. Nineteen were defects and are fixed at the root below; two are
+recorded rather than fixed, with the reason.
+
+The worst of the twenty-one is CH-1, a tier mislabel: `Enforced` printed over a store the profile's
+own argv mounts read-write. It is the fourth time this branch has been caught deriving a tier beside
+the mechanism instead of from it, and the fix this time is structural — both operating-system tiers
+are now read off the profile `warrantor sandbox` would print, through functions that did not exist
+before (`Profile::hole_over`, `Profile::unshares_network`), so the sentence and the tier cannot drift
+from the command again without the parser being wrong, and the parser has its own gate.
+
+### Every finding, what was true, what changed
+
+| # | lens | what was claimed | what was true | what changed (commit) |
+|---|---|---|---|---|
+| **CH-1** | claim-honesty, *tier mislabel* | `scorer_inputs_not_writable` is `Enforced` for any placeable store outside the worktree, "the only read-write hole", with `EROFS` at the syscall. | The same argv carries `--tmpfs /tmp` (bubblewrap) or `--private-tmp` (firejail): a second hole. A store under `/tmp` earned `Enforced` / `HeldBy::Os` with the `EROFS` sentence — while a write there succeeds into an empty private tmpfs that shadows the host copy. On a Linux host `std::env::temp_dir()` is `/tmp`, so the CLI tests' own control stores would have sat in the hole. Reproduced: `isolation(…, "/tmp/warrantor-store", …)` → `Some(Enforced)` for both kinds. | `sandbox::read_write_holes_in` parses the argv; `Profile::hole_over` decides the filesystem tier and the record names the hole and the argument that opened it; the `Enforced` sentence lists every hole and the kind's own read-only flag. The CLI tests place their control stores under the build's target directory, with an assertion saying why. (`d89349f`, `5a8c321`) |
+| **CH-2** | claim-honesty, *false claim* | A warrant with refusals and no recorded run is reported at its raw refusal count, "because dropping it would hide the noisiest case" (rustdoc and this file). | The population was keyed from `runs/` alone; a warrant present only in `refusals/` never entered `per_run` and the `run_count == 0` arm was dead. Reproduced: one refusal file, no `runs/`, `per_run=[]`. | The population is the union of both logs, from the whole refusals directory; a run-less warrant is ordered by its earliest refusal. `trend_checked` sees the same population, so a threshold registered after a refusal it would count is refused. (`f978fbb`) |
+| **CH-3** | claim-honesty, *false claim* | The `preflight` rustdoc: the product's own output "always refuses, and it names `ProcessIsolation`". | "Always refuses" holds; the boundary depends on the invocation — the default unconfined one refuses on `NetworkIsolation`, as this file's own invocation table and the CLI test already said. The branch had corrected two CI-read records and left the rustdoc. | The rustdoc and the `cmd_scorer` header name the boundary per invocation and why. (`e94e0cc`) |
+| **CH-4 / ET-4** | both, *tier mislabel* | This file's tier table: the threshold ordering is "**Enforced, at our own boundary** — i.e. Tier B/Mediated", and the label boundary is "Tier C". | A refusal in this product's own code is never `Enforced` under the Task 0.4 vocabulary; "Tier B" and "Tier C" are not vocabulary words; the lane's own restated table further down said `Mediated` and `Observed` for the same bounds, so one file carried two tier words for one bound. | The rows now read `Mediated` and `Observed`, each with its escapes sentence, and say what the cell used to read. (this section's commit) |
+| **CH-5 / ET-1 / ET-2** | both, *number mismatch* | At `367223c`: `check_docs` reports 299 Markdown files; `check_us_english` reports 4102 added lines (the lane's JSON said 4327). | The tools print **300** and **4331** at `367223c`. 299 is `53c3d72`'s count; 4102 is the pre-rebase figure copied forward; 4327 matched neither. Reproduced by running both tools at `367223c`. | The rebased-section block now shows what the tools printed at `367223c`, and this section shows the final tip's values, measured after the last commit. (this section's commit) |
+| **CH-6** | claim-honesty, *minor* | The sandbox `scorer_credentials` Gap: "`--ro-bind / /` mounts the whole filesystem … The profile does stop the agent WRITING the store". | One constant for both kinds: the firejail argv has no `--ro-bind`, and the writes claim is false for a store under the worktree or `/tmp`. Reproduced: the firejail Gap text was byte-identical to the bubblewrap one. | The sentence is formatted from `Confinement::read_only_root_flag` and the parsed holes: it names every hole, says the writes claim holds only for a store outside all of them, and names the command that decides per store. (`d89349f`) |
+| **CH-7** | claim-honesty, *minor* | `ESCALATION_NOTE`: "This escalation reached a named local principal". | `escalate` picks a name and appends a JSONL line; nothing delivers anything. | The note says the escalation is ADDRESSED and recorded, that nothing delivers it, and how the principal learns of it; the escalation test refuses the word "reached". (`24c733e`) |
+| **CH-8** | claim-honesty, *minor* | The usage line on the missing-id path: `[--confined [--kind …]]`. | `--confined` is refused without `--asserted-by`, so the usage described an invocation that cannot succeed; the help block had the correct form. Reproduced through the binary. | The usage matches the help block; a binary test asserts the flag is named and that the described invocation reaches the record. (`e94e0cc`) |
+| **CH-9** | claim-honesty, *minor* | "`git diff 53c3d72 HEAD -- rust/` is empty, so its inputs are byte-identical to this tip." | Two suites read files outside `rust/` at run time, and 38 files differed. The conclusion survived because those two suites were re-run; the reasoning did not. | The sentence says what an empty `rust/` diff shows and what it does not; the workspace counts that stand are the ones below, measured on the final tip. (this section's commit) |
+| **ET-3** | evidence-truth, *untested* | The network `Enforced` tier "holds only because the warrant grants ZERO hosts", and every isolation test passes with its control. | No test asserted `Mediated` for a host-permitting warrant under an asserted confinement on a profilable worktree; removing `bounds.egress_hosts.is_empty() &&` left every suite green. Reproduced: 15 unit + 19 integration passed under that mutation. | The tier is read off the profile's argv (`Profile::unshares_network`); a unit test pins `Mediated` with the permitting host and `Enforced` with none, for both kinds; the sandbox test pins the argv reading. (`d89349f`, `5a8c321`) |
+| **ET-5** | evidence-truth, *minor* | The plan on `main` is "byte-identical to the copy at `M:/wt-wave3`". | The `### Task 13.7` section is (sha256 `5bbd982e…` in both); the files differ in five relative-link lines. Reproduced by hashing both. | The sentence names the section and the difference. (this section's commit) |
+| **ET-6** | evidence-truth, *minor* | "The four CLI tests each drive the shipped `warrantor` with a passing and a refusing invocation." | Five tests drove the binary when that was written, and none has a passing invocation — every `warrantor scorer` call exits 1 today; the controls are content assertions. | The sentence says what the controls are and are not; there are eight CLI tests at the final tip. (this section's commit) |
+| **ET-7** | evidence-truth, *minor* | The ratchet's recorded findings "fail on purpose". | `i04_current_policy::the_product_evaluates_policy_more_than_once_per_action` passes under its `#[ignore]` — the ignored run prints `1 passed; 13 failed`. | **Recorded, not fixed here.** The `#[ignore]` is dated 2026-09-02 on `main` and this branch touches no i04 file; converting it moves the ratchet's floor and ceiling and belongs to that invariant's owner. The sentence in the rebased section now says what the run prints. |
+| **TR-M10** | test-rigor, *untested* | The refusal sentence is "derived from the boundary that actually failed rather than written beside it", pinned by the CLI tests. | The only gate on `property_behind` checked totality; any permutation is total. With `FilesystemBoundary` remapped onto the network property, every suite stayed green and the binary printed, under a filesystem refusal, that the network property was "enforced" and "carries a weaker tier". Reproduced: 15 + 19 green under M10. No CLI test drove a `FilesystemBoundary`-first refusal. | The gate asserts the mapping entry by entry against the rustdoc table; a binary test drives the filesystem refusal (confined, zero egress, relative `--root`) and asserts the derived sentence names the filesystem property and never the network one, with the absolute-root control. (`b98a78e`) |
+| **TR-M09** | test-rigor, *untested* | `crossed` fires at or above the registered rate. | No fixture sat at the line, so `>=` became `>` with every suite green; the CLI had a second copy of the comparison and printed `CROSSED` while nothing escalated. Reproduced: 15 + 19 + 83 green under M09. | `RegisteredThreshold::crossed_by` is the one comparison; `trend` and the CLI mark read it; two tests sit exactly at 0.5 = 1/2 with a hair-above control, one through the binary asserting the mark and the escalation move together. (`e77d6b7`) |
+| **TR-M12** | test-rigor, *untested* | The `--assume-all-pass` refusal is load-bearing; the fabrication is fixed before the wire. | No test ran the `eval-guard` binary; the refusal could be deleted with `--all-targets` green and the exit-gate clause unchanged (clap refuses `--agent x` first). Reproduced: with the refusal deleted the binary signed an all-pass attestation for `--provenance asserted:operator:vj` alone. | `rust/eval-guard/tests/cli.rs`: the exit gate's clause 2 as a test; the refusal without the declaration, with the declared invocation as the control (its stdout parsed, verified, and checked for the asserting party); a failed boundary refused under a measured source. (`2247822`) |
+| **TR-M16** | test-rigor, *minor* | `ArtifactClass::Scorer` is `LOSES-EVIDENCE`: deleting the threshold un-registers it after the runs it judges. | No test pinned the label; `NoIntegrityConsequence` — the one class `warrantor prune` deletes — left holdings, prune and the library green. Reproduced: 159 + 10 + 6 green under M16. | A holdings test pins the effect, non-prunability and the note; a prune test puts an old `threshold.json` beside an old log and asserts the plan refuses the scorer files with the class's own note while planning the log. (`6016905`) |
+| **TR-5** | test-rigor, *minor* | `every_eval_guard_boundary_maps_to_a_property_this_module_produces` pins the mapping total. | It had no wrong-mapping control; it is the sole gate on the mapping and the reason M10 survived. | Same fix as TR-M10: the exact mapping is asserted entry by entry. (`b98a78e`) |
+
+Two observations in the reports are not findings and were not acted on: the claim-honesty and
+evidence-truth lenses both saw `rust/warrant/src/scorer.rs` change under them in this worktree
+during their reads (`egress_hosts.is_empty()` removed, `>=` → `>`, the sort removed, each reverted
+within a minute) — those were the test-rigor lens's own mutations, applied and restored in the same
+worktree at the same time; the committed tree was never affected and `git status --porcelain` was
+empty at the start of this phase. And the test-rigor lens's note that
+`the_products_own_isolation_fails_the_preflight…`'s i09 assertion is `is_err()` with its control
+in another suite is accurate and stands as written.
+
+### The mutations, each driven against the finished gate and restored byte-identically
+
+Every fix above that adds or repairs a gate was mutated afterward and had to go red. Each mutation
+was applied by a script that records the file's sha256 before and verifies it after restoration;
+every restoration matched. The four survivors from the review are the first four rows, now red.
+
+| mutation | red |
+|---|---|
+| M10: `FilesystemBoundary => SCORER_NOT_REACHABLE_OVER_NETWORK` | `every_eval_guard_boundary_maps_to_a_property_this_module_produces` (lib, 17 passed / 1 failed) and `a_filesystem_refusal_is_explained_with_the_filesystem_property_and_not_another` (CLI, 24 / 1) |
+| M09: `crossed_by` uses `>` | `a_rate_exactly_at_the_threshold_has_crossed_it` and `the_crossed_mark_and_the_escalation_agree_at_the_threshold_line` (22 / 2) |
+| M12: the `--assume-all-pass` refusal deleted | `naming_a_source_alone_does_not_restore_the_fabricated_pass` (eval-guard `tests/cli.rs`, 2 / 1) |
+| M16: `Scorer => NoIntegrityConsequence` | `the_scorer_class_loses_evidence_when_deleted_and_is_never_prunable` (holdings, 10 / 1) and `an_old_threshold_file_is_refused_by_the_plan_with_the_scorer_classes_own_note` (prune, 6 / 1) |
+| the `/tmp` arm removed from `isolation()` (`hole.is_some() && false`) | `a_store_under_the_private_tmp_is_not_enforced_even_under_a_confinement` (164 / 1) |
+| the `--private-tmp` arm dropped from `read_write_holes_in` | `the_read_write_holes_are_read_off_the_argv_and_both_kinds_open_two`, the `/tmp` test above (163 / 2), and `the_production_hole_reading_agrees_with_this_files_own_oracle_including_tmp` (19 / 1) |
+| the network guard dropped (`(Some(_p), Some(kind)) => Some(kind)`) — the ET-3 mutation's successor | `a_warrant_that_permits_a_host_is_mediated_on_the_network_even_under_a_confinement` (164 / 1) |
+| the Gap sentence hardcoded to bubblewrap's flag | `the_credential_gap_cites_this_kinds_own_flag_and_names_every_hole_it_opens` (164 / 1) |
+| the population reverted to runs-only | `a_warrant_with_refusals_and_no_recorded_run_is_reported_at_its_raw_refusal_count` and `a_refusal_recorded_before_the_threshold_is_refused_even_when_no_run_was_recorded` (20 / 2) |
+| the ordering check reverted to runs-only | the second of those (21 / 1) |
+| the note's "Nothing delivers it" replaced by "It reached them" | `an_escalation_is_addressed_to_an_operator_who_cannot_settle_the_warrant_being_graded` (24 / 1) |
+| `--asserted-by <operator>` dropped from the usage line | `the_usage_line_names_the_flag_that_confined_requires` (25 / 1) |
+
+### The commits of this phase
+
+| commit | findings | what |
+|---|---|---|
+| `d89349f` | CH-6, and the mechanism for CH-1 / ET-3 | `sandbox`: holes and the namespace read off the argv; each kind's own flag; the Gap derived |
+| `5a8c321` | CH-1, ET-3 | `scorer::isolation` reads both operating-system tiers from the profile; `/tmp` is a hole |
+| `f978fbb` | CH-2 | `trend` counts the refused-and-never-ran warrant; `trend_checked` sees the same population |
+| `e77d6b7` | TR-M09 | one `crossed_by`, tested at the line, through the library and the binary |
+| `b98a78e` | TR-M10, TR-5 | the mapping pinned entry by entry; the filesystem refusal driven through the binary |
+| `24c733e` | CH-7 | the escalation is addressed, not delivered |
+| `e94e0cc` | CH-3, CH-8 | the pre-flight rustdoc per invocation; the usage line names `--asserted-by` |
+| `2247822` | TR-M12 | `eval-guard` driven as a process; the exit gate's clause 2 is a test |
+| `6016905` | TR-M16 | the scorer class pinned as evidence and never prunable |
+| (this file) | CH-4/ET-4, CH-5/ET-1/ET-2, CH-9, ET-5, ET-6, ET-7 | this section, the corrected rows and sentences above, and `docs/W1-delivery-gaps.md`'s hole sentence |
+
+### The exit gate, run again on the final tip
+
+Clause 1, `cargo test -p warrantor-warrant --test scorer_isolation --test invariants -j 2`:
+invariants **[INV_PASSED] passed / [INV_FAILED] failed / [INV_IGNORED] ignored**, scorer_isolation
+**[SI_PASSED] passed / [SI_FAILED] failed**, exit [GATE1_EXIT]; census `[CENSUS_LINE]`, exit [CENSUS_EXIT];
+ratchet `[RATCHET_LINE]`, exit [RATCHET_EXIT]. Clause 2 is now performed by
+`rust/eval-guard/tests/cli.rs::a_caller_who_names_no_provenance_is_handed_no_signature` (exit 2,
+0 bytes on stdout, stderr names `--provenance`), which ran inside the workspace gate below, and
+was also run by hand: `cargo run -p warrantor-eval-guard --bin eval-guard -- --agent x` → exit
+[EG_EXIT], stdout [EG_STDOUT] bytes. The plan's literal `10 of 39` and `66/18` remain its expectation
+against `origin/main` at `e4b5f10`, re-derived per its own Step 1.
+
+### The gate on the final tip, exit codes captured before any pipe
+
+Worktree `M:/wt-w3-13.7`, this lane's own target directory `M:/wt-rv-13.7-target` (nothing else
+builds into it — the shared-directory aliasing recorded in the section above cannot recur here),
+`CARGO_BUILD_JOBS=2`, disk guard (`--require 100`, `--require-commit 6`) OK on the first attempt
+before every cargo invocation.
+
+```
+$ cd rust && cargo fmt --all -- --check                              exit [FMT]
+$ cargo clippy --workspace --all-targets -- -D warnings              exit [CLIPPY]
+$ cargo test --workspace --all-targets                               exit [CARGO]
+    [SUITES] suites: passed=[PASSED] failed=[FAILED] ignored=[IGNORED]
+$ cargo test --workspace --doc                                       exit [DOC]
+    [DOC_SUITES] suites: passed=[DOC_PASSED] failed=[DOC_FAILED] ignored=[DOC_IGNORED]
+$ python ../tools/ci/wiring_census.py
+[CENSUS_LINE]                                                        exit [CENSUS_EXIT]
+$ cd .. && python tools/ci/check_invariant_ratchet.py --show-findings
+[RATCHET_LINE]                                                       exit [RATCHET_EXIT]
+$ python tools/ci/check_invariants.py
+[LEDGER_LINE]                                                        exit [LEDGER_EXIT]
+$ python tools/ci/check_docs.py
+[DOCS_LINE]                                                          exit [DOCS_EXIT]
+$ python tools/ci/check_us_english.py main
+[USEN_LINE]
+us-english: ok                                                       exit [USEN_EXIT]
+```
+
+Suite and test counts are the sum over every `test result:` line of the run. The workspace count
+rose from the rebased section's 120 suites / 1585 passed by one suite (`eval-guard`'s `tests/cli.rs`)
+and the tests this phase added: six in `warrant`'s library (three in `sandbox`, three in
+`scorer`), seven in `scorer_isolation`, one each in `holdings` and `prune`, three in `eval-guard`'s
+new suite. The ratchet, the census and the ledger did not move: this phase touched no invariant
+corpus file and no crate boundary.
+
+The numbers above were measured at `[GATE_TIP]`, the tip after this section was committed. The one
+commit after it, if any, replaces these bracketed slots in place — the same number of lines, no
+Rust source touched — and the `check_docs`, `check_us_english`, `scorer_isolation` and `invariants`
+runs were repeated at the final tip `[FINAL_TIP]` to confirm the lines they read did not change
+their verdicts: [FINAL_RECHECK].
+
+### What this phase does NOT establish
+
+* It executed no `bwrap` and no `firejail`. Both `Enforced` tiers remain conditional on a profile
+  this process did not launch; what changed is that the tier is now read off the argv that would
+  launch it, so the sentence cannot name a hole the command does not open.
+* It did not close the credential gap, and every invocation of `warrantor scorer` still refuses.
+* It did not convert `main`'s stale i04 ignore (ET-7); that is recorded above for its owner.
+* It did not re-run the branch's earlier eleven mutations or its red-before-green sequence; those
+  stand as recorded. The twelve mutations of this phase are the table above.
+* It did not run `tools/ci/test_*.py` under pytest, nor `ruff`; the lane's gate list does not include
+  them.

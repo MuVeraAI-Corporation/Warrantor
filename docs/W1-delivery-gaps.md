@@ -737,8 +737,12 @@ mounts `$HOME`, and **read-only is not unreadable**. Nothing in this repository 
 any tier; same UID is same UID.
 
 What the profile *does* hold is the other direction, and it matters for a different reason: the
-scorer's inputs (`~/.warrantor/guard/<id>.jsonl`, `runs/`, `refusals/`) sit outside the worktree, so
-under a launched profile a **write** to them fails with `EROFS` at the syscall. The scored party
+scorer's inputs (`~/.warrantor/guard/<id>.jsonl`, `runs/`, `refusals/`) sit under `$HOME`, outside
+every read-write hole the profile opens — the worktree, and the private `/tmp` both kinds mount — so
+under a launched profile a **write** to them fails with `EROFS` at the syscall. That is a statement
+about the default store location: a store the operator placed inside the worktree or under `/tmp`
+sits in a hole, and `warrantor scorer --confined` reports it `Observed` and names the hole
+(`scorer::isolation` reads the holes off the profile's argv). The scored party
 cannot edit the logs that score it. It can still copy the settle key out. The profile now emits a
 `Divergence::Gap` for `scorer_credentials` saying exactly that, and
 `rust/warrant/tests/scorer_isolation.rs` fails the build if the sentence goes missing. Not fixed —
