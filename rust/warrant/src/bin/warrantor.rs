@@ -5138,7 +5138,7 @@ fn cmd_status(store: &WarrantStore, root: &Path) -> ExitCode {
 /// `a_staged_effect_needs_no_upstream_and_is_still_published` in tests/upstream.rs names the same
 /// fact; nothing tied the two together until this const existed.
 const NO_UPSTREAM_DECLARATION_DISCLOSURE: &str =
-    "warrantor: upstream -- no --upstream server is attached, so the effect decompositions and      --upstream-strict decide nothing in this session: nothing is forwarded, so nothing is      classified or refused as undeclared. The values were checked, not applied. This does NOT mean      nothing happens: a permitted call to a staged effect is still staged and performed at settle,      because staging is decided before forwarding is.";
+    "warrantor: upstream -- no --upstream server is attached, so the effect decompositions and --upstream-strict decide nothing in this session: nothing is forwarded, so nothing is classified or refused as undeclared. The values were checked, not applied. This does NOT mean nothing happens: a permitted call to a staged effect is still staged and performed at settle, because staging is decided before forwarding is.";
 
 fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
     let stdin = std::io::stdin();
@@ -7302,7 +7302,21 @@ mod upstream_effects_cli {
     fn the_no_upstream_disclosure_does_not_claim_every_call_is_refused() {
         let disclosure = super::NO_UPSTREAM_DECLARATION_DISCLOSURE;
 
-        // The false clause, in the shapes it could come back as.
+        // A mutation test corrupted this sentence's whitespace and the first version of this
+        // test stayed green, because each substring it checked sat inside one unbroken clause.
+        // An operator-facing sentence that can be corrupted unnoticed is not guarded. An empty
+        // segment between spaces is a doubled, leading or trailing space; no literal of two
+        // spaces is needed, which matters because tooling once squeezed exactly that literal.
+        assert!(
+            !disclosure.split(' ').any(str::is_empty),
+            "the disclosure has a doubled, leading or trailing space: {disclosure:?}"
+        );
+        assert!(
+            !disclosure.chars().any(|c| c.is_whitespace() && c != ' '),
+            "the disclosure carries whitespace other than a plain space: {disclosure:?}"
+        );
+
+        // The retracted clause, in the shapes it could come back as.
         assert!(
             !disclosure.contains("every permitted call"),
             "the disclosure claims every permitted call is refused; staged effects are not: {disclosure}"
@@ -7312,16 +7326,17 @@ mod upstream_effects_cli {
             "the disclosure still carries the retracted justification: {disclosure}"
         );
 
-        // And the paired positive: it must SAY what still happens, or an operator reading
-        // "decide nothing" has been told a half-truth.
-        assert!(
-            disclosure.contains("staged") && disclosure.contains("settle"),
-            "the disclosure must say that a staged effect is still staged and performed at              settle: {disclosure}"
-        );
-        assert!(
-            disclosure.contains("decide nothing in this session"),
-            "the true half -- that the declarations decide nothing -- must survive: {disclosure}"
-        );
+        // Whole clauses, so a break inside one is seen where a substring check would not see it.
+        for clause in [
+            "no --upstream server is attached, so the effect decompositions and --upstream-strict decide nothing in this session",
+            "The values were checked, not applied.",
+            "a permitted call to a staged effect is still staged and performed at settle",
+        ] {
+            assert!(
+                disclosure.contains(clause),
+                "a full clause is missing or broken: {clause:?} in {disclosure:?}"
+            );
+        }
     }
     use super::{parse_tokens, upstream_decompositions, upstream_policy};
     use warrantor_warrant::effects::{
