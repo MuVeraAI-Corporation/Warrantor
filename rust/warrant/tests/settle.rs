@@ -3,8 +3,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use ed25519_dalek::SigningKey;
-use warrantor_warrant::settle::{settle, void, void_on_breach, EffectOutcome, EffectPerformer};
-use warrantor_warrant::staging::{EffectRegistry, StagedEffect, StagingQueue};
+use warrantor_warrant::settle::{
+    settle, void, void_on_breach, CommitGate, EffectOutcome, EffectPerformer,
+};
+use warrantor_warrant::staging::{EffectRegistry, FileRecorder, StagedEffect, StagingQueue};
 use warrantor_warrant::{SideEffectClass, Warrant, WarrantBounds, WarrantError, WarrantState};
 
 const NOW: u64 = 1_786_000_000;
@@ -114,18 +116,40 @@ fn queue_with_three(dir: &std::path::Path) -> StagingQueue {
     q
 }
 
+/// A gate over a fresh file recorder in `dir`, signed by the settle key.
+fn gate<'a>(recorder: &'a mut FileRecorder, settle_key: &'a SigningKey) -> CommitGate<'a> {
+    CommitGate {
+        recorder,
+        signer: settle_key,
+        key_id: "settle",
+        now: NOW,
+    }
+}
+
+fn recorder(dir: &std::path::Path) -> FileRecorder {
+    FileRecorder::open(dir.join("receipts.jsonl")).expect("recorder")
+}
+
 // ── authority ─────────────────────────────────────────────────────────────────────────
 
 /// The whole design rests on this. If the agent could settle, staging would be decoration.
 #[test]
 fn the_agent_cannot_settle_and_nothing_is_released() {
     let dir = tempdir("agent-settle");
-    let (mut w, _issuer, _settle_key) = warrant();
+    let (mut w, _issuer, settle_key) = warrant();
     let q = queue_with_three(&dir);
     let agent = SigningKey::from_bytes(&[9; 32]);
     let mut performer = Performer::new();
+    let mut rec = recorder(&dir);
 
-    let result = settle(&mut w, &q, None, &agent.verifying_key(), &mut performer);
+    let result = settle(
+        &mut w,
+        &q,
+        None,
+        &agent.verifying_key(),
+        &mut performer,
+        &mut gate(&mut rec, &settle_key),
+    );
 
     assert_eq!(result.unwrap_err(), WarrantError::NotSettleAuthority);
     assert!(
@@ -158,6 +182,7 @@ fn settling_releases_every_effect_in_dependency_order() {
     let (mut w, _issuer, settle_key) = warrant();
     let q = queue_with_three(&dir);
     let mut performer = Performer::new();
+    let mut rec = recorder(&dir);
 
     let report = settle(
         &mut w,
@@ -165,6 +190,7 @@ fn settling_releases_every_effect_in_dependency_order() {
         None,
         &settle_key.verifying_key(),
         &mut performer,
+        &mut gate(&mut rec, &settle_key),
     )
     .expect("settle");
 
@@ -186,6 +212,7 @@ fn dependent_effects_receive_the_resolved_real_id() {
     let (mut w, _issuer, settle_key) = warrant();
     let q = queue_with_three(&dir);
     let mut performer = Performer::new();
+    let mut rec = recorder(&dir);
 
     settle(
         &mut w,
@@ -193,6 +220,7 @@ fn dependent_effects_receive_the_resolved_real_id() {
         None,
         &settle_key.verifying_key(),
         &mut performer,
+        &mut gate(&mut rec, &settle_key),
     )
     .expect("settle");
 
@@ -212,6 +240,7 @@ fn a_partial_settle_stops_holds_and_reports_the_boundary() {
     let (mut w, _issuer, settle_key) = warrant();
     let q = queue_with_three(&dir);
     let mut performer = Performer::failing_at(1);
+    let mut rec = recorder(&dir);
 
     let report = settle(
         &mut w,
@@ -219,6 +248,7 @@ fn a_partial_settle_stops_holds_and_reports_the_boundary() {
         None,
         &settle_key.verifying_key(),
         &mut performer,
+        &mut gate(&mut rec, &settle_key),
     )
     .expect("settle returns a report even when it stops");
 
@@ -253,6 +283,7 @@ fn a_partial_settle_does_not_try_to_undo_what_succeeded() {
     let (mut w, _issuer, settle_key) = warrant();
     let q = queue_with_three(&dir);
     let mut performer = Performer::failing_at(1);
+    let mut rec = recorder(&dir);
 
     settle(
         &mut w,
@@ -260,6 +291,7 @@ fn a_partial_settle_does_not_try_to_undo_what_succeeded() {
         None,
         &settle_key.verifying_key(),
         &mut performer,
+        &mut gate(&mut rec, &settle_key),
     )
     .expect("settle");
 
@@ -278,12 +310,30 @@ fn a_held_warrant_can_be_settled_later() {
     let q = queue_with_three(&dir);
 
     let mut failing = Performer::failing_at(1);
-    settle(&mut w, &q, None, &settle_key.verifying_key(), &mut failing).expect("first");
+    let mut rec = recorder(&dir);
+    settle(
+        &mut w,
+        &q,
+        None,
+        &settle_key.verifying_key(),
+        &mut failing,
+        &mut gate(&mut rec, &settle_key),
+    )
+    .expect("first");
     assert_eq!(w.state, WarrantState::Held);
 
-    // The transient failure clears; settle again.
+    // The transient failure clears; settle again. One recorder across both settles: the second
+    // settle reads the first's records and reuses what was already performed.
     let mut retry = Performer::new();
-    let report = settle(&mut w, &q, None, &settle_key.verifying_key(), &mut retry).expect("second");
+    let report = settle(
+        &mut w,
+        &q,
+        None,
+        &settle_key.verifying_key(),
+        &mut retry,
+        &mut gate(&mut rec, &settle_key),
+    )
+    .expect("second");
     assert!(report.complete);
     assert_eq!(w.state, WarrantState::Settled);
 }
@@ -294,6 +344,7 @@ fn a_settled_warrant_cannot_be_settled_again() {
     let (mut w, _issuer, settle_key) = warrant();
     let q = queue_with_three(&dir);
     let mut performer = Performer::new();
+    let mut rec = recorder(&dir);
 
     settle(
         &mut w,
@@ -301,6 +352,7 @@ fn a_settled_warrant_cannot_be_settled_again() {
         None,
         &settle_key.verifying_key(),
         &mut performer,
+        &mut gate(&mut rec, &settle_key),
     )
     .expect("first");
     let second = settle(
@@ -309,6 +361,7 @@ fn a_settled_warrant_cannot_be_settled_again() {
         None,
         &settle_key.verifying_key(),
         &mut performer,
+        &mut gate(&mut rec, &settle_key),
     );
     assert!(matches!(second, Err(WarrantError::WrongState { .. })));
 }
@@ -347,12 +400,14 @@ fn a_breach_cannot_void_an_already_settled_warrant() {
     let (mut w, _issuer, settle_key) = warrant();
     let q = queue_with_three(&dir);
     let mut performer = Performer::new();
+    let mut rec = recorder(&dir);
     settle(
         &mut w,
         &q,
         None,
         &settle_key.verifying_key(),
         &mut performer,
+        &mut gate(&mut rec, &settle_key),
     )
     .expect("settle");
 
@@ -369,6 +424,7 @@ fn settling_an_empty_warrant_is_legal() {
     let q = StagingQueue::open(dir.join("q.jsonl"), "wrt_settle", EffectRegistry::github())
         .expect("open");
     let mut performer = Performer::new();
+    let mut rec = recorder(&dir);
 
     let report = settle(
         &mut w,
@@ -376,6 +432,7 @@ fn settling_an_empty_warrant_is_legal() {
         None,
         &settle_key.verifying_key(),
         &mut performer,
+        &mut gate(&mut rec, &settle_key),
     )
     .expect("an agent that staged nothing still settles");
     assert!(report.complete);

@@ -9,8 +9,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use ed25519_dalek::SigningKey;
 use warrantor_warrant::adapters::github::{GitHubAdapter, GitHubTransport};
-use warrantor_warrant::settle::settle;
-use warrantor_warrant::staging::{EffectRegistry, StagingQueue};
+use warrantor_warrant::settle::{settle, CommitGate};
+use warrantor_warrant::staging::{EffectRegistry, FileRecorder, StagingQueue};
 use warrantor_warrant::{SideEffectClass, Warrant, WarrantBounds, WarrantState};
 
 const NOW: u64 = 1_786_000_000;
@@ -123,6 +123,20 @@ fn queue(dir: &std::path::Path) -> StagingQueue {
     q
 }
 
+/// A gate over a fresh file recorder in `dir`, signed by the settle key.
+fn gate<'a>(recorder: &'a mut FileRecorder, settle_key: &'a SigningKey) -> CommitGate<'a> {
+    CommitGate {
+        recorder,
+        signer: settle_key,
+        key_id: "settle",
+        now: NOW,
+    }
+}
+
+fn recorder(dir: &std::path::Path) -> FileRecorder {
+    FileRecorder::open(dir.join("receipts.jsonl")).expect("recorder")
+}
+
 /// The property that makes staging usable: the agent referenced a handle for something that did
 /// not exist; by the time the comment is posted, it is addressed by the real number.
 #[test]
@@ -131,9 +145,17 @@ fn a_staged_comment_reaches_the_pull_request_created_in_the_same_settle() {
     let (mut w, settle_key) = warrant();
     let q = queue(&dir);
     let mut adapter = GitHubAdapter::new(FakeGitHub::new(), "muveraai", "warrantor");
+    let mut rec = recorder(&dir);
 
-    let report =
-        settle(&mut w, &q, None, &settle_key.verifying_key(), &mut adapter).expect("settle");
+    let report = settle(
+        &mut w,
+        &q,
+        None,
+        &settle_key.verifying_key(),
+        &mut adapter,
+        &mut gate(&mut rec, &settle_key),
+    )
+    .expect("settle");
 
     assert!(report.complete);
     assert_eq!(report.released(), 3);
@@ -147,8 +169,17 @@ fn the_pull_request_is_created_before_anything_attaches_to_it() {
     let q = queue(&dir);
     let transport = FakeGitHub::new();
     let mut adapter = GitHubAdapter::new(transport, "muveraai", "warrantor");
+    let mut rec = recorder(&dir);
 
-    settle(&mut w, &q, None, &settle_key.verifying_key(), &mut adapter).expect("settle");
+    settle(
+        &mut w,
+        &q,
+        None,
+        &settle_key.verifying_key(),
+        &mut adapter,
+        &mut gate(&mut rec, &settle_key),
+    )
+    .expect("settle");
 
     // Reach back into the transport through the adapter is not possible, so assert on the effect
     // of ordering instead: a successful settle means every dependent resolved, which can only
@@ -182,8 +213,17 @@ fn dependent_calls_address_the_real_number() {
         "muveraai",
         "warrantor",
     );
+    let mut rec = recorder(&dir);
 
-    settle(&mut w, &q, None, &settle_key.verifying_key(), &mut adapter).expect("settle");
+    settle(
+        &mut w,
+        &q,
+        None,
+        &settle_key.verifying_key(),
+        &mut adapter,
+        &mut gate(&mut rec, &settle_key),
+    )
+    .expect("settle");
 
     let seen = paths.borrow();
     assert_eq!(seen[0], "/repos/muveraai/warrantor/pulls");
@@ -207,9 +247,17 @@ fn a_failing_comment_leaves_the_pull_request_real_and_says_so() {
     let q = queue(&dir);
     let mut adapter =
         GitHubAdapter::new(FakeGitHub::failing_on("/comments"), "muveraai", "warrantor");
+    let mut rec = recorder(&dir);
 
-    let report = settle(&mut w, &q, None, &settle_key.verifying_key(), &mut adapter)
-        .expect("settle reports rather than panicking");
+    let report = settle(
+        &mut w,
+        &q,
+        None,
+        &settle_key.verifying_key(),
+        &mut adapter,
+        &mut gate(&mut rec, &settle_key),
+    )
+    .expect("settle reports rather than panicking");
 
     assert!(!report.complete);
     assert_eq!(
@@ -241,8 +289,16 @@ fn an_unimplemented_tool_is_refused_rather_than_silently_skipped() {
         .expect("merge staged");
 
     let mut adapter = GitHubAdapter::new(FakeGitHub::new(), "muveraai", "warrantor");
-    let report =
-        settle(&mut w, &q, None, &settle_key.verifying_key(), &mut adapter).expect("settle");
+    let mut rec = recorder(&dir);
+    let report = settle(
+        &mut w,
+        &q,
+        None,
+        &settle_key.verifying_key(),
+        &mut adapter,
+        &mut gate(&mut rec, &settle_key),
+    )
+    .expect("settle");
 
     assert!(!report.complete);
     let boundary = report.boundary.expect("boundary");
