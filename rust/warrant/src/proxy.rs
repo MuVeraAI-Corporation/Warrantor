@@ -119,7 +119,7 @@ pub struct Proxy {
     /// The second policy engine, when the operator configured one.
     ///
     /// A second policy domain at the SAME enforcement point — not a second boundary. `None` is the
-    /// historical behaviour: one evaluator. See [`crate::egress::independence`].
+    /// historical behavior: one evaluator. See [`crate::egress::independence`].
     secondary: Option<crate::egress::SecondaryFilter>,
     /// Tools seen in observe mode, which become the proposed warrant.
     observed_tools: BTreeSet<String>,

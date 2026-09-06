@@ -181,7 +181,7 @@ allows, so none of them can pass by refusing everything.
 |---|---|
 | the second engine denies a host the operator never allowlisted | `the_second_engine_allows_what_the_operator_permitted`: the same engine reaches `Allow` for an allowlisted domain |
 | an allowlist entry for `169.254.169.254` is still denied | the same test's first assertion allows `api.github.com`, so the floor is not refusing everything |
-| the broker refuses a host outside the warrant, through the proxy | `through_the_proxy_the_second_engine_narrows_what_the_warrant_permitted` ends with a proxy that **forwards** the permitted host |
+| the broker refuses a host outside the warrant, through the proxy | `through_the_proxy_the_second_engine_narrows_what_the_warrant_permitted` ends with a proxy that returns `Decision::Forward` for the permitted host |
 | the second engine cannot un-refuse the broker | the test first asserts the filter, asked alone, **allows** the host — so the attack really reaches the boundary |
 | the netns is absent for a permitting warrant | `the_only_second_layer_is_emitted_exactly_when_no_destination_is_permitted` first asserts it is **present** for an empty bound |
 | a name encoding the metadata address passes both engines (a **finding**, via `reached_the_boundary_unrefused`) | the control is an ordinary permitted host; and the same engine **denies** the literal `169.254.169.254`, which localizes the gap to the resolver |
