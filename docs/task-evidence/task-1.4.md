@@ -155,6 +155,12 @@ the tree that would merge.
 **Rebased tip:** `b54db2a` · **rebase target:** local `main` @ `6f41384` (never `origin/main`, which
 is over a hundred commits behind) · **worktree:** `M:/wt-1.4` · **target dir:** `M:/wt-rv-1.4-target`
 
+**Which tip each figure describes.** Every gate number and the live run below were measured on
+`b54db2a`, the last commit that changes code on this branch. The commit that adds this section
+moves only `docs/task-evidence/task-1.4.md`, so no cargo figure below can have changed with it;
+the two documentation gates, `check_docs.py` and `check_us_english.py`, were re-run after the
+edit and are reported as they stand with it.
+
 `main` moved twice while this lane was measuring — `2463504`, then `8c0fbc3`, then `6f41384` — so the
 branch was rebased three times and every number below was re-measured on the final tip. Figures from
 the two intermediate tips are not reported, because a number that describes a tree nobody will merge
