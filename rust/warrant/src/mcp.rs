@@ -101,6 +101,12 @@ pub struct ToolResult {
     /// `isError: true` rather than as JSON-RPC errors, so the model can read and adapt to them
     /// instead of the client treating them as transport faults.
     pub is_error: bool,
+    /// The provenance label, when this result came through the proxy from somewhere else.
+    ///
+    /// `None` for text this process authored — refusals, usage errors, control-endpoint replies.
+    /// Those are not "unlabeled data": they have no origin but this process, and a label saying
+    /// so would make the absence of a label indistinguishable from a bug.
+    pub provenance: Option<crate::provenance::ProvenanceLabel>,
 }
 
 impl ToolResult {
@@ -110,6 +116,7 @@ impl ToolResult {
         Self {
             text: text.into(),
             is_error: false,
+            provenance: None,
         }
     }
 
@@ -119,14 +126,29 @@ impl ToolResult {
         Self {
             text: text.into(),
             is_error: true,
+            provenance: None,
         }
     }
 
+    /// Attach a provenance label. The text is not touched: a label spliced into the text would
+    /// sit on exactly the surface the label exists to describe.
+    #[must_use]
+    pub fn labeled(mut self, label: crate::provenance::ProvenanceLabel) -> Self {
+        self.provenance = Some(label);
+        self
+    }
+
     fn to_value(&self) -> Value {
-        json!({
+        let mut result = json!({
             "content": [{ "type": "text", "text": self.text }],
             "isError": self.is_error,
-        })
+        });
+        if let Some(label) = &self.provenance {
+            if let Ok(value) = serde_json::to_value(label) {
+                result["_meta"] = json!({ "provenance": value });
+            }
+        }
+        result
     }
 }
 

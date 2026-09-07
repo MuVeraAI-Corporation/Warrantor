@@ -578,7 +578,11 @@ fn read_tool_result(result: &Value) -> ToolResult {
         // showing the model the JSON is better than showing it nothing.
         None => result.to_string(),
     };
-    ToolResult { text, is_error }
+    ToolResult {
+        text,
+        is_error,
+        provenance: None,
+    }
 }
 
 /// Several upstreams, and the routing table from a published tool name to one of them.
