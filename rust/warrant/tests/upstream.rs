@@ -147,15 +147,24 @@ fn a_forwarded_response_carries_a_provenance_label_bound_to_the_warrant() {
             );
     let result = endpoint.call("selftest.echo", &args(&[("text", json!("labeled"))]));
     assert_eq!(result.text, "labeled", "the upstream's bytes are unchanged");
-    let label = result.provenance.expect("every forwarded response is labeled");
+    let label = result
+        .provenance
+        .expect("every forwarded response is labeled");
     assert_eq!(label.format, PROVENANCE_FORMAT);
     assert_eq!(
         label.origin,
-        Origin::Upstream { server: "selftest".to_string(), tool: "echo".to_string() }
+        Origin::Upstream {
+            server: "selftest".to_string(),
+            tool: "echo".to_string()
+        }
     );
     assert_eq!(label.trust, Trust::None);
     assert_eq!(label.compartment, "w-label");
-    assert_eq!(label.expires_at, NOW + 3600, "expiry is the warrant's deadline, not a guess");
+    assert_eq!(
+        label.expires_at,
+        NOW + 3600,
+        "expiry is the warrant's deadline, not a guess"
+    );
     assert!(label.non_transitive);
     assert_eq!(endpoint.labeled_count(), 1);
 }

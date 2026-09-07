@@ -67,7 +67,10 @@ fn a_label_rides_in_meta_beside_the_text_never_inside_it() {
     serve(&mut Labeled, input, &mut output).expect("serve");
     let reply: Value = serde_json::from_slice(&output).expect("one JSON line");
     let result = &reply["result"];
-    assert_eq!(result["content"][0]["text"], "payload", "the text is the upstream's bytes, untouched");
+    assert_eq!(
+        result["content"][0]["text"], "payload",
+        "the text is the upstream's bytes, untouched"
+    );
     let label = &result["_meta"]["provenance"];
     assert_eq!(label["format"], PROVENANCE_FORMAT);
     assert_eq!(label["trust"], "none");

@@ -216,15 +216,18 @@ impl Message {
             .as_slice()
             .try_into()
             .map_err(|_| ChannelError::SignatureInvalid)?;
-        let vk =
-            VerifyingKey::from_bytes(&vk_bytes).map_err(|_| ChannelError::SignatureInvalid)?;
+        let vk = VerifyingKey::from_bytes(&vk_bytes).map_err(|_| ChannelError::SignatureInvalid)?;
         let sig_bytes: [u8; 64] = self
             .signature
             .as_slice()
             .try_into()
             .map_err(|_| ChannelError::SignatureInvalid)?;
-        verification::verify(&self.signed_fields(), &Signature::from_bytes(&sig_bytes), &vk)
-            .map_err(|_| ChannelError::SignatureInvalid)
+        verification::verify(
+            &self.signed_fields(),
+            &Signature::from_bytes(&sig_bytes),
+            &vk,
+        )
+        .map_err(|_| ChannelError::SignatureInvalid)
     }
 }
 
@@ -313,7 +316,11 @@ pub trait MessageBus {
     ///
     /// # Errors
     /// Returns a [`ChannelError`] naming the first governance rule the message violated.
-    fn publish(&mut self, message: &Message, payload: &[u8]) -> Result<DeliveryReceipt, ChannelError>;
+    fn publish(
+        &mut self,
+        message: &Message,
+        payload: &[u8],
+    ) -> Result<DeliveryReceipt, ChannelError>;
     /// The current receipt chain for a channel (for operator inspection).
     fn receipts(&self, channel_id: &str) -> Vec<DeliveryReceipt>;
 }
@@ -358,7 +365,11 @@ impl MessageBus for InMemoryBus {
         self.channels.insert(channel.id.clone(), channel);
     }
 
-    fn publish(&mut self, message: &Message, payload: &[u8]) -> Result<DeliveryReceipt, ChannelError> {
+    fn publish(
+        &mut self,
+        message: &Message,
+        payload: &[u8],
+    ) -> Result<DeliveryReceipt, ChannelError> {
         let channel = self
             .channels
             .get(&message.channel_id)
@@ -532,11 +543,14 @@ pub fn detect_unsanctioned_channels(writes: &[ObservedWrite]) -> Vec<CovertChann
     for ((namespace, family), (writers, readers)) in groups {
         // Coordination requires at least one creator and one *different* reader: an agent reading
         // its own write is not a channel. Two distinct agents, one writing and one reading, is.
-        let distinct_participants: BTreeSet<AgentId> =
-            writers.union(&readers).cloned().collect();
+        let distinct_participants: BTreeSet<AgentId> = writers.union(&readers).cloned().collect();
         let has_cross = writers.iter().any(|w| readers.contains(w))
             || (writers.len() + readers.len() >= 2 && distinct_participants.len() >= 2);
-        if !writers.is_empty() && !readers.is_empty() && has_cross && distinct_participants.len() >= 2 {
+        if !writers.is_empty()
+            && !readers.is_empty()
+            && has_cross
+            && distinct_participants.len() >= 2
+        {
             signals.push(CovertChannelSignal {
                 namespace: namespace.to_string(),
                 workload_family: family.to_string(),
@@ -605,8 +619,16 @@ mod tests {
         let b = agent("b");
         let mut bus = bus_at(1000);
         bus.open_channel(channel(vec![a])); // b not a member
-        let msg = Message::sign("coord-1", b, 0, ContentClass::TaskCoordination, b"x", 1000, &signer)
-            .expect("sign");
+        let msg = Message::sign(
+            "coord-1",
+            b,
+            0,
+            ContentClass::TaskCoordination,
+            b"x",
+            1000,
+            &signer,
+        )
+        .expect("sign");
         assert!(matches!(
             bus.publish(&msg, b"x"),
             Err(ChannelError::NotMember(..))
@@ -619,9 +641,16 @@ mod tests {
         let a = agent("a");
         let mut bus = bus_at(1000);
         bus.open_channel(channel(vec![a.clone()]));
-        let mut msg =
-            Message::sign("coord-1", a, 0, ContentClass::TaskCoordination, b"x", 1000, &signer)
-                .expect("sign");
+        let mut msg = Message::sign(
+            "coord-1",
+            a,
+            0,
+            ContentClass::TaskCoordination,
+            b"x",
+            1000,
+            &signer,
+        )
+        .expect("sign");
         msg.signature[0] ^= 0xff;
         assert!(matches!(
             bus.publish(&msg, b"x"),
@@ -635,8 +664,16 @@ mod tests {
         let a = agent("a");
         let mut bus = bus_at(1000);
         bus.open_channel(channel(vec![a.clone()]));
-        let msg = Message::sign("coord-1", a, 0, ContentClass::TaskCoordination, b"x", 1000, &signer)
-            .expect("sign");
+        let msg = Message::sign(
+            "coord-1",
+            a,
+            0,
+            ContentClass::TaskCoordination,
+            b"x",
+            1000,
+            &signer,
+        )
+        .expect("sign");
         assert!(matches!(
             bus.publish(&msg, b"different-bytes"),
             Err(ChannelError::DigestMismatch)
@@ -649,8 +686,16 @@ mod tests {
         let a = agent("a");
         let mut bus = bus_at(1000);
         bus.open_channel(channel(vec![a.clone()]));
-        let msg = Message::sign("coord-1", a, 0, ContentClass::CredentialShare, b"x", 1000, &signer)
-            .expect("sign");
+        let msg = Message::sign(
+            "coord-1",
+            a,
+            0,
+            ContentClass::CredentialShare,
+            b"x",
+            1000,
+            &signer,
+        )
+        .expect("sign");
         assert!(matches!(
             bus.publish(&msg, b"x"),
             Err(ChannelError::ClassDenied(ContentClass::CredentialShare, _))
@@ -686,20 +731,44 @@ mod tests {
         let a = agent("a");
         let mut bus = bus_at(1000);
         bus.open_channel(channel(vec![a.clone()]));
-        let m0 = Message::sign("coord-1", a.clone(), 0, ContentClass::TaskCoordination, b"x", 1000, &signer)
-            .expect("sign");
+        let m0 = Message::sign(
+            "coord-1",
+            a.clone(),
+            0,
+            ContentClass::TaskCoordination,
+            b"x",
+            1000,
+            &signer,
+        )
+        .expect("sign");
         bus.publish(&m0, b"x").expect("first");
         // Replay sequence 0.
         assert!(matches!(
             bus.publish(&m0, b"x"),
-            Err(ChannelError::BadSequence { got: 0, expected: 1, .. })
+            Err(ChannelError::BadSequence {
+                got: 0,
+                expected: 1,
+                ..
+            })
         ));
         // Skip to 5 (gap).
-        let m5 = Message::sign("coord-1", a, 5, ContentClass::TaskCoordination, b"x", 1000, &signer)
-            .expect("sign");
+        let m5 = Message::sign(
+            "coord-1",
+            a,
+            5,
+            ContentClass::TaskCoordination,
+            b"x",
+            1000,
+            &signer,
+        )
+        .expect("sign");
         assert!(matches!(
             bus.publish(&m5, b"x"),
-            Err(ChannelError::BadSequence { got: 5, expected: 1, .. })
+            Err(ChannelError::BadSequence {
+                got: 5,
+                expected: 1,
+                ..
+            })
         ));
     }
 
@@ -712,12 +781,28 @@ mod tests {
         ch.policy.max_messages_per_window = 2;
         bus.open_channel(ch);
         for seq in 0..2 {
-            let m = Message::sign("coord-1", a.clone(), seq, ContentClass::TaskCoordination, b"x", 1000, &signer)
-                .expect("sign");
+            let m = Message::sign(
+                "coord-1",
+                a.clone(),
+                seq,
+                ContentClass::TaskCoordination,
+                b"x",
+                1000,
+                &signer,
+            )
+            .expect("sign");
             bus.publish(&m, b"x").expect("within limit");
         }
-        let m2 = Message::sign("coord-1", a, 2, ContentClass::TaskCoordination, b"x", 1000, &signer)
-            .expect("sign");
+        let m2 = Message::sign(
+            "coord-1",
+            a,
+            2,
+            ContentClass::TaskCoordination,
+            b"x",
+            1000,
+            &signer,
+        )
+        .expect("sign");
         assert!(matches!(
             bus.publish(&m2, b"x"),
             Err(ChannelError::RateLimited(_))
@@ -731,17 +816,33 @@ mod tests {
         let mut bus = bus_at(1000);
         bus.open_channel(channel(vec![a.clone()]));
         for seq in 0..3 {
-            let m = Message::sign("coord-1", a.clone(), seq, ContentClass::TaskCoordination, b"x", 1000, &signer)
-                .expect("sign");
+            let m = Message::sign(
+                "coord-1",
+                a.clone(),
+                seq,
+                ContentClass::TaskCoordination,
+                b"x",
+                1000,
+                &signer,
+            )
+            .expect("sign");
             bus.publish(&m, b"x").expect("admitted");
         }
         let receipts = bus.receipts("coord-1");
         assert_eq!(receipts.len(), 3);
-        assert_eq!(verify_receipt_chain(&receipts), None, "chain must be intact");
+        assert_eq!(
+            verify_receipt_chain(&receipts),
+            None,
+            "chain must be intact"
+        );
         // Tamper: drop the middle receipt. The chain must report the break.
         let mut broken = receipts.clone();
         broken.remove(1);
-        assert_eq!(verify_receipt_chain(&broken), Some(1), "removal must be detected");
+        assert_eq!(
+            verify_receipt_chain(&broken),
+            Some(1),
+            "removal must be detected"
+        );
     }
 
     #[test]

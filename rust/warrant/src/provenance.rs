@@ -135,7 +135,9 @@ impl ProvenanceLabel {
     #[must_use]
     pub fn staged(handle: &str, expires_at: u64, compartment: &str) -> Self {
         Self::new(
-            Origin::Staged { handle: handle.to_string() },
+            Origin::Staged {
+                handle: handle.to_string(),
+            },
             handle.as_bytes(),
             expires_at,
             compartment,
@@ -146,7 +148,9 @@ impl ProvenanceLabel {
     #[must_use]
     pub fn peer(proposer: &str, payload: &str, expires_at: u64, compartment: &str) -> Self {
         Self::new(
-            Origin::Peer { agent: proposer.to_string() },
+            Origin::Peer {
+                agent: proposer.to_string(),
+            },
             payload.as_bytes(),
             expires_at,
             compartment,
@@ -156,8 +160,16 @@ impl ProvenanceLabel {
 
 /// Object keys that make a payload a credential carrier, matched case-insensitively at any depth.
 pub const CREDENTIAL_KEYS: [&str; 10] = [
-    "token", "capability_token", "credential", "secret", "api_key",
-    "authorization", "bearer", "password", "private_key", "settle_key",
+    "token",
+    "capability_token",
+    "credential",
+    "secret",
+    "api_key",
+    "authorization",
+    "bearer",
+    "password",
+    "private_key",
+    "settle_key",
 ];
 
 /// The exact field set of [`crate::CapabilityToken`]. An object carrying all four is a token
@@ -208,7 +220,8 @@ pub fn compose(
     timestamp: u64,
     signer: &SigningKeyWrapper,
 ) -> Result<ProposalEnvelope, WarrantError> {
-    let payload = serde_json::to_string(proposal).map_err(|e| WarrantError::Encode(e.to_string()))?;
+    let payload =
+        serde_json::to_string(proposal).map_err(|e| WarrantError::Encode(e.to_string()))?;
     let message = Message::sign(
         receiver_warrant_id,
         AgentId(proposal.proposer.clone()),
@@ -219,7 +232,11 @@ pub fn compose(
         signer,
     )
     .map_err(|e| WarrantError::Encode(format!("sign proposal: {e}")))?;
-    Ok(ProposalEnvelope { format: PROPOSAL_ENVELOPE_FORMAT.to_string(), message, payload })
+    Ok(ProposalEnvelope {
+        format: PROPOSAL_ENVELOPE_FORMAT.to_string(),
+        message,
+        payload,
+    })
 }
 
 /// The JSON-pointer path of the first credential handle in `value`, if any.
@@ -229,7 +246,11 @@ pub fn credential_handle_in(value: &Value) -> Option<String> {
         match value {
             Value::Object(map) => {
                 if TOKEN_SHAPE.iter().all(|k| map.contains_key(*k)) {
-                    return Some(if path.is_empty() { "/".to_string() } else { path.clone() });
+                    return Some(if path.is_empty() {
+                        "/".to_string()
+                    } else {
+                        path.clone()
+                    });
                 }
                 for (key, child) in map {
                     let lowered = key.to_ascii_lowercase();
@@ -258,7 +279,10 @@ pub fn credential_handle_in(value: &Value) -> Option<String> {
                 }
                 None
             }
-            Value::String(s) if s.get(..7).is_some_and(|p| p.eq_ignore_ascii_case("bearer ")) => {
+            Value::String(s)
+                if s.get(..7)
+                    .is_some_and(|p| p.eq_ignore_ascii_case("bearer ")) =>
+            {
                 Some(path.clone())
             }
             _ => None,
@@ -273,7 +297,8 @@ pub fn credential_handle_in(value: &Value) -> Option<String> {
 /// [`WarrantError::Encode`] if the message does not serialize.
 pub fn message_digest(message: &Message) -> Result<String, WarrantError> {
     let value = serde_json::to_value(message).map_err(|e| WarrantError::Encode(e.to_string()))?;
-    let text = serde_json::to_string(&canonicalize(&value)).map_err(|e| WarrantError::Encode(e.to_string()))?;
+    let text = serde_json::to_string(&canonicalize(&value))
+        .map_err(|e| WarrantError::Encode(e.to_string()))?;
     Ok(sha256_hex(text.as_bytes()))
 }
 
@@ -310,9 +335,16 @@ pub struct ProposalDecision {
     pub message_digest: String,
 }
 
-fn refused(gate: &str, reason: String, proposal: Option<PeerProposal>, digest: String) -> ProposalDecision {
+fn refused(
+    gate: &str,
+    reason: String,
+    proposal: Option<PeerProposal>,
+    digest: String,
+) -> ProposalDecision {
     ProposalDecision {
-        verdict: ProposalVerdict::RefusedAtAdmission { gate: gate.to_string() },
+        verdict: ProposalVerdict::RefusedAtAdmission {
+            gate: gate.to_string(),
+        },
         reason,
         label: None,
         proposal,
@@ -333,13 +365,30 @@ pub fn admit(
         return refused("format", format!("envelope declares {:?} / message {:?}; this build reads {PROPOSAL_ENVELOPE_FORMAT} / {MESSAGE_FORMAT}", envelope.format, envelope.message.format), None, digest);
     }
     if let Err(e) = envelope.message.verify() {
-        return refused("signature", format!("the message does not verify against its own key: {e}"), None, digest);
+        return refused(
+            "signature",
+            format!("the message does not verify against its own key: {e}"),
+            None,
+            digest,
+        );
     }
-    if format!("sha256:{}", sha256_hex(envelope.payload.as_bytes())) != envelope.message.payload_digest {
-        return refused("digest", "the payload is not the bytes the message signed".to_string(), None, digest);
+    if format!("sha256:{}", sha256_hex(envelope.payload.as_bytes()))
+        != envelope.message.payload_digest
+    {
+        return refused(
+            "digest",
+            "the payload is not the bytes the message signed".to_string(),
+            None,
+            digest,
+        );
     }
     if seen_message_digests.contains(&digest) {
-        return refused("replay", format!("message {digest} was already decided for this warrant"), None, digest);
+        return refused(
+            "replay",
+            format!("message {digest} was already decided for this warrant"),
+            None,
+            digest,
+        );
     }
     if envelope.message.class != ContentClass::TaskCoordination {
         return refused("class", format!("a proposal is task coordination; this message declares {:?} and is refused before its payload is read", envelope.message.class), None, digest);
@@ -348,36 +397,83 @@ pub fn admit(
         Ok(v) => v,
         Err(e) => return refused("payload", format!("payload is not JSON: {e}"), None, digest),
     };
-    let proposal: PeerProposal = match serde_json::from_value::<PeerProposal>(payload_value.clone()) {
+    let proposal: PeerProposal = match serde_json::from_value::<PeerProposal>(payload_value.clone())
+    {
         Ok(p) if p.format == PROPOSAL_FORMAT => p,
-        Ok(p) => return refused("payload", format!("payload declares {:?}; this build reads {PROPOSAL_FORMAT}", p.format), None, digest),
-        Err(e) => return refused("payload", format!("payload is not a peer proposal: {e}"), None, digest),
+        Ok(p) => {
+            return refused(
+                "payload",
+                format!(
+                    "payload declares {:?}; this build reads {PROPOSAL_FORMAT}",
+                    p.format
+                ),
+                None,
+                digest,
+            )
+        }
+        Err(e) => {
+            return refused(
+                "payload",
+                format!("payload is not a peer proposal: {e}"),
+                None,
+                digest,
+            )
+        }
     };
     if let Some(path) = credential_handle_in(&payload_value) {
         return refused("credential_handle", format!("the proposal carries a credential handle at {path}; a proposal never transfers a credential, whatever it proposes"), Some(proposal), digest);
     }
     if proposal.proposer != envelope.message.sender.0 {
-        return refused("lineage", format!("the payload names proposer {:?} but the message was signed by {:?}", proposal.proposer, envelope.message.sender.0), Some(proposal), digest);
+        return refused(
+            "lineage",
+            format!(
+                "the payload names proposer {:?} but the message was signed by {:?}",
+                proposal.proposer, envelope.message.sender.0
+            ),
+            Some(proposal),
+            digest,
+        );
     }
-    let receiver_population = AgentId(stored.warrant.claims.subject.clone()).tenant().to_string();
+    let receiver_population = AgentId(stored.warrant.claims.subject.clone())
+        .tenant()
+        .to_string();
     let proposer_population = AgentId(proposal.proposer.clone()).tenant().to_string();
     if proposer_population != receiver_population || proposal.population != receiver_population {
         return refused("population", format!("proposer is in population {proposer_population:?} (claims {:?}); the receiver is in {receiver_population:?}", proposal.population), Some(proposal), digest);
     }
     let bounds = &stored.warrant.claims.bounds;
     if proposal.expires_at <= now || bounds.expires_at <= now {
-        return refused("expired", format!("proposal expires at {}, warrant at {}, now is {now}", proposal.expires_at, bounds.expires_at), Some(proposal), digest);
+        return refused(
+            "expired",
+            format!(
+                "proposal expires at {}, warrant at {}, now is {now}",
+                proposal.expires_at, bounds.expires_at
+            ),
+            Some(proposal),
+            digest,
+        );
     }
     let flattened: BTreeMap<String, String> = proposal
         .arguments
         .iter()
-        .map(|(k, v)| (k.clone(), v.as_str().map_or_else(|| v.to_string(), str::to_string)))
+        .map(|(k, v)| {
+            (
+                k.clone(),
+                v.as_str().map_or_else(|| v.to_string(), str::to_string),
+            )
+        })
         .collect();
-    let call = ToolCall { tool: proposal.tool.clone(), arguments: flattened, side_effect: proposal.side_effect };
+    let call = ToolCall {
+        tool: proposal.tool.clone(),
+        arguments: flattened,
+        side_effect: proposal.side_effect,
+    };
     let mut proxy = Proxy::new(bounds.clone(), ProxyMode::Enforce, EffectRegistry::github());
     match proxy.decide(&call) {
         Decision::Deny { reason, bound } => ProposalDecision {
-            verdict: ProposalVerdict::RefusedAtBind { bound: bound.to_string() },
+            verdict: ProposalVerdict::RefusedAtBind {
+                bound: bound.to_string(),
+            },
             reason: format!("the receiver's warrant refuses {}: {reason}", proposal.tool),
             label: None,
             proposal: Some(proposal),
@@ -385,7 +481,12 @@ pub fn admit(
         },
         Decision::Forward | Decision::Stage { .. } => {
             let expires_at = proposal.expires_at.min(bounds.expires_at);
-            let label = ProvenanceLabel::peer(&proposal.proposer, &envelope.payload, expires_at, &stored.warrant.claims.id);
+            let label = ProvenanceLabel::peer(
+                &proposal.proposer,
+                &envelope.payload,
+                expires_at,
+                &stored.warrant.claims.id,
+            );
             ProposalDecision {
                 verdict: ProposalVerdict::Admitted,
                 reason: format!("{} is within the receiver's warrant; admitted as a proposal object. Nothing was granted and nothing was performed.", proposal.tool),
@@ -492,7 +593,8 @@ pub struct SignedProposalReceipt {
 
 fn receipt_digest(receipt: &ProposalReceipt) -> Result<String, WarrantError> {
     let value = serde_json::to_value(receipt).map_err(|e| WarrantError::Encode(e.to_string()))?;
-    let text = serde_json::to_string(&canonicalize(&value)).map_err(|e| WarrantError::Encode(e.to_string()))?;
+    let text = serde_json::to_string(&canonicalize(&value))
+        .map_err(|e| WarrantError::Encode(e.to_string()))?;
     Ok(sha256_hex(text.as_bytes()))
 }
 
@@ -517,8 +619,12 @@ pub fn sign_receipt(
 }
 
 fn decode_key(hex_key: &str) -> Result<VerifyingKey, WarrantError> {
-    let raw = hex::decode(hex_key).map_err(|e| WarrantError::Encode(format!("public key hex: {e}")))?;
-    let bytes: [u8; 32] = raw.as_slice().try_into().map_err(|_| WarrantError::SignatureInvalid)?;
+    let raw =
+        hex::decode(hex_key).map_err(|e| WarrantError::Encode(format!("public key hex: {e}")))?;
+    let bytes: [u8; 32] = raw
+        .as_slice()
+        .try_into()
+        .map_err(|_| WarrantError::SignatureInvalid)?;
     VerifyingKey::from_bytes(&bytes).map_err(|_| WarrantError::SignatureInvalid)
 }
 
@@ -547,23 +653,40 @@ pub fn verify_receipt_signed_by(
         return Err(WarrantError::UnknownFormat(signed.receipt.format.clone()));
     }
     if signed.receipt.authority_widened {
-        return Err(WarrantError::Invalid("a proposal receipt claims authority was widened; admission cannot widen authority".to_string()));
+        return Err(WarrantError::Invalid(
+            "a proposal receipt claims authority was widened; admission cannot widen authority"
+                .to_string(),
+        ));
     }
-    if signed.receipt.syscall != MSG_SYSCALL || signed.receipt.decision_class != DELEGATE_DECISION_CLASS {
-        return Err(WarrantError::Invalid(format!("receipt is {}/{}; a proposal receipt is {MSG_SYSCALL}/{DELEGATE_DECISION_CLASS}", signed.receipt.syscall, signed.receipt.decision_class)));
+    if signed.receipt.syscall != MSG_SYSCALL
+        || signed.receipt.decision_class != DELEGATE_DECISION_CLASS
+    {
+        return Err(WarrantError::Invalid(format!(
+            "receipt is {}/{}; a proposal receipt is {MSG_SYSCALL}/{DELEGATE_DECISION_CLASS}",
+            signed.receipt.syscall, signed.receipt.decision_class
+        )));
     }
     let actual = receipt_digest(&signed.receipt)?;
     if actual != signed.receipt_digest {
-        return Err(WarrantError::Invalid(format!("receipt digest is {actual}, file says {}", signed.receipt_digest)));
+        return Err(WarrantError::Invalid(format!(
+            "receipt digest is {actual}, file says {}",
+            signed.receipt_digest
+        )));
     }
     if hex::encode(key.to_bytes()) != signed.signature_public_key {
         return Err(WarrantError::SignatureInvalid);
     }
     let raw = hex::decode(&signed.signature_value).map_err(|_| WarrantError::SignatureInvalid)?;
-    let bytes: [u8; 64] = raw.as_slice().try_into().map_err(|_| WarrantError::SignatureInvalid)?;
+    let bytes: [u8; 64] = raw
+        .as_slice()
+        .try_into()
+        .map_err(|_| WarrantError::SignatureInvalid)?;
     let signature = ed25519_dalek::Signature::from_bytes(&bytes);
-    key.verify(&signing_input(PROPOSAL_DOMAIN, signed.receipt_digest.as_bytes()), &signature)
-        .map_err(|_| WarrantError::SignatureInvalid)
+    key.verify(
+        &signing_input(PROPOSAL_DOMAIN, signed.receipt_digest.as_bytes()),
+        &signature,
+    )
+    .map_err(|_| WarrantError::SignatureInvalid)
 }
 
 /// `<root>/proposals/<warrant-id>/<n>.json`, one file per decision, n zero-padded so the
@@ -580,7 +703,8 @@ impl ProposalStore {
     /// [`WarrantError::Encode`] if the directory cannot be created.
     pub fn open(root: impl AsRef<Path>) -> Result<Self, WarrantError> {
         let root = root.as_ref().join("proposals");
-        std::fs::create_dir_all(&root).map_err(|e| WarrantError::Encode(format!("create proposals dir: {e}")))?;
+        std::fs::create_dir_all(&root)
+            .map_err(|e| WarrantError::Encode(format!("create proposals dir: {e}")))?;
         Ok(Self { root })
     }
 
@@ -594,11 +718,14 @@ impl ProposalStore {
     /// [`WarrantError::Encode`] on serialization or I/O failure.
     pub fn save(&self, signed: &SignedProposalReceipt) -> Result<PathBuf, WarrantError> {
         let dir = self.dir(&signed.receipt.warrant_id);
-        std::fs::create_dir_all(&dir).map_err(|e| WarrantError::Encode(format!("create {}: {e}", dir.display())))?;
+        std::fs::create_dir_all(&dir)
+            .map_err(|e| WarrantError::Encode(format!("create {}: {e}", dir.display())))?;
         let index = self.list(&signed.receipt.warrant_id)?.len();
         let path = dir.join(format!("{index:06}.json"));
-        let body = serde_json::to_vec_pretty(signed).map_err(|e| WarrantError::Encode(e.to_string()))?;
-        std::fs::write(&path, body).map_err(|e| WarrantError::Encode(format!("write {}: {e}", path.display())))?;
+        let body =
+            serde_json::to_vec_pretty(signed).map_err(|e| WarrantError::Encode(e.to_string()))?;
+        std::fs::write(&path, body)
+            .map_err(|e| WarrantError::Encode(format!("write {}: {e}", path.display())))?;
         Ok(path)
     }
 
@@ -609,7 +736,10 @@ impl ProposalStore {
     /// [`WarrantError::Encode`] on an unreadable directory or an unparseable file.
     pub fn list(&self, warrant_id: &str) -> Result<Vec<SignedProposalReceipt>, WarrantError> {
         let dir = self.dir(warrant_id);
-        if !dir.try_exists().map_err(|e| WarrantError::Encode(e.to_string()))? {
+        if !dir
+            .try_exists()
+            .map_err(|e| WarrantError::Encode(e.to_string()))?
+        {
             return Ok(Vec::new());
         }
         let mut paths: Vec<PathBuf> = std::fs::read_dir(&dir)
@@ -622,8 +752,14 @@ impl ProposalStore {
         paths
             .iter()
             .map(|path| {
-                let body = std::fs::read(path).map_err(|e| WarrantError::Encode(format!("read {}: {e}", path.display())))?;
-                serde_json::from_slice(&body).map_err(|e| WarrantError::Encode(format!("{} is not a proposal receipt: {e}", path.display())))
+                let body = std::fs::read(path)
+                    .map_err(|e| WarrantError::Encode(format!("read {}: {e}", path.display())))?;
+                serde_json::from_slice(&body).map_err(|e| {
+                    WarrantError::Encode(format!(
+                        "{} is not a proposal receipt: {e}",
+                        path.display()
+                    ))
+                })
             })
             .collect()
     }
@@ -633,6 +769,10 @@ impl ProposalStore {
     /// # Errors
     /// As [`Self::list`].
     pub fn seen_digests(&self, warrant_id: &str) -> Result<BTreeSet<String>, WarrantError> {
-        Ok(self.list(warrant_id)?.into_iter().map(|s| s.receipt.message_digest).collect())
+        Ok(self
+            .list(warrant_id)?
+            .into_iter()
+            .map(|s| s.receipt.message_digest)
+            .collect())
     }
 }

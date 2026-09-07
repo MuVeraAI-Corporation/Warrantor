@@ -84,6 +84,20 @@ const ACCEPTED_FLAGS: &[&str] = &[
     "egress-capability",
     "budget",
     "subject",
+    // Task 2.6: peer proposals. `--from`, `--population`, `--tool`, `--arg`, `--lineage`,
+    // `--class`, `--expires-in`, `--sequence`, `--key-file` and `--out` are all read by
+    // cmd_proposal_compose (`args.flags` / `args.all("arg")` / `args.all("lineage")`); `--export`
+    // and the shared flags below are read by cmd_proposal_admit. All wired in the same commit as
+    // the usage lines that name them.
+    "from",
+    "population",
+    "tool",
+    "arg",
+    "lineage",
+    "class",
+    "expires-in",
+    "sequence",
+    "key-file",
     // report / verify / issuer / archive
     "export",
     "archive",
@@ -284,7 +298,9 @@ fn every_harness_the_registry_lists_can_be_shown() {
             (!tail.trim().is_empty()
                 && !id.is_empty()
                 && !id.contains(' ')
-                && id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'))
+                && id
+                    .chars()
+                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'))
             .then(|| id.to_string())
         })
         .filter(|word| word != "warrantor")
