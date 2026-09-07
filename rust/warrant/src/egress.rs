@@ -289,9 +289,7 @@ impl EgressBroker {
     #[must_use]
     pub fn decide_capability(&self, capability: &str) -> broker::EgressVerdict {
         match capability.strip_prefix(EGRESS_CAPABILITY_PREFIX) {
-            Some(logical_endpoint) if !logical_endpoint.is_empty() => {
-                self.decide(logical_endpoint)
-            }
+            Some(logical_endpoint) if !logical_endpoint.is_empty() => self.decide(logical_endpoint),
             _ => broker::EgressVerdict::Deny {
                 reason: DenyReason::NotACapability,
             },

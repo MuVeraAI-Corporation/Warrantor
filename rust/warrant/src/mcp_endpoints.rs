@@ -1010,7 +1010,6 @@ impl AgentEndpoint {
             json!({"type": "object", "additionalProperties": true})
         }
     }
-
 }
 
 impl Endpoint for AgentEndpoint {

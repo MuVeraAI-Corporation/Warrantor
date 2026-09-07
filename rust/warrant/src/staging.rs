@@ -531,12 +531,25 @@ mod tests {
     #[test]
     fn the_builtin_registry_stages_http_calls_and_every_github_effect() {
         let registry = EffectRegistry::builtin();
-        let http = registry.get("http.call").expect("http.call is a known effect kind");
+        let http = registry
+            .get("http.call")
+            .expect("http.call is a known effect kind");
         assert_eq!(http.mints, "call", "the handle must not read as a URL");
-        assert!(http.targets.is_empty(), "an HTTP call takes no staged target");
-        for tool in ["github.create_pr", "github.comment", "github.request_review", "github.add_label"] {
+        assert!(
+            http.targets.is_empty(),
+            "an HTTP call takes no staged target"
+        );
+        for tool in [
+            "github.create_pr",
+            "github.comment",
+            "github.request_review",
+            "github.add_label",
+        ] {
             assert!(registry.get(tool).is_some(), "{tool}");
         }
-        assert!(EffectRegistry::github().get("http.call").is_none(), "github() is unchanged");
+        assert!(
+            EffectRegistry::github().get("http.call").is_none(),
+            "github() is unchanged"
+        );
     }
 }

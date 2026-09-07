@@ -6011,8 +6011,7 @@ fn cmd_serve(args: &Args, store: WarrantStore, root: &Path, open_browser: bool) 
         root.to_path_buf(),
         issuer,
         settle_key,
-        |bounds: &WarrantBounds| Box::new(build_performer(bounds))
-            as Box<dyn EffectPerformer>,
+        |bounds: &WarrantBounds| Box::new(build_performer(bounds)) as Box<dyn EffectPerformer>,
         now,
     )
     .with_notifier(notify_event);

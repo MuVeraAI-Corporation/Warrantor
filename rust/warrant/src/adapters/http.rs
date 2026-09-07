@@ -425,7 +425,10 @@ impl<T: HttpTransport> EffectPerformer for HttpAdapter<T> {
         _resolved: &BTreeMap<String, String>,
     ) -> Result<String, String> {
         if effect.tool != TOOL {
-            return Err(format!("the HTTP adapter does not implement {}", effect.tool));
+            return Err(format!(
+                "the HTTP adapter does not implement {}",
+                effect.tool
+            ));
         }
         self.perform_call(effect)
     }
