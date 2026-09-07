@@ -343,11 +343,13 @@ impl DecompositionRegistry {
             of("github.comment", &[Syscall::Net, Syscall::Msg]),
             of("github.request_review", &[Syscall::Net, Syscall::Msg]),
             of("github.add_label", &[Syscall::Net, Syscall::Mutate]),
-            // The governed HTTP call: it names a destination, which is network egress, and it
-            // carries a payload, which is the user's data in motion.
+            // The governed HTTP call: it names a destination (`net`) and can carry a write
+            // (`mutate`) — the catalog's permitted_methods bound which at settle. `net` alone
+            // would project to Read and the proxy would FORWARD the call to a server instead of
+            // staging it; the whole point is that it is staged and performed by the adapter.
             of(
                 crate::adapters::http::TOOL,
-                &[Syscall::Net],
+                &[Syscall::Net, Syscall::Mutate],
             ),
         ] {
             registry

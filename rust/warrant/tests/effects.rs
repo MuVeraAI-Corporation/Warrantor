@@ -114,12 +114,13 @@ fn the_builtin_registry_declares_exactly_the_four_staged_github_tools_as_writes(
         assert!(d.syscalls().contains(&Syscall::Net), "{tool}");
         assert_eq!(d.class(), SideEffectClass::Write, "{tool}");
     }
-    // The HTTP call is net-only: it reads a response, so its projection is Read; the WRITE that
-    // matters (an outbound POST) is bounded by the catalog's permitted methods at settle.
+    // The HTTP call is net+mutate: a POST is a remote write, and the catalog's permitted
+    // methods bound which writes at settle. Net alone would project to Read and the proxy
+    // would FORWARD the call instead of staging it.
     let http = registry.get("http.call").expect("http.call is builtin");
     assert!(http.syscalls().contains(&Syscall::Net));
-    assert_eq!(http.syscalls().len(), 1, "http.call is net only");
-    assert_eq!(http.class(), SideEffectClass::Read, "http.call");
+    assert!(http.syscalls().contains(&Syscall::Mutate));
+    assert_eq!(http.class(), SideEffectClass::Write, "http.call");
     assert!(
         registry.get("github.merge_pr").is_none(),
         "nothing the settle path cannot perform"
