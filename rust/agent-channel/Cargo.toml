@@ -1,0 +1,20 @@
+[package]
+name = "warrantor-agent-channel"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "M3 / incident R3 — governed inter-agent messaging: a sanctioned, identity-attested, receipted channel layer, plus detection of the unsanctioned channels agents build when none is sanctioned"
+
+[lib]
+name = "warrantor_agent_channel"
+path = "src/lib.rs"
+
+[dependencies]
+ed25519-dalek = "3"
+hex = "0.4"
+serde.workspace = true
+serde_json = "1"
+sha2 = "0.11"
+thiserror.workspace = true
+warrantor-trust-core = { path = "../trust-core" }

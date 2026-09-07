@@ -68,6 +68,12 @@ warrantor-kill-switch-core = { path = "../kill-switch-core", version = "1.0.0" }
 # nothing in the system read the number at all, so a bound labelled "observed" was observed by
 # nobody. Same dependency family again; no new external crate and no new version in Cargo.lock.
 warrantor-spend = { path = "../spend", version = "1.0.0" }
+# The inter-agent message envelope, behind `warrantor proposal`. Same dependency family as the
+# crates above: ed25519-dalek 3, hex 0.4, serde, serde_json, sha2 0.11, thiserror, trust-core --
+# all already here at the same versions, so nothing new enters Cargo.lock's registry set. It is
+# consumed for its signed `Message` and `AgentId::tenant`; its `InMemoryBus` is not used, because a
+# proposal is admitted against a WARRANT, not against a channel policy.
+warrantor-agent-channel = { path = "../agent-channel", version = "1.0.0" }
 # The credential vault, behind invariant I-05's revocation bound. `default-features = false`
 # deliberately: that crate's CLI and its credential scanner are feature-gated, so this edge adds
 # ZERO external packages to this crate's normal-dependency tree and no line to Cargo.lock. The

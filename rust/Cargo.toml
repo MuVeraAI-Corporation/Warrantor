@@ -25,6 +25,7 @@ members = [
     "warrant",
     "archive",
     "agent-manifest",
+    "agent-channel",
     "notary",
     "evidence",
     "egress",

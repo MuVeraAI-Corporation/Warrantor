@@ -53,6 +53,7 @@ pub mod mcp;
 pub mod mcp_endpoints;
 pub mod notify;
 pub mod operators;
+pub mod provenance;
 pub mod proxy;
 pub mod receipts;
 pub mod report;
