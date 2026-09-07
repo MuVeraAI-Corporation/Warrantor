@@ -567,6 +567,30 @@ Notifications (§3.2) already exist, so a human who is not watching the window c
 is waiting. What is still absent is any *routing* of that decision to a particular person: the
 webhook fires, and who picks it up is an organizational question this build does not model.
 
+### 2.5 Provenance labels and peer-proposal admission — **built; memory quarantine and peer identity are not**
+
+Every result the agent endpoint forwards or stages now carries `warrantor.provenance/1` in the MCP
+result's `_meta`: origin, trust (always `none`), expiry (the warrant's deadline), compartment (the
+warrant id), non-transitive. A peer proposal is a signed `osaf.agent-message/1` whose payload is a
+`warrantor.peer-proposal/1`; `warrantor proposal admit` refuses a credential handle before reading
+scope, checks population, binds through `Proxy::decide`, and writes a signed
+`warrantor.proposal-receipt/1` (syscall `msg`, decision class `delegate`) either way.
+`warrantor verify` reads the export. Live run 2026-09-06 (warrant `wrt_0fcf5d3b3a979aa9`): the
+first proposal **admitted**; the second, carrying an `api_key`, **refused at admission
+(credential_handle)** with exit 1 and no credential bytes in any receipt under `proposals/`; the
+third, proposing `github.create_pr` the warrant does not hold, **refused at bind (tools)**; the
+list shows all four decisions in order; `warrantor verify` on the export, on a clean root,
+printed `syscall       msg (delegate-class decision)` and `authority     unchanged`; and a
+forwarded `selftest.echo` through the real proxy carried `_meta.provenance` with the warrant's
+compartment and deadline, the session ending with
+`warrantor: provenance -- 1 result(s) left this endpoint carrying a warrantor.provenance/1 label`.
+
+**What it does not do.** No durable memory is quarantined: this crate holds none, and a label on a
+store it does not own would be a label with nothing behind it. The proposer's identity is not
+established: the signature verifies against the key inside the message, nothing pins that key, and
+the CLI says so on every admit. That is Task 3.1's principal work, not a defect here. The bound
+tier for the labels is Mediated — the proxy sees only what routes through it.
+
 ### 2.3 TLS — **built behind a feature; the bind is fail-closed without it**
 
 There is still no TLS. The token protects access, not bytes on the wire.
@@ -1408,7 +1432,9 @@ ledger is CI-checked against the tests it names, so a status can only move when 
 
 The **substrate is real** and the **single-machine loop is complete**. Most of what is missing is
 still what makes it a product rather than a tool: it installs but announces itself with an operating
-system warning, it cannot be reached by a second person, and it cannot say who did what.
+system warning, it cannot be reached by a second person, and it cannot say who did what. Peer
+proposals are receipted and cannot widen authority (§2.5); who the peer *is* remains unestablished
+until principals land.
 
 **What the 2026-08-14 revision changed, and the pattern in it.** Five PRs merged. Two gaps closed
 outright (§1.3 first run, §1.4 refresh), two moved from "absent" to "built but unreachable"
