@@ -159,3 +159,53 @@ fn a_tampered_signature_is_refused_at_the_signature_gate() {
     let decision = admit(&env, &stored, &BTreeSet::new(), NOW);
     assert_eq!(decision.verdict, ProposalVerdict::RefusedAtAdmission { gate: "signature".to_string() });
 }
+
+use warrantor_warrant::provenance::{
+    receipt_for, sign_receipt, verify_receipt, verify_receipt_signed_by, ProposalStore,
+    DELEGATE_DECISION_CLASS, MSG_SYSCALL, PROPOSAL_RECEIPT_FORMAT,
+};
+
+#[test]
+fn every_decision_is_receipted_as_a_msg_syscall_delegate_class_decision() {
+    let stored = stored_open("w-rcpt", &["selftest.echo"]);
+    let env = compose(&proposal("github.create_pr", &[]), "w-rcpt", 0, NOW, &peer_key()).expect("compose");
+    let decision = admit(&env, &stored, &BTreeSet::new(), NOW);
+    let receipt = receipt_for(&env, &stored, &decision, NOW);
+    assert_eq!(receipt.format, PROPOSAL_RECEIPT_FORMAT);
+    assert_eq!(receipt.syscall, MSG_SYSCALL);
+    assert_eq!(receipt.decision_class, DELEGATE_DECISION_CLASS);
+    assert_eq!(receipt.warrant_id, "w-rcpt");
+    assert_eq!(receipt.receiver, RECEIVER);
+    assert_eq!(receipt.proposer, PEER);
+    assert_eq!(receipt.task_lineage, vec!["task-root".to_string(), "task-7".to_string()]);
+    assert_eq!(receipt.verdict, ProposalVerdict::RefusedAtBind { bound: "tools".to_string() });
+    assert!(!receipt.authority_widened);
+    let issuer = SigningKey::from_bytes(&[1; 32]);
+    let signed = sign_receipt(receipt, &issuer).expect("sign");
+    verify_receipt(&signed).expect("verifies with the embedded key");
+    verify_receipt_signed_by(&signed, &issuer.verifying_key()).expect("verifies against the pinned key");
+    let stranger = SigningKey::from_bytes(&[9; 32]);
+    assert!(verify_receipt_signed_by(&signed, &stranger.verifying_key()).is_err());
+    let mut forged = signed.clone();
+    forged.receipt.verdict = ProposalVerdict::Admitted;
+    assert!(verify_receipt(&forged).is_err(), "an admitted verdict cannot be written over a refusal");
+}
+
+#[test]
+fn the_store_keeps_receipts_in_order_and_feeds_the_replay_check() {
+    let dir = tempdir("store");
+    let stored = stored_open("w-store", &["selftest.echo"]);
+    let issuer = SigningKey::from_bytes(&[1; 32]);
+    let store = ProposalStore::open(&dir).expect("open");
+    for sequence in 0..3u64 {
+        let env = compose(&proposal("selftest.echo", &[("text", json!(sequence))]), "w-store", sequence, NOW + sequence, &peer_key()).expect("compose");
+        let seen = store.seen_digests("w-store").expect("seen");
+        let decision = admit(&env, &stored, &seen, NOW);
+        assert_eq!(decision.verdict, ProposalVerdict::Admitted);
+        store.save(&sign_receipt(receipt_for(&env, &stored, &decision, NOW), &issuer).expect("sign")).expect("save");
+    }
+    let listed = store.list("w-store").expect("list");
+    assert_eq!(listed.len(), 3);
+    assert_eq!(store.seen_digests("w-store").expect("seen").len(), 3);
+    assert!(store.list("w-other").expect("list").is_empty());
+}

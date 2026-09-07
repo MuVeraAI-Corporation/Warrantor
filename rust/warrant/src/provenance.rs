@@ -27,7 +27,9 @@ pub const MSG_SYSCALL: &str = "msg";
 pub const DELEGATE_DECISION_CLASS: &str = "delegate";
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::{Path, PathBuf};
 
+use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use warrantor_agent_channel::{AgentId, ContentClass, Message, MESSAGE_FORMAT};
@@ -392,5 +394,245 @@ pub fn admit(
                 message_digest: digest,
             }
         }
+    }
+}
+
+const PROPOSAL_DOMAIN: &[u8] = b"warrantor-proposal-receipt-v1";
+
+/// Domain-separated, length-prefixed signing input — the same shape the warrant's own signature
+/// uses, so a receipt signature can never be replayed as anything else.
+fn signing_input(domain: &[u8], body: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(domain.len() + body.len() + 16);
+    out.extend_from_slice(&(domain.len() as u64).to_le_bytes());
+    out.extend_from_slice(domain);
+    out.extend_from_slice(&(body.len() as u64).to_le_bytes());
+    out.extend_from_slice(body);
+    out
+}
+
+/// The record of one admission decision: a MSG-syscall, DELEGATE-class decision.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProposalReceipt {
+    /// Always [`PROPOSAL_RECEIPT_FORMAT`].
+    pub format: String,
+    /// Always [`MSG_SYSCALL`]: a proposal is a message.
+    pub syscall: String,
+    /// Always [`DELEGATE_DECISION_CLASS`]: admitting is authority-shaped.
+    pub decision_class: String,
+    /// The receiver's warrant id.
+    pub warrant_id: String,
+    /// The receiver's SPIFFE id.
+    pub receiver: String,
+    /// The proposer's SPIFFE id, as the message signed it.
+    pub proposer: String,
+    /// Hex of the key the message verified against. Recorded, not trusted: nothing pins it.
+    pub proposer_key: String,
+    /// The population the proposal claimed.
+    pub population: String,
+    /// Task lineage, root first.
+    pub task_lineage: Vec<String>,
+    /// The tool the proposal named, empty when the payload never parsed.
+    pub proposed_tool: String,
+    /// The replay key.
+    pub message_digest: String,
+    /// The decision, gate or bound only.
+    pub verdict: ProposalVerdict,
+    /// Always false. Present so a reader is told, and so a value of true fails verification.
+    pub authority_widened: bool,
+    /// Epoch seconds.
+    pub decided_at: u64,
+}
+
+/// Assemble the receipt for a decision. Never carries the reason sentence or the arguments.
+#[must_use]
+pub fn receipt_for(
+    envelope: &ProposalEnvelope,
+    stored: &StoredWarrant,
+    decision: &ProposalDecision,
+    now: u64,
+) -> ProposalReceipt {
+    let (population, task_lineage, proposed_tool) = decision.proposal.as_ref().map_or_else(
+        || (String::new(), Vec::new(), String::new()),
+        |p| (p.population.clone(), p.task_lineage.clone(), p.tool.clone()),
+    );
+    ProposalReceipt {
+        format: PROPOSAL_RECEIPT_FORMAT.to_string(),
+        syscall: MSG_SYSCALL.to_string(),
+        decision_class: DELEGATE_DECISION_CLASS.to_string(),
+        warrant_id: stored.warrant.claims.id.clone(),
+        receiver: stored.warrant.claims.subject.clone(),
+        proposer: envelope.message.sender.0.clone(),
+        proposer_key: hex::encode(&envelope.message.verifying_key),
+        population,
+        task_lineage,
+        proposed_tool,
+        message_digest: decision.message_digest.clone(),
+        verdict: decision.verdict.clone(),
+        authority_widened: false,
+        decided_at: now,
+    }
+}
+
+/// A receipt plus the issuer's signature over its canonical digest.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SignedProposalReceipt {
+    /// Always [`PROPOSAL_EXPORT_FORMAT`].
+    pub format: String,
+    /// The digest the signature covers.
+    pub receipt_digest: String,
+    /// The receipt.
+    pub receipt: ProposalReceipt,
+    /// The signature algorithm, for a reader that does not guess.
+    pub signature_algorithm: String,
+    /// Hex verifying key of the signer.
+    pub signature_public_key: String,
+    /// Hex signature.
+    pub signature_value: String,
+}
+
+fn receipt_digest(receipt: &ProposalReceipt) -> Result<String, WarrantError> {
+    let value = serde_json::to_value(receipt).map_err(|e| WarrantError::Encode(e.to_string()))?;
+    let text = serde_json::to_string(&canonicalize(&value)).map_err(|e| WarrantError::Encode(e.to_string()))?;
+    Ok(sha256_hex(text.as_bytes()))
+}
+
+/// Sign with the **issuer** key: admission grants nothing, so settle authority has no business here.
+///
+/// # Errors
+/// [`WarrantError::Encode`] if the receipt does not serialize.
+pub fn sign_receipt(
+    receipt: ProposalReceipt,
+    key: &SigningKey,
+) -> Result<SignedProposalReceipt, WarrantError> {
+    let digest = receipt_digest(&receipt)?;
+    let signature = key.sign(&signing_input(PROPOSAL_DOMAIN, digest.as_bytes()));
+    Ok(SignedProposalReceipt {
+        format: PROPOSAL_EXPORT_FORMAT.to_string(),
+        receipt_digest: digest,
+        receipt,
+        signature_algorithm: "Ed25519".to_string(),
+        signature_public_key: hex::encode(key.verifying_key().to_bytes()),
+        signature_value: hex::encode(signature.to_bytes()),
+    })
+}
+
+fn decode_key(hex_key: &str) -> Result<VerifyingKey, WarrantError> {
+    let raw = hex::decode(hex_key).map_err(|e| WarrantError::Encode(format!("public key hex: {e}")))?;
+    let bytes: [u8; 32] = raw.as_slice().try_into().map_err(|_| WarrantError::SignatureInvalid)?;
+    VerifyingKey::from_bytes(&bytes).map_err(|_| WarrantError::SignatureInvalid)
+}
+
+/// Verify against the key the file carries. Says nothing about whether that key is trusted.
+///
+/// # Errors
+/// [`WarrantError::UnknownFormat`], [`WarrantError::Invalid`] (digest or over-claim) or
+/// [`WarrantError::SignatureInvalid`].
+pub fn verify_receipt(signed: &SignedProposalReceipt) -> Result<(), WarrantError> {
+    let key = decode_key(&signed.signature_public_key)?;
+    verify_receipt_signed_by(signed, &key)
+}
+
+/// Verify against a key the caller pinned out of band.
+///
+/// # Errors
+/// As [`verify_receipt`], plus [`WarrantError::SignatureInvalid`] when `key` is not the signer.
+pub fn verify_receipt_signed_by(
+    signed: &SignedProposalReceipt,
+    key: &VerifyingKey,
+) -> Result<(), WarrantError> {
+    if signed.format != PROPOSAL_EXPORT_FORMAT {
+        return Err(WarrantError::UnknownFormat(signed.format.clone()));
+    }
+    if signed.receipt.format != PROPOSAL_RECEIPT_FORMAT {
+        return Err(WarrantError::UnknownFormat(signed.receipt.format.clone()));
+    }
+    if signed.receipt.authority_widened {
+        return Err(WarrantError::Invalid("a proposal receipt claims authority was widened; admission cannot widen authority".to_string()));
+    }
+    if signed.receipt.syscall != MSG_SYSCALL || signed.receipt.decision_class != DELEGATE_DECISION_CLASS {
+        return Err(WarrantError::Invalid(format!("receipt is {}/{}; a proposal receipt is {MSG_SYSCALL}/{DELEGATE_DECISION_CLASS}", signed.receipt.syscall, signed.receipt.decision_class)));
+    }
+    let actual = receipt_digest(&signed.receipt)?;
+    if actual != signed.receipt_digest {
+        return Err(WarrantError::Invalid(format!("receipt digest is {actual}, file says {}", signed.receipt_digest)));
+    }
+    if hex::encode(key.to_bytes()) != signed.signature_public_key {
+        return Err(WarrantError::SignatureInvalid);
+    }
+    let raw = hex::decode(&signed.signature_value).map_err(|_| WarrantError::SignatureInvalid)?;
+    let bytes: [u8; 64] = raw.as_slice().try_into().map_err(|_| WarrantError::SignatureInvalid)?;
+    let signature = ed25519_dalek::Signature::from_bytes(&bytes);
+    key.verify(&signing_input(PROPOSAL_DOMAIN, signed.receipt_digest.as_bytes()), &signature)
+        .map_err(|_| WarrantError::SignatureInvalid)
+}
+
+/// `<root>/proposals/<warrant-id>/<n>.json`, one file per decision, n zero-padded so the
+/// directory lists in decision order.
+#[derive(Debug, Clone)]
+pub struct ProposalStore {
+    root: PathBuf,
+}
+
+impl ProposalStore {
+    /// Open the store under a root, creating `proposals/`.
+    ///
+    /// # Errors
+    /// [`WarrantError::Encode`] if the directory cannot be created.
+    pub fn open(root: impl AsRef<Path>) -> Result<Self, WarrantError> {
+        let root = root.as_ref().join("proposals");
+        std::fs::create_dir_all(&root).map_err(|e| WarrantError::Encode(format!("create proposals dir: {e}")))?;
+        Ok(Self { root })
+    }
+
+    fn dir(&self, warrant_id: &str) -> PathBuf {
+        self.root.join(warrant_id)
+    }
+
+    /// Persist one signed receipt under its warrant, numbered in decision order.
+    ///
+    /// # Errors
+    /// [`WarrantError::Encode`] on serialization or I/O failure.
+    pub fn save(&self, signed: &SignedProposalReceipt) -> Result<PathBuf, WarrantError> {
+        let dir = self.dir(&signed.receipt.warrant_id);
+        std::fs::create_dir_all(&dir).map_err(|e| WarrantError::Encode(format!("create {}: {e}", dir.display())))?;
+        let index = self.list(&signed.receipt.warrant_id)?.len();
+        let path = dir.join(format!("{index:06}.json"));
+        let body = serde_json::to_vec_pretty(signed).map_err(|e| WarrantError::Encode(e.to_string()))?;
+        std::fs::write(&path, body).map_err(|e| WarrantError::Encode(format!("write {}: {e}", path.display())))?;
+        Ok(path)
+    }
+
+    /// Every receipt for a warrant, in decision order. A file that will not parse is an error,
+    /// not a gap: a missing receipt is the one thing this store must never read as "nothing".
+    ///
+    /// # Errors
+    /// [`WarrantError::Encode`] on an unreadable directory or an unparseable file.
+    pub fn list(&self, warrant_id: &str) -> Result<Vec<SignedProposalReceipt>, WarrantError> {
+        let dir = self.dir(warrant_id);
+        if !dir.try_exists().map_err(|e| WarrantError::Encode(e.to_string()))? {
+            return Ok(Vec::new());
+        }
+        let mut paths: Vec<PathBuf> = std::fs::read_dir(&dir)
+            .map_err(|e| WarrantError::Encode(format!("read {}: {e}", dir.display())))?
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|p| p.extension().is_some_and(|ext| ext == "json"))
+            .collect();
+        paths.sort();
+        paths
+            .iter()
+            .map(|path| {
+                let body = std::fs::read(path).map_err(|e| WarrantError::Encode(format!("read {}: {e}", path.display())))?;
+                serde_json::from_slice(&body).map_err(|e| WarrantError::Encode(format!("{} is not a proposal receipt: {e}", path.display())))
+            })
+            .collect()
+    }
+
+    /// The replay set: every message digest already decided for this warrant.
+    ///
+    /// # Errors
+    /// As [`Self::list`].
+    pub fn seen_digests(&self, warrant_id: &str) -> Result<BTreeSet<String>, WarrantError> {
+        Ok(self.list(warrant_id)?.into_iter().map(|s| s.receipt.message_digest).collect())
     }
 }
