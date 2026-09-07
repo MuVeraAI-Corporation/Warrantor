@@ -45,6 +45,7 @@ use warrantor_warrant::mcp::serve;
 use warrantor_warrant::mcp_endpoints::{agent_endpoint_for, ControlEndpoint};
 use warrantor_warrant::notify::{self, Notification, NotifyConfig, NotifyTransport};
 use warrantor_warrant::operators::{self, Act, ApprovalPolicy, Operator, OperatorRegistry, Scope};
+use warrantor_warrant::provenance;
 use warrantor_warrant::proxy::{host_of, ProxyMode};
 use warrantor_warrant::receipts::ReceiptLog;
 use warrantor_warrant::report;
@@ -527,6 +528,11 @@ warrantor — bounded authority for coding agents
           [--upstream-effects '<tool>=<verb>+<verb>' ...] [--upstream-effects-file <path> ...]
           [--upstream-strict]   (verbs: net cred exec mutate msg spend delegate actuate attest)
   anchor  show | verify
+  proposal compose <receiver-warrant-id> --from <spiffe-id> --population <p> --tool <t>
+           [--arg k=v ...] [--lineage <task-id> ...] [--class read|write|destructive|financial]
+           [--expires-in <seconds>] [--sequence <n>] --key-file <path> --out <envelope.json>
+         | admit <warrant-id> <envelope.json> [--export <path>]
+         | list <warrant-id>
   guard   doctor [--guard-endpoint URL] [--guard-model M] [--guard-num-ctx N]
           | bench --cases <file.jsonl>
           | export-corpus --out <file.jsonl> [--min-labelled N]
@@ -1309,18 +1315,22 @@ fn cmd_verify(args: &Args, root: &Path) -> ExitCode {
         Some(f) if f == conformance::CONFORMANCE_RECEIPT_FORMAT => {
             verify_conformance_export(path, &body, anchor)
         }
+        Some(f) if f == provenance::PROPOSAL_EXPORT_FORMAT => {
+            verify_proposal_export(path, &body, anchor)
+        }
         Some(f) if f == effects::EFFECT_REGISTRY_FORMAT => fail(&format!(
             "{path} is a {f} document: an effect registry, which is configuration, not evidence. \
              Nothing in it is signed, so there is nothing here to verify. Load it with \
              `warrantor mcp --upstream-effects-file {path}`."
         )),
         Some(other) => fail(&format!(
-            "{path} declares format {other:?}. warrantor verify reads {}, {}, {}, {} and {}.",
+            "{path} declares format {other:?}. warrantor verify reads {}, {}, {}, {}, {} and {}.",
             report::REPORT_EXPORT_FORMAT,
             stop::STOP_EXPORT_FORMAT,
             spend::LEDGER_EXPORT_FORMAT,
             warrantor_warrant::catalog::CATALOG_FORMAT,
-            conformance::CONFORMANCE_RECEIPT_FORMAT
+            conformance::CONFORMANCE_RECEIPT_FORMAT,
+            provenance::PROPOSAL_EXPORT_FORMAT
         )),
         None => fail(&format!(
             "{path} has no format field, so it is not a warrantor evidence file."
@@ -1941,6 +1951,329 @@ fn verify_stop_export(path: &str, body: &[u8], anchor: Option<&Anchor>) -> ExitC
 /// It exits non-zero when the record contains a FAIL — a supervisor that would not die, a platform
 /// with no parent-death link, or a warrant whose access is still open. A stop that could not
 /// contain must not exit like one that did.
+/// `warrantor proposal <compose|admit|list>`: signed peer-proposal admission (L5-11, L5-12).
+fn cmd_proposal(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
+    match args.positional.first().map(String::as_str) {
+        Some("compose") => cmd_proposal_compose(args),
+        Some("admit") => cmd_proposal_admit(args, store, root),
+        Some("list") => cmd_proposal_list(args, root),
+        _ => fail(
+            "usage: warrantor proposal compose <receiver-warrant-id> --from <spiffe-id> \
+             --population <p> --tool <t> --key-file <path> --out <envelope.json>\n       \
+             warrantor proposal admit <warrant-id> <envelope.json> [--export <path>]\n       \
+             warrantor proposal list <warrant-id>",
+        ),
+    }
+}
+
+fn proposal_class(word: &str) -> Result<SideEffectClass, String> {
+    match word {
+        "read" => Ok(SideEffectClass::Read),
+        "write" => Ok(SideEffectClass::Write),
+        "destructive" => Ok(SideEffectClass::Destructive),
+        "financial" => Ok(SideEffectClass::Financial),
+        other => Err(format!(
+            "--class {other:?} is not one of read, write, destructive, financial"
+        )),
+    }
+}
+
+/// The peer's signing key: a 64-hex-character file, created if absent. Not a KeyKind, on purpose:
+/// it is a PEER's key, held wherever the peer runs, and this verb exists so a test and an operator
+/// can produce an envelope without a second binary. Nothing here pins it; the admit side says so.
+fn load_or_create_peer_key(
+    path: &Path,
+) -> Result<warrantor_trust_core::signing::SigningKeyWrapper, String> {
+    if let Ok(text) = std::fs::read_to_string(path) {
+        let raw =
+            hex::decode(text.trim()).map_err(|e| format!("{}: not hex: {e}", path.display()))?;
+        let bytes: [u8; 32] = raw
+            .as_slice()
+            .try_into()
+            .map_err(|_| format!("{}: a peer key is 32 bytes", path.display()))?;
+        return Ok(warrantor_trust_core::signing::SigningKeyWrapper::from_bytes(&bytes));
+    }
+    // Drawn through getrandom, the crate's own entropy source (archive_client uses the same);
+    // no other dependency enters the tree for this.
+    let mut bytes = [0u8; 32];
+    getrandom::fill(&mut bytes).map_err(|e| format!("entropy: {e}"))?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("create {}: {e}", parent.display()))?;
+    }
+    std::fs::write(path, hex::encode(bytes))
+        .map_err(|e| format!("write {}: {e}", path.display()))?;
+    eprintln!(
+        "warrantor: generated a new peer signing key at {}. Protect it: whoever holds it signs as \
+         this peer.",
+        path.display()
+    );
+    Ok(warrantor_trust_core::signing::SigningKeyWrapper::from_bytes(&bytes))
+}
+
+fn cmd_proposal_compose(args: &Args) -> ExitCode {
+    let Some(receiver) = args.positional.get(1) else {
+        return fail(
+            "usage: warrantor proposal compose <receiver-warrant-id> --from <spiffe-id> \
+             --population <p> --tool <t> --key-file <path> --out <file>",
+        );
+    };
+    let required = |name: &str| -> Result<String, String> {
+        match args.flags.get(name) {
+            Some(v) if v != "true" => Ok(v.clone()),
+            _ => Err(format!("--{name} is required")),
+        }
+    };
+    let (from, population, tool, key_file, out) = match (
+        required("from"),
+        required("population"),
+        required("tool"),
+        required("key-file"),
+        required("out"),
+    ) {
+        (Ok(a), Ok(b), Ok(c), Ok(d), Ok(e)) => (a, b, c, d, e),
+        (Err(e), ..)
+        | (_, Err(e), ..)
+        | (_, _, Err(e), ..)
+        | (_, _, _, Err(e), _)
+        | (_, _, _, _, Err(e)) => return fail(&e),
+    };
+    let mut arguments = BTreeMap::new();
+    for raw in args.all("arg") {
+        let Some((k, v)) = raw.split_once('=') else {
+            return fail(&format!("--arg takes k=v, got {raw:?}"));
+        };
+        arguments.insert(k.to_string(), serde_json::Value::String(v.to_string()));
+    }
+    let side_effect = match args
+        .flags
+        .get("class")
+        .map(String::as_str)
+        .map_or(Ok(SideEffectClass::Read), proposal_class)
+    {
+        Ok(c) => c,
+        Err(e) => return fail(&e),
+    };
+    let expires_in = match args.flags.get("expires-in").map(|v| v.parse::<u64>()) {
+        None => 600,
+        Some(Ok(n)) if n > 0 => n,
+        Some(_) => return fail("--expires-in takes a positive number of seconds"),
+    };
+    let sequence = match args.flags.get("sequence").map(|v| v.parse::<u64>()) {
+        None => 0,
+        Some(Ok(n)) => n,
+        Some(Err(_)) => return fail("--sequence takes a whole number"),
+    };
+    let signer = match load_or_create_peer_key(Path::new(&key_file)) {
+        Ok(k) => k,
+        Err(e) => return fail(&e),
+    };
+    let at = now();
+    let proposal = provenance::PeerProposal {
+        format: provenance::PROPOSAL_FORMAT.to_string(),
+        proposer: from,
+        population,
+        task_lineage: args.all("lineage").to_vec(),
+        tool,
+        arguments,
+        side_effect,
+        expires_at: at + expires_in,
+    };
+    let envelope = match provenance::compose(&proposal, receiver, sequence, at, &signer) {
+        Ok(e) => e,
+        Err(e) => return fail(&e.to_string()),
+    };
+    let body = match serde_json::to_vec_pretty(&envelope) {
+        Ok(b) => b,
+        Err(e) => return fail(&e.to_string()),
+    };
+    if let Err(e) = std::fs::write(&out, body) {
+        return fail(&format!("write {out}: {e}"));
+    }
+    println!(
+        "composed  {out}\n  proposer    {}\n  to warrant  {receiver}\n  proposes    {}",
+        proposal.proposer, proposal.tool
+    );
+    ExitCode::SUCCESS
+}
+
+fn cmd_proposal_admit(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
+    let (Some(id), Some(path)) = (args.positional.get(1), args.positional.get(2)) else {
+        return fail(
+            "usage: warrantor proposal admit <warrant-id> <envelope.json> [--export <path>]",
+        );
+    };
+    let stored = match store.load(id) {
+        Ok(s) => s,
+        Err(e) => return fail(&e.to_string()),
+    };
+    let body = match std::fs::read(path) {
+        Ok(b) => b,
+        Err(e) => return fail(&format!("read {path}: {e}")),
+    };
+    let envelope: provenance::ProposalEnvelope = match serde_json::from_slice(&body) {
+        Ok(e) => e,
+        Err(e) => return fail(&format!("{path} is not a proposal envelope: {e}")),
+    };
+    let proposals = match provenance::ProposalStore::open(root) {
+        Ok(p) => p,
+        Err(e) => return fail(&e.to_string()),
+    };
+    let seen = match proposals.seen_digests(id) {
+        Ok(s) => s,
+        Err(e) => {
+            return fail(&format!(
+                "cannot read earlier decisions, so replay is unknown: {e}"
+            ))
+        }
+    };
+    let issuer = match load_or_create_key(&root.join("keys/issuer.key"), KeyKind::Issuer) {
+        Ok(k) => k,
+        Err(e) => return fail(&e),
+    };
+    let at = now();
+    let decision = provenance::admit(&envelope, &stored, &seen, at);
+    let signed = match provenance::sign_receipt(
+        provenance::receipt_for(&envelope, &stored, &decision, at),
+        &issuer,
+    ) {
+        Ok(s) => s,
+        Err(e) => {
+            return fail(&format!(
+                "decided, but the receipt could not be signed: {e}"
+            ))
+        }
+    };
+    let kept = match proposals.save(&signed) {
+        Ok(p) => p,
+        Err(e) => return fail(&format!("decided, but the receipt was not kept: {e}")),
+    };
+    let verdict = match &signed.receipt.verdict {
+        provenance::ProposalVerdict::Admitted => "admitted".to_string(),
+        provenance::ProposalVerdict::RefusedAtAdmission { gate } => {
+            format!("refused at admission ({gate})")
+        }
+        provenance::ProposalVerdict::RefusedAtBind { bound } => {
+            format!("refused at bind ({bound})")
+        }
+    };
+    println!("{verdict}  {}", signed.receipt_digest);
+    println!("  warrant     {id}");
+    println!(
+        "  proposer    {}  (key {}; NOT pinned -- integrity verified, identity not established)",
+        signed.receipt.proposer,
+        &signed.receipt.proposer_key[..16]
+    );
+    println!(
+        "  proposes    {}",
+        if signed.receipt.proposed_tool.is_empty() {
+            "(payload not read)"
+        } else {
+            signed.receipt.proposed_tool.as_str()
+        }
+    );
+    println!("  {}", decision.reason);
+    println!(
+        "  authority   unchanged. Admission grants nothing and performs nothing; the receiver \
+         decides each call against its own warrant when it acts."
+    );
+    println!("  kept at     {}", kept.display());
+    if let Some(export) = args.flags.get("export") {
+        if export == "true" {
+            return fail("--export needs a file path");
+        }
+        if let Err(e) = write_export_anchored(
+            &signed,
+            Path::new(export),
+            root,
+            id,
+            anchor::Anchored::Proposal,
+        ) {
+            return fail(&e);
+        }
+        println!("\nexported  {export}");
+    }
+    if matches!(
+        signed.receipt.verdict,
+        provenance::ProposalVerdict::Admitted
+    ) {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    }
+}
+
+fn cmd_proposal_list(args: &Args, root: &Path) -> ExitCode {
+    let Some(id) = args.positional.get(1) else {
+        return fail("usage: warrantor proposal list <warrant-id>");
+    };
+    let proposals = match provenance::ProposalStore::open(root).and_then(|p| p.list(id)) {
+        Ok(list) => list,
+        Err(e) => return fail(&e.to_string()),
+    };
+    if proposals.is_empty() {
+        println!("No proposals decided for {id}.");
+        return ExitCode::SUCCESS;
+    }
+    for signed in proposals {
+        println!(
+            "{:<10} {:<14} {:<40} {}",
+            signed.receipt.decided_at,
+            match &signed.receipt.verdict {
+                provenance::ProposalVerdict::Admitted => "admitted".to_string(),
+                provenance::ProposalVerdict::RefusedAtAdmission { gate } => {
+                    format!("refused:{gate}")
+                }
+                provenance::ProposalVerdict::RefusedAtBind { bound } => format!("bind:{bound}"),
+            },
+            signed.receipt.proposer,
+            signed.receipt.proposed_tool
+        );
+    }
+    ExitCode::SUCCESS
+}
+
+fn verify_proposal_export(path: &str, body: &[u8], anchor: Option<&Anchor>) -> ExitCode {
+    let signed: provenance::SignedProposalReceipt = match serde_json::from_slice(body) {
+        Ok(s) => s,
+        Err(e) => {
+            return fail(&format!(
+                "{path} is not an exported warrantor proposal receipt: {e}"
+            ))
+        }
+    };
+    let checked = match anchor {
+        Some(anchor) => provenance::verify_receipt_signed_by(&signed, &anchor.key),
+        None => provenance::verify_receipt(&signed),
+    };
+    if let Err(e) = checked {
+        return fail(&format!("{path} does NOT verify: {e}"));
+    }
+    println!("verified  {}", signed.receipt_digest);
+    println!("  warrant       {}", signed.receipt.warrant_id);
+    println!(
+        "  syscall       {} ({}-class decision)",
+        signed.receipt.syscall, signed.receipt.decision_class
+    );
+    println!("  proposer      {}", signed.receipt.proposer);
+    println!("  proposed      {}", signed.receipt.proposed_tool);
+    println!("  verdict       {:?}", signed.receipt.verdict);
+    println!(
+        "  authority     {}",
+        if signed.receipt.authority_widened {
+            "WIDENED (this cannot verify)"
+        } else {
+            "unchanged"
+        }
+    );
+    println!("  signed by     {}", signed.signature_public_key);
+    println!("  anchor        {}", anchor_line(anchor));
+    println!("  - the proposer's key is recorded, not pinned: integrity is verified, identity is not established");
+    if anchor.is_none() {
+        println!("  - {NO_ANCHOR_LIMITATION}");
+    }
+    ExitCode::SUCCESS
+}
+
 fn cmd_stop(args: &Args, store: &WarrantStore, root: &Path) -> ExitCode {
     let scope = match (
         args.positional.first(),
@@ -5491,6 +5824,14 @@ fn cmd_mcp(args: &Args, store: WarrantStore, root: &Path) -> ExitCode {
                         unclassified.join(", ")
                     );
                 }
+                let labeled = endpoint.labeled_count();
+                if labeled > 0 {
+                    eprintln!(
+                        "warrantor: provenance -- {} result(s) left this endpoint carrying a {} label: origin, trust=none, expiry, compartment, non-transitive. Nothing an agent reads through this proxy carries authority.",
+                        labeled,
+                        provenance::PROVENANCE_FORMAT
+                    );
+                }
                 if let Some((forwarded, failures)) = endpoint.forwarding_counts() {
                     eprintln!(
                         "warrantor: upstream -- {forwarded} call(s) forwarded, {failures} \
@@ -7080,6 +7421,7 @@ fn main() -> ExitCode {
         "agents" => cmd_agents(&args, &store),
         "guard" => cmd_guard(&args, &store, &root),
         "anchor" => cmd_anchor(&args, &root),
+        "proposal" => cmd_proposal(&args, &store, &root),
         "selftest-upstream" => cmd_selftest_upstream(),
         "serve" => cmd_serve(&args, store, &root, false),
         // Same server, same flags, same refusals. The only difference is that it opens the console

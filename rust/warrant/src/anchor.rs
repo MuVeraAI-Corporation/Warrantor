@@ -81,6 +81,8 @@ pub enum Anchored {
     SettleReport,
     /// An exported containment-conformance drill receipt.
     Conformance,
+    /// An exported proposal receipt.
+    Proposal,
 }
 
 impl Anchored {
@@ -93,6 +95,7 @@ impl Anchored {
             Self::Spend => "spend",
             Self::SettleReport => "settle-report",
             Self::Conformance => "conformance",
+            Self::Proposal => "proposal",
         }
     }
 }

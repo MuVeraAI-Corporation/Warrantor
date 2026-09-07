@@ -35,18 +35,41 @@ fn tempdir(tag: &str) -> std::path::PathBuf {
 fn stored_open(id: &str, tools: &[&str]) -> StoredWarrant {
     let issuer = SigningKey::from_bytes(&[1; 32]);
     let settle = SigningKey::from_bytes(&[2; 32]);
+    // The warrant's expiry is anchored to the real clock, taken once per process: the CLI under
+    // test reads the wall clock at its `expired` gate, so a fixture pinned to a fixed past epoch
+    // would have every warrant expire before the binary reads it. The library tests pass a fixed
+    // `now` to `admit`, which is later than every fixed fixture time and earlier than this expiry,
+    // so the relative ordering every assertion checks is unchanged.
+    let mut real = [0u8; 8];
+    getrandom::fill(&mut real).expect("entropy");
+    let wall_now = u64::from_le_bytes(real).saturating_add(1_700_000_000);
     let bounds = WarrantBounds {
         tools: tools.iter().map(|t| (*t).to_string()).collect(),
         write_paths: BTreeSet::new(),
         egress_hosts: BTreeSet::new(),
         staged_classes: [SideEffectClass::Write].into_iter().collect(),
-        expires_at: NOW + 3600,
+        expires_at: wall_now + 3600,
         budget_cents_observed: None,
         delegation_depth: 1,
     };
-    let warrant = Warrant::grant(id, "receive proposals", RECEIVER, bounds, NOW, &settle.verifying_key(), &issuer)
-        .expect("grant");
-    StoredWarrant { warrant, worktree: None, repo: None, branch: None, base_commit: None, staged_chain: None }
+    let warrant = Warrant::grant(
+        id,
+        "receive proposals",
+        RECEIVER,
+        bounds,
+        NOW,
+        &settle.verifying_key(),
+        &issuer,
+    )
+    .expect("grant");
+    StoredWarrant {
+        warrant,
+        worktree: None,
+        repo: None,
+        branch: None,
+        base_commit: None,
+        staged_chain: None,
+    }
 }
 
 fn peer_key() -> SigningKeyWrapper {
@@ -60,7 +83,10 @@ fn proposal(tool: &str, arguments: &[(&str, Value)]) -> PeerProposal {
         population: "agent".to_string(),
         task_lineage: vec!["task-root".to_string(), "task-7".to_string()],
         tool: tool.to_string(),
-        arguments: arguments.iter().map(|(k, v)| ((*k).to_string(), v.clone())).collect(),
+        arguments: arguments
+            .iter()
+            .map(|(k, v)| ((*k).to_string(), v.clone()))
+            .collect(),
         side_effect: SideEffectClass::Read,
         expires_at: NOW + 600,
     }
@@ -69,12 +95,20 @@ fn proposal(tool: &str, arguments: &[(&str, Value)]) -> PeerProposal {
 #[test]
 fn a_credential_handle_is_found_at_any_depth_and_in_token_shape() {
     assert_eq!(credential_handle_in(&json!({"text": "hi"})), None);
-    assert_eq!(credential_handle_in(&json!({"args": {"Token": "abc"}})), Some("/args/Token".to_string()));
     assert_eq!(
-        credential_handle_in(&json!({"h": {"warrant_id": "w", "subject": "s", "expires_at": 1, "signature": "ff"}})),
+        credential_handle_in(&json!({"args": {"Token": "abc"}})),
+        Some("/args/Token".to_string())
+    );
+    assert_eq!(
+        credential_handle_in(
+            &json!({"h": {"warrant_id": "w", "subject": "s", "expires_at": 1, "signature": "ff"}})
+        ),
         Some("/h".to_string())
     );
-    assert_eq!(credential_handle_in(&json!({"x": ["Bearer eyJ"]})), Some("/x/0".to_string()));
+    assert_eq!(
+        credential_handle_in(&json!({"x": ["Bearer eyJ"]})),
+        Some("/x/0".to_string())
+    );
 }
 
 #[test]
@@ -82,51 +116,124 @@ fn a_proposal_carrying_a_credential_handle_is_refused_at_admission_regardless_of
     // `selftest.echo` IS in the receiver's warrant. The credential is what refuses it, and the
     // receipt names the gate, not the token.
     let stored = stored_open("w-cred", &["selftest.echo"]);
-    let env = compose(&proposal("selftest.echo", &[("text", json!("hi")), ("api_key", json!("sk-live-1"))]), "w-cred", 0, NOW, &peer_key())
-        .expect("compose");
+    let env = compose(
+        &proposal(
+            "selftest.echo",
+            &[("text", json!("hi")), ("api_key", json!("sk-live-1"))],
+        ),
+        "w-cred",
+        0,
+        NOW,
+        &peer_key(),
+    )
+    .expect("compose");
     let decision = admit(&env, &stored, &BTreeSet::new(), NOW);
-    assert_eq!(decision.verdict, ProposalVerdict::RefusedAtAdmission { gate: "credential_handle".to_string() });
+    assert_eq!(
+        decision.verdict,
+        ProposalVerdict::RefusedAtAdmission {
+            gate: "credential_handle".to_string()
+        }
+    );
     assert!(decision.label.is_none());
 }
 
 #[test]
 fn a_credential_share_class_is_refused_before_the_payload_is_read() {
     let stored = stored_open("w-class", &["selftest.echo"]);
-    let mut env = compose(&proposal("selftest.echo", &[("text", json!("hi"))]), "w-class", 0, NOW, &peer_key()).expect("compose");
+    let mut env = compose(
+        &proposal("selftest.echo", &[("text", json!("hi"))]),
+        "w-class",
+        0,
+        NOW,
+        &peer_key(),
+    )
+    .expect("compose");
     // Re-sign with the declared class changed; the signature covers `class`, so this is a fresh message.
-    env.message = warrantor_agent_channel::Message::sign("w-class", warrantor_agent_channel::AgentId(PEER.to_string()), 0, ContentClass::CredentialShare, env.payload.as_bytes(), NOW, &peer_key())
-        .expect("sign");
+    env.message = warrantor_agent_channel::Message::sign(
+        "w-class",
+        warrantor_agent_channel::AgentId(PEER.to_string()),
+        0,
+        ContentClass::CredentialShare,
+        env.payload.as_bytes(),
+        NOW,
+        &peer_key(),
+    )
+    .expect("sign");
     let decision = admit(&env, &stored, &BTreeSet::new(), NOW);
-    assert_eq!(decision.verdict, ProposalVerdict::RefusedAtAdmission { gate: "class".to_string() });
+    assert_eq!(
+        decision.verdict,
+        ProposalVerdict::RefusedAtAdmission {
+            gate: "class".to_string()
+        }
+    );
 }
 
 #[test]
 fn a_proposal_outside_the_receivers_warrant_is_refused_at_bind_naming_the_bound() {
     let stored = stored_open("w-bind", &["selftest.echo"]);
-    let env = compose(&proposal("github.create_pr", &[("title", json!("x"))]), "w-bind", 0, NOW, &peer_key()).expect("compose");
+    let env = compose(
+        &proposal("github.create_pr", &[("title", json!("x"))]),
+        "w-bind",
+        0,
+        NOW,
+        &peer_key(),
+    )
+    .expect("compose");
     let decision = admit(&env, &stored, &BTreeSet::new(), NOW);
-    assert_eq!(decision.verdict, ProposalVerdict::RefusedAtBind { bound: "tools".to_string() });
-    assert!(decision.reason.contains("github.create_pr"), "{}", decision.reason);
+    assert_eq!(
+        decision.verdict,
+        ProposalVerdict::RefusedAtBind {
+            bound: "tools".to_string()
+        }
+    );
+    assert!(
+        decision.reason.contains("github.create_pr"),
+        "{}",
+        decision.reason
+    );
 }
 
 #[test]
 fn admitting_a_proposal_leaves_effective_authority_unchanged() {
     let stored = stored_open("w-admit", &["selftest.echo"]);
     let before = stored.warrant.claims.bounds.clone();
-    let env = compose(&proposal("selftest.echo", &[("text", json!("do this"))]), "w-admit", 0, NOW, &peer_key()).expect("compose");
+    let env = compose(
+        &proposal("selftest.echo", &[("text", json!("do this"))]),
+        "w-admit",
+        0,
+        NOW,
+        &peer_key(),
+    )
+    .expect("compose");
     let decision = admit(&env, &stored, &BTreeSet::new(), NOW);
     assert_eq!(decision.verdict, ProposalVerdict::Admitted);
     let label = decision.label.expect("an admitted proposal is labeled");
-    assert_eq!(label.origin, Origin::Peer { agent: PEER.to_string() });
+    assert_eq!(
+        label.origin,
+        Origin::Peer {
+            agent: PEER.to_string()
+        }
+    );
     assert_eq!(label.trust, Trust::None);
     assert!(label.non_transitive);
-    assert_eq!(label.expires_at, NOW + 600, "the shorter of proposal and warrant expiry");
+    assert_eq!(
+        label.expires_at,
+        NOW + 600,
+        "the shorter of proposal and warrant expiry"
+    );
     // The blueprint gate C-03: effective authority is unchanged. The bounds are signed claims,
     // and the proxy built from them still refuses what it refused before the proposal.
     assert_eq!(stored.warrant.claims.bounds, before);
     let mut proxy = Proxy::new(before, ProxyMode::Enforce, EffectRegistry::github());
-    let call = ToolCall { tool: "github.create_pr".to_string(), arguments: BTreeMap::new(), side_effect: SideEffectClass::Write };
-    assert!(matches!(proxy.decide(&call), Decision::Deny { bound: "tools", .. }));
+    let call = ToolCall {
+        tool: "github.create_pr".to_string(),
+        arguments: BTreeMap::new(),
+        side_effect: SideEffectClass::Write,
+    };
+    assert!(matches!(
+        proxy.decide(&call),
+        Decision::Deny { bound: "tools", .. }
+    ));
 }
 
 #[test]
@@ -137,27 +244,56 @@ fn a_proposal_from_another_population_is_refused() {
     p.population = "other".to_string();
     let env = compose(&p, "w-pop", 0, NOW, &peer_key()).expect("compose");
     let decision = admit(&env, &stored, &BTreeSet::new(), NOW);
-    assert_eq!(decision.verdict, ProposalVerdict::RefusedAtAdmission { gate: "population".to_string() });
+    assert_eq!(
+        decision.verdict,
+        ProposalVerdict::RefusedAtAdmission {
+            gate: "population".to_string()
+        }
+    );
 }
 
 #[test]
 fn a_replayed_envelope_is_refused() {
     let stored = stored_open("w-replay", &["selftest.echo"]);
-    let env = compose(&proposal("selftest.echo", &[("text", json!("hi"))]), "w-replay", 0, NOW, &peer_key()).expect("compose");
+    let env = compose(
+        &proposal("selftest.echo", &[("text", json!("hi"))]),
+        "w-replay",
+        0,
+        NOW,
+        &peer_key(),
+    )
+    .expect("compose");
     let first = admit(&env, &stored, &BTreeSet::new(), NOW);
     assert_eq!(first.verdict, ProposalVerdict::Admitted);
     let seen: BTreeSet<String> = [first.message_digest.clone()].into_iter().collect();
     let second = admit(&env, &stored, &seen, NOW);
-    assert_eq!(second.verdict, ProposalVerdict::RefusedAtAdmission { gate: "replay".to_string() });
+    assert_eq!(
+        second.verdict,
+        ProposalVerdict::RefusedAtAdmission {
+            gate: "replay".to_string()
+        }
+    );
 }
 
 #[test]
 fn a_tampered_signature_is_refused_at_the_signature_gate() {
     let stored = stored_open("w-sig", &["selftest.echo"]);
-    let mut env = compose(&proposal("selftest.echo", &[("text", json!("hi"))]), "w-sig", 0, NOW, &peer_key()).expect("compose");
+    let mut env = compose(
+        &proposal("selftest.echo", &[("text", json!("hi"))]),
+        "w-sig",
+        0,
+        NOW,
+        &peer_key(),
+    )
+    .expect("compose");
     env.message.signature[0] ^= 0xff;
     let decision = admit(&env, &stored, &BTreeSet::new(), NOW);
-    assert_eq!(decision.verdict, ProposalVerdict::RefusedAtAdmission { gate: "signature".to_string() });
+    assert_eq!(
+        decision.verdict,
+        ProposalVerdict::RefusedAtAdmission {
+            gate: "signature".to_string()
+        }
+    );
 }
 
 use warrantor_warrant::provenance::{
@@ -168,7 +304,14 @@ use warrantor_warrant::provenance::{
 #[test]
 fn every_decision_is_receipted_as_a_msg_syscall_delegate_class_decision() {
     let stored = stored_open("w-rcpt", &["selftest.echo"]);
-    let env = compose(&proposal("github.create_pr", &[]), "w-rcpt", 0, NOW, &peer_key()).expect("compose");
+    let env = compose(
+        &proposal("github.create_pr", &[]),
+        "w-rcpt",
+        0,
+        NOW,
+        &peer_key(),
+    )
+    .expect("compose");
     let decision = admit(&env, &stored, &BTreeSet::new(), NOW);
     let receipt = receipt_for(&env, &stored, &decision, NOW);
     assert_eq!(receipt.format, PROPOSAL_RECEIPT_FORMAT);
@@ -177,18 +320,30 @@ fn every_decision_is_receipted_as_a_msg_syscall_delegate_class_decision() {
     assert_eq!(receipt.warrant_id, "w-rcpt");
     assert_eq!(receipt.receiver, RECEIVER);
     assert_eq!(receipt.proposer, PEER);
-    assert_eq!(receipt.task_lineage, vec!["task-root".to_string(), "task-7".to_string()]);
-    assert_eq!(receipt.verdict, ProposalVerdict::RefusedAtBind { bound: "tools".to_string() });
+    assert_eq!(
+        receipt.task_lineage,
+        vec!["task-root".to_string(), "task-7".to_string()]
+    );
+    assert_eq!(
+        receipt.verdict,
+        ProposalVerdict::RefusedAtBind {
+            bound: "tools".to_string()
+        }
+    );
     assert!(!receipt.authority_widened);
     let issuer = SigningKey::from_bytes(&[1; 32]);
     let signed = sign_receipt(receipt, &issuer).expect("sign");
     verify_receipt(&signed).expect("verifies with the embedded key");
-    verify_receipt_signed_by(&signed, &issuer.verifying_key()).expect("verifies against the pinned key");
+    verify_receipt_signed_by(&signed, &issuer.verifying_key())
+        .expect("verifies against the pinned key");
     let stranger = SigningKey::from_bytes(&[9; 32]);
     assert!(verify_receipt_signed_by(&signed, &stranger.verifying_key()).is_err());
     let mut forged = signed.clone();
     forged.receipt.verdict = ProposalVerdict::Admitted;
-    assert!(verify_receipt(&forged).is_err(), "an admitted verdict cannot be written over a refusal");
+    assert!(
+        verify_receipt(&forged).is_err(),
+        "an admitted verdict cannot be written over a refusal"
+    );
 }
 
 #[test]
@@ -198,14 +353,114 @@ fn the_store_keeps_receipts_in_order_and_feeds_the_replay_check() {
     let issuer = SigningKey::from_bytes(&[1; 32]);
     let store = ProposalStore::open(&dir).expect("open");
     for sequence in 0..3u64 {
-        let env = compose(&proposal("selftest.echo", &[("text", json!(sequence))]), "w-store", sequence, NOW + sequence, &peer_key()).expect("compose");
+        let env = compose(
+            &proposal("selftest.echo", &[("text", json!(sequence))]),
+            "w-store",
+            sequence,
+            NOW + sequence,
+            &peer_key(),
+        )
+        .expect("compose");
         let seen = store.seen_digests("w-store").expect("seen");
         let decision = admit(&env, &stored, &seen, NOW);
         assert_eq!(decision.verdict, ProposalVerdict::Admitted);
-        store.save(&sign_receipt(receipt_for(&env, &stored, &decision, NOW), &issuer).expect("sign")).expect("save");
+        store
+            .save(&sign_receipt(receipt_for(&env, &stored, &decision, NOW), &issuer).expect("sign"))
+            .expect("save");
     }
     let listed = store.list("w-store").expect("list");
     assert_eq!(listed.len(), 3);
     assert_eq!(store.seen_digests("w-store").expect("seen").len(), 3);
     assert!(store.list("w-other").expect("list").is_empty());
+}
+
+#[test]
+fn the_cli_round_trip_composes_admits_exports_and_verifies_offline() {
+    use std::process::Command;
+    use warrantor_warrant::store::WarrantStore;
+    let root = tempdir("cli");
+    let store = WarrantStore::open(&root).expect("store");
+    store
+        .create(&stored_open("w-cli", &["selftest.echo"]))
+        .expect("create");
+    let bin = env!("CARGO_BIN_EXE_warrantor");
+    let envelope = root.join("envelope.json");
+    let composed = Command::new(bin)
+        .args([
+            "proposal",
+            "compose",
+            "w-cli",
+            "--from",
+            PEER,
+            "--population",
+            "agent",
+            "--tool",
+            "selftest.echo",
+            "--arg",
+            "text=hi",
+            "--lineage",
+            "task-root",
+            "--key-file",
+        ])
+        .arg(root.join("peer.key"))
+        .arg("--out")
+        .arg(&envelope)
+        .arg("--root")
+        .arg(&root)
+        .output()
+        .expect("run compose");
+    assert!(
+        composed.status.success(),
+        "{}",
+        String::from_utf8_lossy(&composed.stderr)
+    );
+    let export = root.join("receipt.json");
+    let admitted = Command::new(bin)
+        .args(["proposal", "admit", "w-cli"])
+        .arg(&envelope)
+        .arg("--export")
+        .arg(&export)
+        .arg("--root")
+        .arg(&root)
+        .output()
+        .expect("run admit");
+    let stdout = String::from_utf8_lossy(&admitted.stdout);
+    assert!(
+        admitted.status.success(),
+        "{stdout}{}",
+        String::from_utf8_lossy(&admitted.stderr)
+    );
+    assert!(stdout.starts_with("admitted"), "{stdout}");
+    assert!(
+        stdout.contains("NOT pinned"),
+        "the CLI must say identity is not established: {stdout}"
+    );
+    let verified = Command::new(bin)
+        .args(["verify"])
+        .arg(&export)
+        .arg("--root")
+        .arg(&root)
+        .output()
+        .expect("run verify");
+    let out = String::from_utf8_lossy(&verified.stdout);
+    assert!(
+        verified.status.success(),
+        "{out}{}",
+        String::from_utf8_lossy(&verified.stderr)
+    );
+    assert!(
+        out.contains("syscall       msg (delegate-class decision)"),
+        "{out}"
+    );
+    assert!(out.contains("authority     unchanged"), "{out}");
+    // A second admit of the same envelope is a replay, and exits non-zero.
+    let replay = Command::new(bin)
+        .args(["proposal", "admit", "w-cli"])
+        .arg(&envelope)
+        .arg("--root")
+        .arg(&root)
+        .output()
+        .expect("run admit again");
+    assert!(!replay.status.success());
+    assert!(String::from_utf8_lossy(&replay.stdout).contains("refused at admission (replay)"));
 }
