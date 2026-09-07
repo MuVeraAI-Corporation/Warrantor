@@ -716,6 +716,8 @@ pub struct AgentEndpoint {
     /// well-bounded agent.
     forwarded: usize,
     forward_failures: usize,
+    /// Results that left this endpoint carrying a `warrantor.provenance/1` label.
+    labeled: usize,
     /// The store root the egress decision log lives under, when a catalog was attached.
     ///
     /// Absent means decisions are drained and dropped — the pre-catalog behavior, which is what
@@ -747,6 +749,7 @@ impl AgentEndpoint {
             upstreams: None,
             forwarded: 0,
             forward_failures: 0,
+            labeled: 0,
             egress_root: None,
             now,
         }
@@ -833,6 +836,12 @@ impl AgentEndpoint {
         self.upstreams
             .as_ref()
             .map(|_| (self.forwarded, self.forward_failures))
+    }
+
+    /// How many results left this session with a provenance label.
+    #[must_use]
+    pub fn labeled_count(&self) -> usize {
+        self.labeled
     }
 
     /// How many upstream servers are attached.
@@ -1194,6 +1203,13 @@ impl Endpoint for AgentEndpoint {
                                 );
                             }
                         }
+                        let expires_at = self.proxy.bounds().expires_at;
+                        let label = crate::provenance::ProvenanceLabel::staged(
+                            &effect.handle,
+                            expires_at,
+                            &self.warrant_id,
+                        );
+                        self.labeled += 1;
                         ToolResult::ok(format!(
                             "Staged as {}. This has NOT happened yet — it will be performed only \
                              if a human settles warrant {}. Use this handle wherever you would use \
@@ -1201,6 +1217,7 @@ impl Endpoint for AgentEndpoint {
                              time.",
                             effect.handle, self.warrant_id
                         ))
+                        .labeled(label)
                     }
                     Err(e) => ToolResult::error(format!("could not stage: {e}")),
                 }
@@ -1241,6 +1258,9 @@ impl Endpoint for AgentEndpoint {
                 if let Some(denial) = self.guard_denial(tool, &call.arguments) {
                     return ToolResult::error(denial);
                 }
+                // Read before `upstreams` borrows the endpoint mutably: the label's expiry is the
+                // warrant's deadline, and only this endpoint holds it.
+                let expires_at = self.proxy.bounds().expires_at;
                 let Some(upstreams) = self.upstreams.as_mut() else {
                     // Unreachable: the guard arm above matched on `is_none()`. Written as a value
                     // rather than an `unwrap` so a later refactor that breaks the pairing produces
@@ -1261,7 +1281,17 @@ impl Endpoint for AgentEndpoint {
                 match upstreams.call(tool, &forwarded) {
                     Ok(result) => {
                         self.forwarded += 1;
-                        result
+                        // Labeled here and not in `upstream.rs`, because the transport does not
+                        // know which warrant it serves; the compartment and the expiry are the
+                        // warrant's, and only this endpoint holds it.
+                        let label = crate::provenance::ProvenanceLabel::upstream(
+                            tool,
+                            &result.text,
+                            expires_at,
+                            &self.warrant_id,
+                        );
+                        self.labeled += 1;
+                        result.labeled(label)
                     }
                     // A transport failure is the wiring, not the warrant, and the two must never
                     // read the same to the model: an agent told "refused" stops asking, and an

@@ -135,6 +135,32 @@ fn a_permitted_call_reaches_the_upstream_and_its_answer_comes_back() {
 }
 
 #[test]
+fn a_forwarded_response_carries_a_provenance_label_bound_to_the_warrant() {
+    use warrantor_warrant::provenance::{Origin, Trust, PROVENANCE_FORMAT};
+    let dir = tempdir("label");
+    let stored = stored_open("w-label", &["selftest.echo"]);
+    let mut endpoint =
+        agent_endpoint_for(&stored, dir.join("staged.jsonl"), ProxyMode::Enforce, now)
+            .expect("endpoint")
+            .with_upstreams(
+                UpstreamSet::start(&[selftest_spec("selftest")], timeout()).expect("attach"),
+            );
+    let result = endpoint.call("selftest.echo", &args(&[("text", json!("labeled"))]));
+    assert_eq!(result.text, "labeled", "the upstream's bytes are unchanged");
+    let label = result.provenance.expect("every forwarded response is labeled");
+    assert_eq!(label.format, PROVENANCE_FORMAT);
+    assert_eq!(
+        label.origin,
+        Origin::Upstream { server: "selftest".to_string(), tool: "echo".to_string() }
+    );
+    assert_eq!(label.trust, Trust::None);
+    assert_eq!(label.compartment, "w-label");
+    assert_eq!(label.expires_at, NOW + 3600, "expiry is the warrant's deadline, not a guess");
+    assert!(label.non_transitive);
+    assert_eq!(endpoint.labeled_count(), 1);
+}
+
+#[test]
 fn with_no_upstream_attached_the_refusal_names_a_flag_that_exists() {
     // The regression this whole file exists for. For eight releases this arm told the operator to
     // pass `--upstream`, and `--upstream` was not a flag. The message may change; what may not is
