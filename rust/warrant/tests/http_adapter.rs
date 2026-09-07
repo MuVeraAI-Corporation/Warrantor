@@ -33,7 +33,10 @@ fn the_http_schema_has_no_destination_parameter_and_is_closed() {
     assert_eq!(schema["additionalProperties"], Value::Bool(false));
     let properties = schema["properties"].as_object().expect("properties");
     for key in DESTINATION_KEYS {
-        assert!(!properties.contains_key(*key), "schema publishes destination key {key}");
+        assert!(
+            !properties.contains_key(*key),
+            "schema publishes destination key {key}"
+        );
     }
     let capabilities: Vec<&str> = schema["properties"][ARG_CAPABILITY]["enum"]
         .as_array()
@@ -41,8 +44,16 @@ fn the_http_schema_has_no_destination_parameter_and_is_closed() {
         .iter()
         .filter_map(Value::as_str)
         .collect();
-    assert_eq!(capabilities, vec![capability_for("api.github.com").as_str()]);
-    let required: Vec<&str> = schema["required"].as_array().expect("required").iter().filter_map(Value::as_str).collect();
+    assert_eq!(
+        capabilities,
+        vec![capability_for("api.github.com").as_str()]
+    );
+    let required: Vec<&str> = schema["required"]
+        .as_array()
+        .expect("required")
+        .iter()
+        .filter_map(Value::as_str)
+        .collect();
     for key in [ARG_CAPABILITY, ARG_METHOD, ARG_PATH, ARG_DATA_CLASS] {
         assert!(required.contains(&key), "{key} must be required");
     }
@@ -55,7 +66,10 @@ fn the_http_schema_has_no_destination_parameter_and_is_closed() {
 fn a_warrant_with_no_egress_publishes_an_empty_capability_enum() {
     let broker = EgressBroker::for_bounds(&bounds(&[]));
     let schema = tool_spec(&broker).input_schema;
-    assert_eq!(schema["properties"][ARG_CAPABILITY]["enum"], Value::Array(vec![]));
+    assert_eq!(
+        schema["properties"][ARG_CAPABILITY]["enum"],
+        Value::Array(vec![])
+    );
 }
 
 use std::collections::BTreeMap;
@@ -65,11 +79,18 @@ use warrantor_warrant::proxy::{Decision, Proxy, ProxyMode, ToolCall};
 use warrantor_warrant::staging::EffectRegistry;
 
 fn args(pairs: &[(&str, &str)]) -> BTreeMap<String, String> {
-    pairs.iter().map(|(k, v)| ((*k).to_string(), (*v).to_string())).collect()
+    pairs
+        .iter()
+        .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
+        .collect()
 }
 
 fn call(pairs: &[(&str, &str)]) -> ToolCall {
-    ToolCall { tool: TOOL.to_string(), arguments: args(pairs), side_effect: SideEffectClass::Write }
+    ToolCall {
+        tool: TOOL.to_string(),
+        arguments: args(pairs),
+        side_effect: SideEffectClass::Write,
+    }
 }
 
 fn proxy(hosts: &[&str]) -> Proxy {
@@ -87,7 +108,16 @@ fn an_uncataloged_capability_is_refused_and_recorded() {
         (ARG_PATH, "/"),
         (ARG_DATA_CLASS, "public"),
     ]));
-    assert!(matches!(decision, Decision::Deny { bound: "egress_hosts", .. }), "{decision:?}");
+    assert!(
+        matches!(
+            decision,
+            Decision::Deny {
+                bound: "egress_hosts",
+                ..
+            }
+        ),
+        "{decision:?}"
+    );
     let refusal = proxy.egress_refusals();
     assert_eq!(refusal.len(), 1);
     assert_eq!(refusal[0].argument, ARG_CAPABILITY);
@@ -97,7 +127,11 @@ fn an_uncataloged_capability_is_refused_and_recorded() {
 /// A raw address in the capability field -- a URL, a host, an IP -- is not a capability.
 #[test]
 fn a_raw_address_in_the_capability_field_is_refused_as_not_a_capability() {
-    for raw in ["https://api.github.com/zen", "api.github.com", "203.0.113.9"] {
+    for raw in [
+        "https://api.github.com/zen",
+        "api.github.com",
+        "203.0.113.9",
+    ] {
         let mut proxy = proxy(&["api.github.com"]);
         let decision = proxy.decide(&call(&[
             (ARG_CAPABILITY, raw),
@@ -105,8 +139,15 @@ fn a_raw_address_in_the_capability_field_is_refused_as_not_a_capability() {
             (ARG_PATH, "/"),
             (ARG_DATA_CLASS, "public"),
         ]));
-        assert!(matches!(decision, Decision::Deny { .. }), "{raw}: {decision:?}");
-        assert_eq!(proxy.egress_refusals()[0].reason, DenyReason::NotACapability, "{raw}");
+        assert!(
+            matches!(decision, Decision::Deny { .. }),
+            "{raw}: {decision:?}"
+        );
+        assert_eq!(
+            proxy.egress_refusals()[0].reason,
+            DenyReason::NotACapability,
+            "{raw}"
+        );
     }
 }
 
@@ -122,7 +163,16 @@ fn a_smuggled_url_argument_is_still_decided_by_the_destination_scan() {
         (ARG_DATA_CLASS, "public"),
         ("url", "https://evil.example.com/x"),
     ]));
-    assert!(matches!(decision, Decision::Deny { bound: "egress_hosts", .. }), "{decision:?}");
+    assert!(
+        matches!(
+            decision,
+            Decision::Deny {
+                bound: "egress_hosts",
+                ..
+            }
+        ),
+        "{decision:?}"
+    );
 }
 
 /// A permitted capability stages: the agent gets a handle and nothing goes over the wire.
@@ -142,7 +192,11 @@ fn a_cataloged_capability_stages_the_call() {
 #[test]
 fn capability_refusal_ignores_other_tools() {
     let broker = EgressBroker::for_bounds(&bounds(&[]));
-    let other = ToolCall { tool: "git".to_string(), arguments: args(&[]), side_effect: SideEffectClass::Read };
+    let other = ToolCall {
+        tool: "git".to_string(),
+        arguments: args(&[]),
+        side_effect: SideEffectClass::Read,
+    };
     assert!(capability_refusal(&other, &broker).is_none());
 }
 
@@ -153,7 +207,7 @@ use warrantor_warrant::adapters::http::{
     HttpTransport, HTTP_CALL_FORMAT,
 };
 use warrantor_warrant::settle::settle;
-use warrantor_warrant::staging::{StagedEffect, StagingQueue};
+use warrantor_warrant::staging::StagingQueue;
 use warrantor_warrant::{Warrant, WarrantState};
 
 fn tempdir(tag: &str) -> std::path::PathBuf {
@@ -228,8 +282,8 @@ fn warrant(hosts: &[&str]) -> (Warrant, SigningKey) {
 }
 
 fn staged(dir: &std::path::Path, pairs: &[(&str, &str)]) -> StagingQueue {
-    let mut q =
-        StagingQueue::open(dir.join("q.jsonl"), "wrt_http", EffectRegistry::builtin()).expect("open");
+    let mut q = StagingQueue::open(dir.join("q.jsonl"), "wrt_http", EffectRegistry::builtin())
+        .expect("open");
     q.stage(TOOL, args(pairs), NOW).expect("stage");
     q
 }
@@ -275,7 +329,10 @@ fn a_call_inside_the_capability_is_performed_and_recorded() {
     assert_eq!(r.logical_endpoint, "hooks.example.com");
     assert_eq!(r.data_class, DataClass::Internal);
     assert_eq!(r.status, 202);
-    assert!(r.finished_at_ms > r.started_at_ms, "timing lands in the record");
+    assert!(
+        r.finished_at_ms > r.started_at_ms,
+        "timing lands in the record"
+    );
     assert!(r.response_digest.starts_with("sha256:"));
     assert_eq!(r.response_bytes, 11);
     let sent = &adapter.transport().sent[0];
@@ -327,8 +384,8 @@ fn a_payload_above_the_entry_ceiling_is_refused_before_any_request() {
         ],
     );
     let mut adapter = adapter(declared_catalog(), 200);
-    let report = settle(&mut w, &q, None, &key.verifying_key(), &mut adapter)
-        .expect("settle reports");
+    let report =
+        settle(&mut w, &q, None, &key.verifying_key(), &mut adapter).expect("settle reports");
     assert!(!report.complete);
     assert!(
         report
@@ -369,8 +426,8 @@ fn a_sugar_entry_refuses_writes_and_non_public_payloads() {
             ],
         );
         let mut adapter = adapter(catalog.clone(), 200);
-        let report = settle(&mut w, &q, None, &key.verifying_key(), &mut adapter)
-            .expect("settle reports");
+        let report =
+            settle(&mut w, &q, None, &key.verifying_key(), &mut adapter).expect("settle reports");
         assert!(!report.complete, "{method} {class}");
         assert!(
             report.boundary.as_deref().unwrap_or("").contains(expect),
@@ -400,11 +457,15 @@ fn a_metadata_address_is_refused_at_settle_even_when_cataloged() {
         ],
     );
     let mut adapter = adapter(catalog, 200);
-    let report = settle(&mut w, &q, None, &key.verifying_key(), &mut adapter)
-        .expect("settle reports");
+    let report =
+        settle(&mut w, &q, None, &key.verifying_key(), &mut adapter).expect("settle reports");
     assert!(!report.complete);
     assert!(
-        report.boundary.as_deref().unwrap_or("").contains("metadata"),
+        report
+            .boundary
+            .as_deref()
+            .unwrap_or("")
+            .contains("metadata"),
         "{:?}",
         report.boundary
     );
@@ -448,14 +509,17 @@ fn the_agent_endpoint_publishes_the_closed_http_schema() {
         base_commit: None,
         staged_chain: None,
     };
-    let mut agent =
-        agent_endpoint_for(&stored, dir.join("q.jsonl"), ProxyMode::Enforce, now).expect("endpoint");
+    let mut agent = agent_endpoint_for(&stored, dir.join("q.jsonl"), ProxyMode::Enforce, now)
+        .expect("endpoint");
     let spec = agent
         .tools()
         .into_iter()
         .find(|t| t.name == TOOL)
         .expect("http.call is published");
-    assert_eq!(spec.input_schema["additionalProperties"], Value::Bool(false));
+    assert_eq!(
+        spec.input_schema["additionalProperties"],
+        Value::Bool(false)
+    );
     assert_eq!(
         spec.input_schema["properties"][ARG_CAPABILITY]["enum"],
         serde_json::json!([capability_for("api.github.com")])

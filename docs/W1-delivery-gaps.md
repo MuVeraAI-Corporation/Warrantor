@@ -1196,6 +1196,46 @@ What it does **not** establish:
 
 ---
 
+### 3.10 Governed HTTP: the long tail has an adapter — **built, live-run 2026-09-06**
+
+The fifth staged effect, `http.call`, sits beside the four GitHub effects. The agent names a
+**capability** — an enum over the warrant's egress catalog, published as the tool's only
+destination vocabulary in a closed schema (`additionalProperties: false`, and a lint test asserts
+no `url`/`host`/`endpoint` parameter exists) — so an uncataloged destination is *unexpressible*
+rather than refused. The proxy decides the named capability through the same `EgressBroker` at
+call time: a raw address smuggled into the capability field is refused as `not_a_capability` and
+recorded, and a smuggled `url` argument is still decided by the destination scan. At settle the
+`HttpAdapter` re-decides against the same catalog, bounds the method and the payload's declared
+data class by the catalog entry (`max_data_class`; a bare `--egress` host compiles to a GET-only,
+public-only entry, and catalog version moved to `/2` because the digest did), performs the call
+over a transport that refuses redirects, and records `warrantor.http-call/1` timing records to
+`http-calls/<id>.jsonl`. The response body never re-enters an agent context: only its digest and
+size are kept.
+
+Live run, 2026-09-06 (`api.github.com`, real network): `tools/call http.call
+{capability:"net.egress:api.github.com", method:"GET", path:"/zen", data_class:"public"}` staged
+as `call://staged/<W>/1`; `capability:"https://evil.example.com"` was refused by the
+`egress_hosts` bound as a raw address; `warrantor settle` released the handle to `http 200
+sha256:cca6a895…` and printed `GET api.github.com /zen -> 200 in 162 ms`, and
+`http-calls/<W>.jsonl` holds one `warrantor.http-call/1` record with `finished_at_ms >
+started_at_ms`. The negative run: `data_class:"internal"` over the sugar entry staged, and settle
+refused it — `the payload is declared internal and the capability for api.github.com carries at
+most "public"` — with the warrant `Held` and **no** `http-calls` file written for it.
+
+What is NOT established, said plainly: the timing records are **not yet inside the signed evidence
+chain** (Task 1.1's report path reads `receipts/`, not `http-calls/`; a later task wires these in);
+the bound stays `Mediated` — the adapter runs in the settling process and the proxy is still a
+chokepoint the agent could decline to use, and nothing here changed `bound_strengths()`; a bare
+`--egress` host is GET/public only until Task 1.2's declared capabilities; the adapter sends to
+exactly one pinned address per call and does not choose among many; and the L5-11 admission of a
+response body into memory is a later task — here the body is quarantined by not being returned at
+all. One defect the live run caught and fixed before the ledger entry: the first decomposition
+(`net` only) projected to `Read`, so the endpoint *forwarded* the call to a server instead of
+staging it; the shipped decomposition is `net+mutate`, and the effects registry test now pins the
+projection.
+
+---
+
 ## Tier 4 — model intelligence
 
 ### 4.1 The guard is wired in as observe-only signals — **partly done**
