@@ -2574,9 +2574,9 @@ checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
 name = "uuid"
-version = "1.24.0"
+version = "1.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf3923a6f5c4c6382e0b653c4117f48d631ea17f38ed86e2a828e6f7412f5239"
+checksum = "2ef6dac1e96601b4fb3acccccff2139741fcb757cb9a36089bf5be91cfb285ce"
 dependencies = [
  "getrandom 0.4.3",
  "js-sys",
@@ -3216,12 +3216,12 @@ dependencies = [
 
 [[package]]
 name = "wasm-encoder"
-version = "0.256.0"
+version = "0.259.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec1492381bfd5ea51c2a99a919b676662559925cb8d7490547ec2e14c1ad3eb1"
+checksum = "b1d0246511d901aacf25d2dc9111f0054947de5e093fe662099e709ff7530dc3"
 dependencies = [
  "leb128fmt",
- "wasmparser 0.256.0",
+ "wasmparser 0.259.0",
 ]
 
 [[package]]
@@ -3239,9 +3239,9 @@ dependencies = [
 
 [[package]]
 name = "wasmparser"
-version = "0.256.0"
+version = "0.259.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60bd825ffedc6cba8a642924ba7ae424afbc47811cffbcb7b92031ec24e59b4c"
+checksum = "0f7c12eac7bb587801590f6a67ff0bc84d0748513864b71108e4b311cc3df694"
 dependencies = [
  "bitflags",
  "indexmap",
@@ -3435,22 +3435,22 @@ dependencies = [
 
 [[package]]
 name = "wast"
-version = "256.0.0"
+version = "259.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3ad42723fc9222da007f05812a3249c9a4ee7af79d497fc2a2079579ad7efe6"
+checksum = "c69beba8d9da07af9a0971b559149a2ac4729895b55144de4fddbf5a02660648"
 dependencies = [
  "bumpalo",
  "leb128fmt",
  "memchr",
  "unicode-width",
- "wasm-encoder 0.256.0",
+ "wasm-encoder 0.259.0",
 ]
 
 [[package]]
 name = "wat"
-version = "1.256.0"
+version = "1.259.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37cc86c54d8011b3202e265bfebada440733ea3a788ffaf46d395f7d2fdeacfb"
+checksum = "c6eec44b0c80391b20fb7ad9ea440c72c5d382385bdf74444bb18321c425017e"
 dependencies = [
  "wast",
 ]
