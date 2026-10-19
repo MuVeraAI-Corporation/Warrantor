@@ -28,4 +28,4 @@ zeroize.workspace = true
 warrantor-trust-core = { path = "../trust-core" }
 
 [dev-dependencies]
-proptest = "=1.11.0"
+proptest = "=1.12.0"
